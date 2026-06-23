@@ -1,0 +1,40 @@
+{
+  "name": "faucet",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "bootstrap": "tsx scripts/bootstrap.ts",
+    "prisma:migrate": "prisma migrate dev"
+  },
+  "dependencies": {
+    "@bsv/sdk": "^1.10.4",
+    "@bsv/wallet-toolbox": "1.8.2",
+    "@prisma/client": "^7.8.0",
+    "knex": "^3.2.10",
+    "next": "16.2.9",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "sqlite3": "^6.0.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.0.3",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.9",
+    "prisma": "^7.8.0",
+    "tailwindcss": "^4",
+    "tsx": "^4.22.4",
+    "typescript": "^5",
+    "vitest": "^4.1.9"
+  }
+}
