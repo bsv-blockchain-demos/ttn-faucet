@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  serverExternalPackages: [
+    "@bsv/wallet-toolbox",
+    "@bsv/sdk",
+    "knex",
+    "better-sqlite3",
+  ],
 };
 
 export default nextConfig;
