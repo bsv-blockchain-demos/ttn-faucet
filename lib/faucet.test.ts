@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, vi } from 'vitest'
+import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest'
 import { prisma } from './prisma'
 import { claimToAddress } from './faucet'
 import { PrivateKey } from '@bsv/sdk'
@@ -27,5 +27,35 @@ describe('claimToAddress', () => {
     const row = await prisma.claim.findFirst({ where: { txid: 'tx123' } })
     expect(row?.status).toBe('broadcast')
     await prisma.claim.deleteMany({ where: { txid: 'tx123' } })
+  })
+
+  const TEST_KEYS = ['idem-replay-1', 'fail-status-1']
+  afterEach(async () => {
+    await prisma.claim.deleteMany({ where: { idempotencyKey: { in: TEST_KEYS } } })
+  })
+
+  it('replays a prior result for a repeated idempotency key without paying again', async () => {
+    await prisma.claim.create({
+      data: { recipient: addr, amountSats: 100, ipHash: 'h', idempotencyKey: 'idem-replay-1', txid: 'priortx', ef: 'aaef', status: 'broadcast' },
+    })
+    const pay = vi.fn()
+    const r = await claimToAddress(
+      { address: addr, ipHash: 'h', idempotencyKey: 'idem-replay-1', maxSats: 500, defaultSats: 100 },
+      { pay },
+    )
+    expect(r).toEqual({ txid: 'priortx', ef: 'aaef', amountSats: 100 })
+    expect(pay).not.toHaveBeenCalled()
+  })
+
+  it('marks the claim failed and rethrows when pay throws', async () => {
+    const pay = vi.fn(async () => { throw new Error('broadcast boom') })
+    await expect(
+      claimToAddress(
+        { address: addr, ipHash: 'h', idempotencyKey: 'fail-status-1', maxSats: 500, defaultSats: 100 },
+        { pay },
+      ),
+    ).rejects.toThrow('broadcast boom')
+    const row = await prisma.claim.findUnique({ where: { idempotencyKey: 'fail-status-1' } })
+    expect(row?.status).toBe('failed')
   })
 })
