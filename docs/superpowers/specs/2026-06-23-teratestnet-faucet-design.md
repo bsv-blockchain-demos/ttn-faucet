@@ -204,3 +204,13 @@ Admin dashboard; multi-network switcher; deposit-monitor cron (the toolbox track
 - teranode — https://github.com/bsv-blockchain/teranode
 - `@bsv/sdk` and `@bsv/wallet-toolbox` — https://github.com/bsv-blockchain/ts-stack
 - Prior art: bsv-faucet — https://github.com/bsv-blockchain-demos/bsv-faucet
+
+## 12. Implementation addendum (post-research, 2026-06-23)
+
+Source-level research refined two things in this spec; the design above is otherwise unchanged.
+
+**Delivery is decomposed into two plans.** The dev-API path is robust and independently shippable; the BRC-100 wallet-onboarding path depends on a teratestnet-capable consumer wallet (so it can SPV-verify our BEEF on `internalizeAction`), which is not yet confirmed.
+- **Plan 1 — dev-API faucet** (`docs/superpowers/plans/2026-06-23-teratestnet-faucet-dev-api.md`): address-in → broadcast → EF, plus the web UI and abuse prevention, on the wallet-toolbox engine. Ship first.
+- **Plan 2 — BRC-100 wallet onboarding** (`/api/claim/wallet`, BEEF + remittance, client `internalizeAction`): deferred until a teratestnet-capable wallet and the user-side SPV path are validated.
+
+**The teratestnet headers/proof dependency is satisfied by arcade.** arcade exposes a chaintracks headers service (`:8083/chaintracks/v2`) and delivers the merkle proof as a `merklePath` field on `GET /tx/{txid}` once `MINED`. Resolved facts that shape the build: arcade broadcasts at `POST /tx` (not the ARC `/v1/tx`), so we wire a custom broadcaster into the toolbox; the toolbox's default proof providers (WhatsOnChain/Bitails) don't apply on teratestnet, so we register an arcade proof provider + a chaintracks adapter; pure-change `createAction` payouts don't need live headers/proofs, so runtime dev-API payouts stay robust; headers + proofs are exercised only by the treasury bootstrap's `internalizeAction`. Package: `@bsv/wallet-toolbox@1.8.2` (no 1.8.3 tag) + the `@bsv/sdk` it pins. teratestnet is modeled as toolbox `chain: 'test'`.
