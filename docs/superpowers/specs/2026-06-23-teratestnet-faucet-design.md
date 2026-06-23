@@ -19,7 +19,7 @@ Both paths run through one funding engine. Broadcasting goes through **arcade**;
 |---|---|
 | Simple API contract | Address in → faucet **broadcasts** → returns EF tx. Funds live immediately. |
 | Build approach | Fresh, lean **Next.js (App Router) + TypeScript** app; one app serves UI + API. Reuse bsv-faucet patterns, drop Clerk/Postgres weight. |
-| Access / abuse model | **Light**: per-IP + per-identity rate limit, per-request amount cap, captcha (Cloudflare Turnstile / hCaptcha) on the UI. Optional API key for higher limits / captcha bypass. |
+| Access / abuse model | **Light**: per-IP + per-identity rate limit, per-request amount cap, captcha on the UI (**default Cloudflare Turnstile**, behind a pluggable provider interface). Optional API key for higher limits / captcha bypass. |
 | Infrastructure | **Out of scope.** arcade `/tx` URL and a funded treasury WIF are **injected as config**. We do not host arcade or a node. |
 | Funding engine | **`@bsv/wallet-toolbox`** server wallet owns coin selection, UTXO locking, change, reorg handling, and BEEF assembly. Driven via `createAction`. |
 
@@ -104,7 +104,7 @@ Initialize with `network: 'teratestnet'`; broadcaster → an ARC client pointed 
 The toolbox uses type-42 derivation, not a flat WIF, so the provided treasury coins must be brought under toolbox management once. A one-time `pnpm bootstrap` script:
 
 1. Reads the treasury UTXOs controlled by the flat WIF.
-2. Builds a sweep tx (raw `@bsv/sdk`) paying those coins into the **toolbox wallet's own deposit address**, optionally **fanned out into N equal outputs** so the toolbox has many parallel-spendable UTXOs.
+2. Builds a sweep tx (raw `@bsv/sdk`) paying those coins into the **toolbox wallet's own deposit address**, **fanned out into `BOOTSTRAP_SPLIT_COUNT` equal outputs** (config-tunable) so the toolbox has many parallel-spendable UTXOs.
 3. Broadcasts via arcade.
 4. The toolbox tracks/internalizes the resulting outputs.
 
