@@ -133,3 +133,10 @@ export async function payToAddress(address: string, satoshis: number): Promise<{
     throw e
   }
 }
+
+/** Total spendable balance (sats) the faucet wallet holds in its default basket. */
+export async function getFaucetBalanceSats(): Promise<number> {
+  const { wallet } = await getWallet()
+  const outs: any = await wallet.listOutputs({ basket: 'default', limit: 10000 })
+  return ((outs.outputs ?? []) as Array<{ satoshis?: number }>).reduce((sum, o) => sum + (o.satoshis ?? 0), 0)
+}
