@@ -1,0 +1,41 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Claim {
+  id             String   @id @default(cuid())
+  createdAt      DateTime @default(now())
+  recipient      String
+  amountSats     Int
+  txid           String?
+  status         String   @default("pending")
+  ipHash         String
+  apiKeyId       String?
+  idempotencyKey String?  @unique
+  ef             String?
+
+  @@index([ipHash, createdAt])
+}
+
+model RateEvent {
+  id        String   @id @default(cuid())
+  subject   String
+  kind      String
+  createdAt DateTime @default(now())
+
+  @@index([subject, createdAt])
+}
+
+model ApiKey {
+  id        String   @id @default(cuid())
+  hashedKey String   @unique
+  label     String
+  tier      Int      @default(1)
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
