@@ -67,7 +67,8 @@ async function main() {
   const txid = tx.id('hex')
   console.log('Sweep txid:', txid)
 
-  const b = await broadcastRawTx(cfg.ARCADE_URL, tx.toHex())
+  // arcade-v2 POST /tx requires extended format (EF); inputs carry source data so toHexEF() works.
+  const b = await broadcastRawTx(cfg.ARCADE_URL, tx.toHexEF())
   if (!b.ok) throw new Error(`broadcast failed: ${JSON.stringify(b.raw)}`)
   console.log('Broadcast accepted. Waiting for it to be mined + proven by arcade...')
 

@@ -74,7 +74,15 @@ async function buildWallet() {
             raw: { error: 'tx not found in beef' },
           })
         }
-        const b = await broadcastRawTx(cfg.ARCADE_URL, tx.toHex())
+        // arcade-v2 POST /tx requires extended format (EF). The toolbox includes input
+        // source data, so toHexEF() works; fall back to raw only if it's somehow absent.
+        let txHex: string
+        try {
+          txHex = tx.toHexEF()
+        } catch {
+          txHex = tx.toHex()
+        }
+        const b = await broadcastRawTx(cfg.ARCADE_URL, txHex)
         return makeArcadePostBeefResult(txids, b)
       },
     },
