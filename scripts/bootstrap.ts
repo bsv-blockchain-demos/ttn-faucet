@@ -43,8 +43,9 @@ async function main() {
     })
   }
 
-  const fee = 1000
-  const perOutput = Math.floor((totalIn - fee) / cfg.BOOTSTRAP_SPLIT_COUNT)
+  // Rough estimator for the dust-guard below; the actual fee is set by SatoshisPerKilobyte at tx.fee().
+  const estimatedFee = 1000
+  const perOutput = Math.floor((totalIn - estimatedFee) / cfg.BOOTSTRAP_SPLIT_COUNT)
   if (perOutput < 1000) throw new Error('treasury too small for the requested split count')
 
   const outs: { derivationPrefix: string; derivationSuffix: string; outputIndex: number }[] = []
