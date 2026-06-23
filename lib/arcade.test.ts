@@ -36,9 +36,10 @@ describe('getTxStatus', () => {
   it('parses a MINED status with merklePath', async () => {
     mockFetch(() => ({ status: 200, ok: true, json: async () => ({ txid: 'ab', txStatus: 'MINED', blockHeight: 42, merklePath: 'cafe' }) }))
     const s = await getTxStatus(URL, 'ab')
-    expect(s.txStatus).toBe('MINED')
-    expect(s.merklePath).toBe('cafe')
-    expect(s.blockHeight).toBe(42)
+    expect(s).not.toBeNull()
+    expect(s!.txStatus).toBe('MINED')
+    expect(s!.merklePath).toBe('cafe')
+    expect(s!.blockHeight).toBe(42)
   })
 
   it('returns null for a 404', async () => {
