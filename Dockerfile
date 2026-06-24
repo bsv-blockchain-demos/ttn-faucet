@@ -8,6 +8,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN corepack enable && corepack prepare pnpm@10.31.0 --activate
 WORKDIR /build
 
+# Compile native modules (sqlite3, better-sqlite3) from source so they link against THIS
+# image's glibc — not a newer-glibc prebuilt binary that fails to load in the runtime stage.
+ENV npm_config_build_from_source=true
+
 # Install deps (native modules sqlite3/better-sqlite3 + prisma build per pnpm-workspace onlyBuiltDependencies)
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 RUN pnpm install --frozen-lockfile --prod=false
