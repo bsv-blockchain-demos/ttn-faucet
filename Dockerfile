@@ -1,16 +1,14 @@
 # syntax=docker/dockerfile:1
 
 # ---------- builder ----------
-FROM node:22-bookworm-slim AS builder
+# trixie (Debian 13, glibc 2.41) so the sqlite3/better-sqlite3 prebuilt binaries
+# (which need glibc >= 2.38) load in the runtime stage.
+FROM node:22-trixie-slim AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
       python3 make g++ ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 RUN corepack enable && corepack prepare pnpm@10.31.0 --activate
 WORKDIR /build
-
-# Compile native modules (sqlite3, better-sqlite3) from source so they link against THIS
-# image's glibc — not a newer-glibc prebuilt binary that fails to load in the runtime stage.
-ENV npm_config_build_from_source=true
 
 # Install deps (native modules sqlite3/better-sqlite3 + prisma build per pnpm-workspace onlyBuiltDependencies)
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
@@ -24,7 +22,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm build
 
 # ---------- runtime ----------
-FROM node:22-bookworm-slim AS runner
+FROM node:22-trixie-slim AS runner
 RUN apt-get update && apt-get install -y --no-install-recommends tini ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
