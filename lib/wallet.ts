@@ -119,6 +119,7 @@ export async function payToAddress(address: string, satoshis: number): Promise<{
   const reference = created.signableTransaction?.reference
   if (!reference) {
     if (created.txid && created.tx) {
+      await stopTrackingPayoutOutput(wallet, created.txid)
       return { txid: created.txid, ef: Transaction.fromAtomicBEEF(created.tx).toHexEF() }
     }
     throw new Error('createAction returned neither a signable transaction nor a completed tx')
@@ -127,11 +128,22 @@ export async function payToAddress(address: string, satoshis: number): Promise<{
   try {
     const signed = await wallet.signAction({ reference, spends: {}, options: { acceptDelayedBroadcast: false } })
     if (!signed.txid || !signed.tx) throw new Error('signAction did not return a broadcast transaction')
+    await stopTrackingPayoutOutput(wallet, signed.txid)
     return { txid: signed.txid, ef: Transaction.fromAtomicBEEF(signed.tx).toHexEF() }
   } catch (e) {
     await wallet.abortAction({ reference }).catch(() => {})
     throw e
   }
+}
+
+/**
+ * The payout is output 0 (randomizeOutputs:false). The toolbox otherwise records it as a
+ * spendable wallet UTXO — but it pays an external address the wallet can't sign, so leaving it
+ * tracked inflates the balance and pollutes coin selection. Relinquish it so only real change
+ * (output 1) stays tracked. Best-effort: never fail a successful payout over this bookkeeping.
+ */
+async function stopTrackingPayoutOutput(wallet: Wallet, txid: string): Promise<void> {
+  await wallet.relinquishOutput({ basket: 'default', output: `${txid}.0` }).catch(() => {})
 }
 
 /** Total spendable balance (sats) the faucet wallet holds in its default basket. */
