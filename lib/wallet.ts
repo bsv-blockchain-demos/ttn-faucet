@@ -17,6 +17,7 @@ import {
 } from '@bsv/sdk'
 import { knex as makeKnex } from 'knex'
 import { getConfig, CHAIN } from './config'
+import { deriveBrc29, newDerivationValues } from './brc29'
 import { broadcastRawTx, getTxStatus } from './arcade'
 import { ArcadeChaintracks } from './arcade-chaintracks'
 import { makeArcadePostBeefResult } from './postbeef-result'
@@ -102,17 +103,22 @@ async function buildWallet() {
 }
 
 /**
- * Build, sign, broadcast (via arcade) a P2PKH payout to `address` and return the EF.
- * Two-phase (createAction signAndProcess:false -> signAction) so we hold a `reference`
- * and can abortAction on broadcast failure. Pure-change payout -> no live chaintracks needed.
+ * Shared two-phase payout: createAction(signAndProcess:false) -> signAction, so we hold a
+ * `reference` and can abortAction on broadcast failure. Returns the broadcast tx as AtomicBEEF
+ * bytes; callers serialize it (EF for the dev API, hex AtomicBEEF for wallet onboarding). The
+ * payout is output 0 and is relinquished from wallet tracking (see stopTrackingPayoutOutput).
+ * Pure-change payout -> no live chaintracks needed.
  */
-export async function payToAddress(address: string, satoshis: number): Promise<{ txid: string; ef: string }> {
+async function signAndBroadcast(
+  lockingScriptHex: string,
+  satoshis: number,
+  description: string,
+): Promise<{ txid: string; atomicBEEF: number[] }> {
   const { wallet } = await getWallet()
-  const lockingScript = new P2PKH().lock(address).toHex()
 
   const created = await wallet.createAction({
-    description: 'teratestnet faucet payout',
-    outputs: [{ lockingScript, satoshis, outputDescription: 'faucet payout' }],
+    description,
+    outputs: [{ lockingScript: lockingScriptHex, satoshis, outputDescription: 'faucet payout' }],
     options: { signAndProcess: false, acceptDelayedBroadcast: false, randomizeOutputs: false },
   })
 
@@ -120,7 +126,7 @@ export async function payToAddress(address: string, satoshis: number): Promise<{
   if (!reference) {
     if (created.txid && created.tx) {
       await stopTrackingPayoutOutput(wallet, created.txid)
-      return { txid: created.txid, ef: Transaction.fromAtomicBEEF(created.tx).toHexEF() }
+      return { txid: created.txid, atomicBEEF: created.tx }
     }
     throw new Error('createAction returned neither a signable transaction nor a completed tx')
   }
@@ -129,10 +135,55 @@ export async function payToAddress(address: string, satoshis: number): Promise<{
     const signed = await wallet.signAction({ reference, spends: {}, options: { acceptDelayedBroadcast: false } })
     if (!signed.txid || !signed.tx) throw new Error('signAction did not return a broadcast transaction')
     await stopTrackingPayoutOutput(wallet, signed.txid)
-    return { txid: signed.txid, ef: Transaction.fromAtomicBEEF(signed.tx).toHexEF() }
+    return { txid: signed.txid, atomicBEEF: signed.tx }
   } catch (e) {
     await wallet.abortAction({ reference }).catch(() => {})
     throw e
+  }
+}
+
+/**
+ * Build, sign, broadcast (via arcade) a P2PKH payout to `address` and return the EF.
+ */
+export async function payToAddress(address: string, satoshis: number): Promise<{ txid: string; ef: string }> {
+  const lockingScript = new P2PKH().lock(address).toHex()
+  const { txid, atomicBEEF } = await signAndBroadcast(lockingScript, satoshis, 'teratestnet faucet payout')
+  return { txid, ef: Transaction.fromAtomicBEEF(atomicBEEF).toHexEF() }
+}
+
+export interface WalletPayout {
+  txid: string
+  atomicBEEF: string
+  derivationPrefix: string
+  derivationSuffix: string
+  senderIdentityKey: string
+  outputIndex: number
+}
+
+/**
+ * Build, sign, broadcast (via arcade) a BRC-29 payment to `recipientIdentityKeyHex` and return the
+ * AtomicBEEF (hex) plus the remittance the recipient's wallet needs to accept it via
+ * `internalizeAction({ protocol: 'wallet payment', paymentRemittance })`. The returned BEEF carries
+ * the funded ancestors' proofs, so the recipient can accept the coins immediately (no mining wait).
+ */
+export async function payToWallet(recipientIdentityKeyHex: string, satoshis: number): Promise<WalletPayout> {
+  const cfg = getConfig()
+  const rootKey = PrivateKey.fromHex(cfg.WALLET_ROOT_KEY_HEX)
+  const { derivationPrefix, derivationSuffix } = newDerivationValues()
+  const { lockingScriptHex, senderIdentityKeyHex } = deriveBrc29({
+    recipientIdentityKeyHex,
+    senderPrivateKey: rootKey,
+    derivationPrefix,
+    derivationSuffix,
+  })
+  const { txid, atomicBEEF } = await signAndBroadcast(lockingScriptHex, satoshis, 'teratestnet faucet payout (wallet)')
+  return {
+    txid,
+    atomicBEEF: Utils.toHex(atomicBEEF),
+    derivationPrefix,
+    derivationSuffix,
+    senderIdentityKey: senderIdentityKeyHex,
+    outputIndex: 0,
   }
 }
 

@@ -1,5 +1,6 @@
 import { ClaimForm } from './components/ClaimForm'
 import { FaucetBalance } from './components/FaucetBalance'
+import { WalletClaim } from './components/WalletClaim'
 
 export default function Home() {
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? ''
@@ -14,6 +15,8 @@ export default function Home() {
           <FaucetBalance />
         </div>
       </header>
+
+      <WalletClaim siteKey={siteKey} payoutSats={payoutSats} />
 
       <section className="rounded-lg border border-gray-200 p-6 shadow-sm">
         <h2 className="mb-4 text-lg font-semibold">Send to an address</h2>

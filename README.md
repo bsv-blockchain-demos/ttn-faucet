@@ -1,17 +1,21 @@
-# Teratestnet Faucet — Dev API (Plan 1)
+# Teratestnet Faucet
 
-A developer-facing faucet for the BSV **teratestnet** network. `POST` a teratestnet
-address and the service builds, signs, and **broadcasts** a funding transaction through
-[arcade](https://github.com/bsv-blockchain/arcade), then returns the transaction in
-**extended format (EF)**. Funds are live on-chain immediately.
+A faucet for the BSV **teratestnet** network with two ways to claim:
+
+- **Dev API** — `POST` a teratestnet address and the service builds, signs, and **broadcasts**
+  a funding transaction through [arcade](https://github.com/bsv-blockchain/arcade), then returns
+  the transaction in **extended format (EF)**. Funds are live on-chain immediately.
+- **BRC-100 wallet onboarding** — load the page with a BRC-100 wallet (BSV Browser / BSV Desktop /
+  Metanet Desktop) and click once: the faucet pays a BRC-29 output to your wallet's identity key
+  and hands back **Atomic BEEF**, which the wallet accepts via `internalizeAction`. No key or
+  address to type, and the coins are spendable immediately (the BEEF carries the funded ancestors'
+  proofs, so there's no wait for mining).
 
 Built on a [`@bsv/wallet-toolbox`](https://github.com/bsv-blockchain/wallet-toolbox)
 server wallet (seeded once from a flat treasury key) with light abuse prevention
 (per-subject rate limiting + Cloudflare Turnstile, or an API key for higher limits).
 
-> **Scope.** This is **Plan 1**: the dev API + web UI. BRC-100 wallet onboarding
-> (`/api/claim/wallet`) is **deferred to Plan 2** — see
-> `docs/superpowers/specs/2026-06-23-teratestnet-faucet-design.md`.
+> See `docs/superpowers/specs/2026-06-23-teratestnet-faucet-design.md` for the full design.
 
 ## Stack
 
@@ -84,6 +88,26 @@ Errors:  400 bad input · 401 bad key · 403 captcha · 429 rate-limited (+Retry
 curl -X POST http://localhost:3000/api/claim \
   -H 'content-type: application/json' \
   -d '{"address":"<your-teratestnet-address>","captchaToken":"<turnstile-token>"}'
+```
+
+### `POST /api/claim/wallet`
+BRC-100 onboarding. The browser supplies its wallet identity key; the faucet returns Atomic BEEF +
+the remittance the wallet needs to `internalizeAction`.
+```
+Body:    { "identityKey": "02…", "amount"?: <sats>, "captchaToken"?: "…" }
+Headers: Authorization: Bearer <api-key>   (optional → higher limits, skips captcha)
+200:     { "txid", "atomicBEEF": "<hex>", "derivationPrefix", "derivationSuffix",
+           "senderIdentityKey": "02…", "outputIndex", "amount", "network": "teratestnet" }
+Errors:  400 bad input · 401 bad key · 403 captcha · 429 rate-limited (+Retry-After) · 503 faucet error
+```
+The client completes the handoff (BEEF hex → bytes via `Utils.toArray(hex, 'hex')`):
+```ts
+await wallet.internalizeAction({
+  tx: beefBytes,
+  description: 'Teratestnet faucet payout',
+  outputs: [{ outputIndex, protocol: 'wallet payment',
+    paymentRemittance: { derivationPrefix, derivationSuffix, senderIdentityKey } }],
+})
 ```
 
 ### `GET /api/status/[txid]`

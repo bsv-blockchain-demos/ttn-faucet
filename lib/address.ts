@@ -1,4 +1,4 @@
-import { Utils } from '@bsv/sdk'
+import { Utils, PublicKey } from '@bsv/sdk'
 
 /** Returns the 20-byte pubkey hash for a valid teratestnet (0x6f) P2PKH address, else throws. */
 export function assertTestnetP2PKH(addr: string): number[] {
@@ -25,5 +25,15 @@ export function isValidTestnetAddress(addr: string): boolean {
     return true
   } catch {
     return false
+  }
+}
+
+/** Throws unless `hex` is a valid 33-byte compressed secp256k1 public key (a BRC-100 identity key). */
+export function assertIdentityKey(hex: string): void {
+  if (!/^0[23][0-9a-fA-F]{64}$/.test(hex)) throw new Error('Invalid identity key')
+  try {
+    PublicKey.fromString(hex)
+  } catch {
+    throw new Error('Invalid identity key')
   }
 }

@@ -1,9 +1,19 @@
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest'
 import { prisma } from './prisma'
-import { claimToAddress } from './faucet'
+import { claimToAddress, claimToWallet } from './faucet'
 import { PrivateKey } from '@bsv/sdk'
 
 const addr = PrivateKey.fromRandom().toPublicKey().toAddress('testnet')
+const identityKey = PrivateKey.fromRandom().toPublicKey().toString()
+
+const fakePayment = {
+  txid: 'wtx123',
+  atomicBEEF: 'beefbeef',
+  derivationPrefix: 'pfx',
+  derivationSuffix: 'sfx',
+  senderIdentityKey: PrivateKey.fromRandom().toPublicKey().toString(),
+  outputIndex: 0,
+}
 
 describe('claimToAddress', () => {
   beforeAll(() => { process.env.DATABASE_URL = 'file:./prisma/dev.db' })
@@ -56,6 +66,44 @@ describe('claimToAddress', () => {
       ),
     ).rejects.toThrow('broadcast boom')
     const row = await prisma.claim.findUnique({ where: { idempotencyKey: 'fail-status-1' } })
+    expect(row?.status).toBe('failed')
+  })
+})
+
+describe('claimToWallet', () => {
+  beforeAll(() => { process.env.DATABASE_URL = 'file:./prisma/dev.db' })
+  afterEach(async () => {
+    await prisma.claim.deleteMany({ where: { recipient: identityKey } })
+  })
+
+  it('rejects an invalid identity key before paying', async () => {
+    const payWallet = vi.fn()
+    await expect(
+      claimToWallet({ identityKey: 'not-a-key', ipHash: 'h' }, { payWallet }),
+    ).rejects.toThrow(/identity key/i)
+    expect(payWallet).not.toHaveBeenCalled()
+  })
+
+  it('caps the amount, pays, and records a Claim keyed on the identity key', async () => {
+    const payWallet = vi.fn(async () => fakePayment)
+    const r = await claimToWallet(
+      { identityKey, amountSats: 999_999_999, ipHash: 'h', maxSats: 500, defaultSats: 100 },
+      { payWallet },
+    )
+    expect(payWallet).toHaveBeenCalledWith(identityKey, 500) // capped
+    expect(r).toMatchObject({ ...fakePayment, amountSats: 500 })
+    const row = await prisma.claim.findFirst({ where: { txid: 'wtx123' } })
+    expect(row?.recipient).toBe(identityKey)
+    expect(row?.status).toBe('broadcast')
+    expect(row?.ef).toBe(fakePayment.atomicBEEF) // BEEF stored in the ef column
+  })
+
+  it('marks the claim failed and rethrows when payWallet throws', async () => {
+    const payWallet = vi.fn(async () => { throw new Error('broadcast boom') })
+    await expect(
+      claimToWallet({ identityKey, ipHash: 'h', maxSats: 500, defaultSats: 100 }, { payWallet }),
+    ).rejects.toThrow('broadcast boom')
+    const row = await prisma.claim.findFirst({ where: { recipient: identityKey } })
     expect(row?.status).toBe('failed')
   })
 })
