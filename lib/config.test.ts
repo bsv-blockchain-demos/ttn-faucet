@@ -33,4 +33,10 @@ describe('parseConfig', () => {
   it('rejects payout above the max', () => {
     expect(() => parseConfig({ ...base, FAUCET_PAYOUT_SATS: '2000000' })).toThrow()
   })
+
+  it('defaults RATE_LIMIT_DISABLED to true (off) and only RATE_LIMIT_DISABLED=false re-enables it', () => {
+    expect(parseConfig(base).RATE_LIMIT_DISABLED).toBe(true) // unset → disabled
+    expect(parseConfig({ ...base, RATE_LIMIT_DISABLED: 'true' }).RATE_LIMIT_DISABLED).toBe(true)
+    expect(parseConfig({ ...base, RATE_LIMIT_DISABLED: 'false' }).RATE_LIMIT_DISABLED).toBe(false)
+  })
 })

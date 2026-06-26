@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+const { cfg } = vi.hoisted(() => ({
+  cfg: { TURNSTILE_SECRET_KEY: 'sec', RATE_LIMIT_MAX: 5, RATE_LIMIT_WINDOW_MS: 1000, RATE_LIMIT_DISABLED: false },
+}))
 vi.mock('./config', () => ({
-  getConfig: () => ({ TURNSTILE_SECRET_KEY: 'sec', RATE_LIMIT_MAX: 5, RATE_LIMIT_WINDOW_MS: 1000 }),
+  getConfig: () => cfg,
   CHAIN: 'test',
 }))
 vi.mock('./turnstile', () => ({ verifyTurnstile: vi.fn() }))
@@ -26,6 +29,7 @@ describe('hashIp', () => {
 describe('guard', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    cfg.RATE_LIMIT_DISABLED = false
     ;(checkAndRecord as any).mockResolvedValue({ allowed: true, remaining: 4, retryAfterMs: 0 })
   })
 
@@ -64,5 +68,21 @@ describe('guard', () => {
     ;(checkAndRecord as any).mockResolvedValue({ allowed: false, remaining: 0, retryAfterMs: 500 })
     const r = await guard({ ip: '1.2.3.4', captchaToken: 'tok' })
     expect(r).toMatchObject({ ok: false, code: 'rate_limit', status: 429, retryAfterMs: 500 })
+  })
+
+  it('RATE_LIMIT_DISABLED → still requires captcha but never records or rejects on the limit', async () => {
+    cfg.RATE_LIMIT_DISABLED = true
+    ;(verifyTurnstile as any).mockResolvedValue(true)
+    ;(checkAndRecord as any).mockResolvedValue({ allowed: false, remaining: 0, retryAfterMs: 500 })
+    const r = await guard({ ip: '1.2.3.4', captchaToken: 'tok' })
+    expect(r.ok).toBe(true) // not 429, even though checkAndRecord would have blocked
+    expect(checkAndRecord).not.toHaveBeenCalled()
+  })
+
+  it('RATE_LIMIT_DISABLED still rejects a failing captcha (only the limit is off)', async () => {
+    cfg.RATE_LIMIT_DISABLED = true
+    ;(verifyTurnstile as any).mockResolvedValue(false)
+    const r = await guard({ ip: '1.2.3.4', captchaToken: 'bad' })
+    expect(r).toMatchObject({ ok: false, code: 'captcha', status: 403 })
   })
 })

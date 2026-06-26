@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Always-dark canvas. */
+  --background: #070a14;
+  --foreground: #e7eaf3;
 }
 
 @theme inline {
@@ -10,17 +11,39 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Brand — indigo/blue used for CTAs and highlighted words. */
+  --color-brand-400: #6b82ff;
+  --color-brand-500: #4f6bff;
+  --color-brand-600: #3d54e0;
+
+  /* Accent — "live"/online status. */
+  --color-accent-400: #34d399;
+  --color-accent-500: #10b981;
+
+  /* Dark surfaces for cards/panels. */
+  --color-surface: #0d1322;
+  --color-surface-raised: #131a2c;
 }
 
 body {
-  background: var(--background);
+  /* Navy base with two faint radial glows (top-left blue, top-right cyan), matching the mock. */
+  background:
+    radial-gradient(58rem 40rem at 12% -12%, rgba(79, 107, 255, 0.20), transparent 60%),
+    radial-gradient(52rem 40rem at 102% -4%, rgba(56, 189, 248, 0.12), transparent 55%),
+    var(--background);
+  background-attachment: fixed;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Thin, dark-friendly scrollbars inside code/terminal blocks. */
+.scrollbar-faint::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.scrollbar-faint::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
 }

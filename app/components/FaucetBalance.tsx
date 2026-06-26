@@ -1,14 +1,12 @@
 'use client'
 import { useEffect, useState } from 'react'
 
-function fmt(sats: number): string {
-  const tbsv = (sats / 1e8).toLocaleString(undefined, { maximumFractionDigits: 8 })
-  return `${sats.toLocaleString()} sats (${tbsv} tBSV)`
-}
+// undefined = loading, null = unavailable, number = live sats balance.
+export type BalanceState = number | null | undefined
 
-// undefined = loading, null = unavailable
-export function FaucetBalance() {
-  const [sats, setSats] = useState<number | null | undefined>(undefined)
+/** Polls /api/balance every 30s. Powers the live "Treasury balance" stat card. */
+export function useFaucetBalanceSats(): BalanceState {
+  const [sats, setSats] = useState<BalanceState>(undefined)
 
   useEffect(() => {
     let alive = true
@@ -29,12 +27,5 @@ export function FaucetBalance() {
     }
   }, [])
 
-  return (
-    <p className="text-sm text-gray-600">
-      Faucet balance:{' '}
-      <span className="font-medium text-gray-900">
-        {sats === undefined ? '…' : sats === null ? 'unavailable' : fmt(sats)}
-      </span>
-    </p>
-  )
+  return sats
 }

@@ -14,6 +14,12 @@ const schema = z
     FAUCET_MAX_SATS: z.coerce.number().int().positive(),
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive(),
     RATE_LIMIT_MAX: z.coerce.number().int().positive(),
+    // TEMP (2026-06): rate limiting is OFF by default while we iterate. The limiter code
+    // (lib/rate-limit.ts, lib/guard.ts) stays intact — set RATE_LIMIT_DISABLED=false to re-enable.
+    RATE_LIMIT_DISABLED: z
+      .string()
+      .optional()
+      .transform((v) => v !== 'false'),
     BOOTSTRAP_SPLIT_COUNT: z.coerce.number().int().positive(),
   })
   .refine((c) => c.FAUCET_PAYOUT_SATS <= c.FAUCET_MAX_SATS, {

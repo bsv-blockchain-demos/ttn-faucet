@@ -3,7 +3,8 @@ import { useState } from 'react'
 import { TurnstileWidget } from './TurnstileWidget'
 import { generateTestnetKey } from '@/lib/keygen'
 
-export function ClaimForm({ siteKey, payoutSats }: { siteKey: string; payoutSats: number }) {
+/** Paste-address tab of the faucet card — claim to any teratestnet address, returns the EF. */
+export function AddressPanel({ siteKey, payoutSats }: { siteKey: string; payoutSats: number }) {
   const [address, setAddress] = useState('')
   const [token, setToken] = useState('')
   const [busy, setBusy] = useState(false)
@@ -46,42 +47,19 @@ export function ClaimForm({ siteKey, payoutSats }: { siteKey: string; payoutSats
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
-      <div className="rounded border border-dashed border-gray-300 p-3">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-sm text-gray-600">No address yet?</span>
+      <label className="flex flex-col gap-1.5">
+        <span className="flex items-center justify-between text-sm font-medium text-white/80">
+          Your teratestnet address
           <button
             type="button"
             onClick={generate}
-            className="rounded border border-gray-300 px-3 py-1 text-sm font-medium hover:bg-gray-50"
+            className="text-xs font-normal text-brand-400 hover:text-brand-400/80"
           >
             Generate a test key
           </button>
-        </div>
-        {generated && (
-          <div className="mt-3 flex flex-col gap-2 text-xs">
-            <div>
-              <div className="text-gray-500">Address (auto-filled below)</div>
-              <button type="button" onClick={() => copy(generated.address)} className="break-all text-left font-mono text-gray-900 underline decoration-dotted" title="Copy">
-                {generated.address}
-              </button>
-            </div>
-            <div>
-              <div className="text-gray-500">Private key (WIF)</div>
-              <button type="button" onClick={() => copy(generated.wif)} className="break-all text-left font-mono text-gray-900 underline decoration-dotted" title="Copy">
-                {generated.wif}
-              </button>
-            </div>
-            <p className="text-amber-700">
-              ⚠ Testing only — save the WIF to spend these coins elsewhere. Never use it for real funds.
-            </p>
-          </div>
-        )}
-      </div>
-
-      <label className="flex flex-col gap-1">
-        <span className="text-sm font-medium">Your teratestnet address</span>
+        </span>
         <input
-          className="rounded border border-gray-300 px-3 py-2 font-mono text-sm"
+          className="rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 font-mono text-sm text-white placeholder-white/25 transition focus:border-brand-500 focus:outline-none"
           placeholder="m… or n…"
           value={address}
           onChange={(e) => setAddress(e.target.value)}
@@ -89,27 +67,63 @@ export function ClaimForm({ siteKey, payoutSats }: { siteKey: string; payoutSats
         />
       </label>
 
+      {generated && (
+        <div className="flex flex-col gap-2 rounded-lg border border-dashed border-white/15 bg-black/20 p-3 text-xs">
+          <div>
+            <div className="text-white/40">Address (auto-filled above)</div>
+            <button
+              type="button"
+              onClick={() => copy(generated.address)}
+              className="break-all text-left font-mono text-white underline decoration-dotted underline-offset-2"
+              title="Copy"
+            >
+              {generated.address}
+            </button>
+          </div>
+          <div>
+            <div className="text-white/40">Private key (WIF)</div>
+            <button
+              type="button"
+              onClick={() => copy(generated.wif)}
+              className="break-all text-left font-mono text-white underline decoration-dotted underline-offset-2"
+              title="Copy"
+            >
+              {generated.wif}
+            </button>
+          </div>
+          <p className="text-amber-300/90">
+            ⚠ Testing only — save the WIF to spend these coins elsewhere. Never use it for real funds.
+          </p>
+        </div>
+      )}
+
       <TurnstileWidget siteKey={siteKey} onToken={setToken} />
 
       <button
         type="submit"
         disabled={busy || !token || !address}
-        className="rounded bg-emerald-600 px-4 py-2 font-medium text-white disabled:opacity-50"
+        className="flex w-full items-center justify-center rounded-xl bg-brand-500 px-4 py-3 font-medium text-white shadow-[0_8px_30px_rgba(79,107,255,0.35)] transition hover:bg-brand-400 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
       >
         {busy ? 'Sending…' : `Claim ${payoutSats.toLocaleString()} sats`}
       </button>
-      <p className="text-xs text-gray-500">Each claim sends {payoutSats.toLocaleString()} sats (~{tbsv} tBSV).</p>
+      <p className="text-center text-xs text-white/35">
+        Each claim sends {payoutSats.toLocaleString()} sats (~{tbsv} tBSV) in extended format.
+      </p>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-400">{error}</p>}
       {result && (
-        <div className="rounded bg-gray-50 p-3 text-sm">
-          <p className="font-medium text-emerald-700">Funds sent!</p>
-          <p className="mt-1 break-all">
-            txid: <a className="text-blue-600 underline" href={`/api/status/${result.txid}`}>{result.txid}</a>
-          </p>
-          <details className="mt-2">
-            <summary className="cursor-pointer">Extended-format transaction (EF)</summary>
-            <textarea readOnly className="mt-1 h-32 w-full font-mono text-xs" value={result.ef} />
+        <div className="flex flex-col gap-2 rounded-lg border border-white/10 bg-black/30 p-3 text-sm">
+          <p className="font-semibold text-accent-400">Funds sent!</p>
+          <a href={`/api/status/${result.txid}`} className="break-all font-mono text-xs text-brand-400 hover:text-brand-400/80">
+            txid: {result.txid}
+          </a>
+          <details className="mt-1">
+            <summary className="cursor-pointer text-white/60">Extended-format transaction (EF)</summary>
+            <textarea
+              readOnly
+              className="scrollbar-faint mt-2 h-32 w-full rounded-lg border border-white/10 bg-black/40 p-2 font-mono text-xs text-white/70"
+              value={result.ef}
+            />
           </details>
         </div>
       )}

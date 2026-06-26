@@ -31,8 +31,10 @@ export async function guard(ctx: GuardContext): Promise<GuardResult> {
     if (!key || !key.enabled) {
       return { ok: false, code: 'unauthorized', status: 401, message: 'Invalid API key' }
     }
-    const rl = await checkAndRecord({ subject: key.id, limit: cfg.RATE_LIMIT_MAX * key.tier, windowMs: cfg.RATE_LIMIT_WINDOW_MS })
-    if (!rl.allowed) return { ok: false, code: 'rate_limit', status: 429, retryAfterMs: rl.retryAfterMs, message: 'Rate limit exceeded' }
+    if (!cfg.RATE_LIMIT_DISABLED) {
+      const rl = await checkAndRecord({ subject: key.id, limit: cfg.RATE_LIMIT_MAX * key.tier, windowMs: cfg.RATE_LIMIT_WINDOW_MS })
+      if (!rl.allowed) return { ok: false, code: 'rate_limit', status: 429, retryAfterMs: rl.retryAfterMs, message: 'Rate limit exceeded' }
+    }
     return { ok: true, subject: key.id, apiKeyId: key.id }
   }
 
@@ -41,7 +43,9 @@ export async function guard(ctx: GuardContext): Promise<GuardResult> {
     return { ok: false, code: 'captcha', status: 403, message: 'Captcha verification failed' }
   }
   const subject = hashIp(ctx.ip)
-  const rl = await checkAndRecord({ subject, limit: cfg.RATE_LIMIT_MAX, windowMs: cfg.RATE_LIMIT_WINDOW_MS })
-  if (!rl.allowed) return { ok: false, code: 'rate_limit', status: 429, retryAfterMs: rl.retryAfterMs, message: 'Rate limit exceeded' }
+  if (!cfg.RATE_LIMIT_DISABLED) {
+    const rl = await checkAndRecord({ subject, limit: cfg.RATE_LIMIT_MAX, windowMs: cfg.RATE_LIMIT_WINDOW_MS })
+    if (!rl.allowed) return { ok: false, code: 'rate_limit', status: 429, retryAfterMs: rl.retryAfterMs, message: 'Rate limit exceeded' }
+  }
   return { ok: true, subject }
 }
