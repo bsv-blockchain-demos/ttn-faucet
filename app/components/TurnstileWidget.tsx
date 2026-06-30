@@ -29,7 +29,10 @@ export function TurnstileWidget({ siteKey, onToken }: { siteKey: string; onToken
   return (
     <>
       <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer />
-      <div ref={ref} />
+      <div
+        ref={ref}
+        className="flex min-h-[78px] items-center justify-center rounded-input border border-dashed border-input-border p-3 text-xs text-muted-foreground"
+      />
     </>
   )
 }
