@@ -18,14 +18,23 @@ const jetBrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://faucet.teratestnet.org'),
   title: 'BSV Teranode Testnet Faucet',
   description:
-    'Request spendable Teratestnet coins in a single click and start shipping against Teranode, the architecture that pushed BSV past one million transactions per second.',
+    'A BSV Blockchain faucet for the Teranode scaling testnet. Grab free, spendable Teratestnet coins in one click with a BRC-100 wallet, or POST an address via the dev API, and start building on the network that broke one million transactions per second.',
+  applicationName: 'BSV Teranode Testnet Faucet',
   openGraph: {
+    type: 'website',
+    siteName: 'BSV Blockchain',
     title: 'BSV Teranode Testnet Faucet',
     description:
-      'Build on the network that broke a million TPS. One-click BRC-100 wallet claims, instantly spendable.',
-    type: 'website',
+      'Free, spendable Teratestnet coins in one click. Build on the BSV Blockchain Teranode scaling testnet — connect a BRC-100 wallet or POST an address.',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'BSV Teranode Testnet Faucet',
+    description:
+      'Free, spendable Teratestnet coins in one click. Build on the BSV Blockchain Teranode scaling testnet.',
   },
 }
 

@@ -76,15 +76,9 @@ function Captcha() {
   )
 }
 
-const WALLETS = [
-  { name: 'BSV Browser', m: 'B' },
-  { name: 'BSV Desktop', m: 'D' },
-  { name: 'Metanet', m: 'M' },
-]
-
 function CardShell({ tab, children }: { tab: 'wallet' | 'address'; children: React.ReactNode }) {
   const tabCls = (active: boolean) =>
-    `h-[42px] flex-1 rounded-pill text-sm font-semibold ${
+    `flex h-[42px] flex-1 items-center justify-center rounded-pill px-2 text-center text-[13px] font-semibold leading-tight ${
       active ? 'bg-primary text-primary-foreground shadow-card' : 'text-muted-foreground'
     }`
   return (
@@ -94,42 +88,41 @@ function CardShell({ tab, children }: { tab: 'wallet' | 'address'; children: Rea
           <div className="font-display text-[17px] font-semibold text-foreground">Teratestnet Coins</div>
           <div className="text-[12.5px] text-muted-foreground">{fmt(PAYOUT)} sats per request</div>
         </div>
-        <span className="inline-flex items-center gap-1.5 rounded-pill bg-accent px-3 py-[5px] text-xs font-medium text-accent-foreground">
+        <span className="inline-flex items-center gap-1.5 rounded-pill bg-pos-bg px-3 py-[5px] text-xs font-medium text-pos">
           <span className="h-[7px] w-[7px] rounded-full bg-pos" />
           Live
         </span>
       </div>
       <div className="px-6 pt-5">
         <div className="flex gap-[7px] rounded-pill bg-muted p-[5px]">
-          <span className={tabCls(tab === 'wallet')}>Wallet · 1-click</span>
-          <span className={tabCls(tab === 'address')}>Paste address</span>
+          <span className={tabCls(tab === 'wallet')}>Auto: BRC-100 Wallet</span>
+          <span className={tabCls(tab === 'address')}>Manual: Paste address</span>
         </div>
       </div>
-      <div className="px-6 pb-6 pt-[22px]">
-        {tab === 'wallet' && (
-          <div className="mb-[22px] grid grid-cols-3 gap-[11px]">
-            {WALLETS.map((w) => (
-              <div key={w.name} className="rounded-[13px] border border-hairline bg-band px-2.5 py-[15px] text-center">
-                <span className="mx-auto mb-[9px] flex h-8 w-8 items-center justify-center rounded-[9px] bg-accent font-display text-[15px] font-semibold text-accent-foreground">
-                  {w.m}
-                </span>
-                <span className="text-[12.5px] font-medium text-foreground">{w.name}</span>
-              </div>
-            ))}
-          </div>
-        )}
-        {children}
-      </div>
+      <div className="px-6 pb-6 pt-[22px]">{children}</div>
     </div>
   )
 }
 
 function WalletExplainer() {
   return (
-    <p className="text-sm leading-relaxed text-muted-foreground">
-      Connect a BRC-100 wallet and we&apos;ll pay a BRC-29 output straight to your identity key,
-      internalized as Atomic BEEF and <span className="font-semibold text-foreground">spendable instantly</span>.
-    </p>
+    <>
+      <p className="text-sm leading-relaxed text-muted-foreground">
+        Connect a BRC-100 wallet and we&apos;ll pay a BRC-29 output straight to your identity key,
+        internalized as Atomic BEEF and <span className="font-semibold text-foreground">spendable instantly</span>.
+      </p>
+      <p className="text-[13px] leading-relaxed text-muted-foreground">
+        Need a wallet? Download{' '}
+        <a href="https://desktop.bsvb.tech/" target="_blank" rel="noreferrer" className="font-medium text-link">
+          BSV Desktop
+        </a>{' '}
+        or{' '}
+        <a href="https://mobile.bsvb.tech/" target="_blank" rel="noreferrer" className="font-medium text-link">
+          BSV Browser
+        </a>{' '}
+        for mobile.
+      </p>
+    </>
   )
 }
 
@@ -366,7 +359,7 @@ export default function StatesGallery() {
         </p>
       </header>
 
-      <Section id="wallet" title="Faucet card · Wallet · 1-click tab">
+      <Section id="wallet" title="Faucet card · BRC-100 Wallet tab">
         <Tile title="detecting"><CardShell tab="wallet"><WalletBody phase="detecting" /></CardShell></Tile>
         <Tile title="unavailable"><CardShell tab="wallet"><WalletBody phase="unavailable" /></CardShell></Tile>
         <Tile title="idle"><CardShell tab="wallet"><WalletBody phase="idle" /></CardShell></Tile>

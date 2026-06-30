@@ -177,6 +177,28 @@ export function WalletPanel({
             <span className="font-semibold text-foreground">spendable instantly</span>.
           </p>
 
+          <p className="text-[13px] leading-relaxed text-muted-foreground">
+            Need a wallet? Download{' '}
+            <a
+              href="https://desktop.bsvb.tech/"
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-link"
+            >
+              BSV Desktop
+            </a>{' '}
+            or{' '}
+            <a
+              href="https://mobile.bsvb.tech/"
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-link"
+            >
+              BSV Browser
+            </a>{' '}
+            for mobile.
+          </p>
+
           {networkWarning && phase !== 'claiming' && (
             <div
               className="flex items-start gap-2.5 rounded-input p-3"
