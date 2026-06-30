@@ -1,44 +1,46 @@
+import Image from 'next/image'
 import { FaucetCard } from './components/FaucetCard'
 import { StatsGrid } from './components/StatsGrid'
 import { ApiTerminal } from './components/ApiTerminal'
+import { ThemeToggle } from './components/ThemeProvider'
+import { BoltIcon, TargetIcon, RefreshIcon } from './components/icons'
 
 const GITHUB = 'https://github.com/bsv-blockchain-demos/ttn-faucet'
-// NOTE: no public teratestnet explorer URL is known yet — these are placeholders to confirm.
+// NOTE: no public Teratestnet explorer URL is known yet — placeholder to confirm.
 const EXPLORER = '#'
 const DOCS = `${GITHUB}#readme`
 const BSV = 'https://www.bsvblockchain.org'
 
-const FEATURES = [
+const WRAP = 'mx-auto w-full max-w-[1000px] px-[clamp(20px,4vw,44px)]'
+
+const HERO_STATS = [
+  { v: '100,000', k: 'sats per claim' },
+  { v: '~Instant', k: 'to spendable' },
+  { v: 'BRC-100', k: 'one-click wallet' },
+]
+
+const PILLARS = [
   {
-    n: '01',
+    Icon: BoltIcon,
     title: 'Parallel by design',
     body: 'The UTXO model lets transactions validate in parallel. Throw thousands of test txs at it and watch them settle without a mempool bottleneck.',
   },
   {
-    n: '02',
+    Icon: TargetIcon,
     title: 'Instantly spendable',
-    body: "Wallet claims hand back Atomic BEEF carrying the funded ancestors' proofs — no waiting for a block. Spend the coins the moment they land.",
+    body: "Wallet claims hand back Atomic BEEF carrying the funded ancestors' proofs, no waiting for a block. Spend the coins the moment they land.",
   },
   {
-    n: '03',
+    Icon: RefreshIcon,
     title: 'Production-grade SDKs',
     body: "Build with the same @bsv/sdk and wallet-toolbox you'll ship on mainnet. Test funds, real tooling, zero behavioural drift.",
   },
 ]
 
-function Logo() {
-  return (
-    <span className="flex items-center gap-2.5">
-      <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-500 font-bold text-white shadow-[0_4px_16px_rgba(79,107,255,0.5)]">
-        B
-      </span>
-      <span className="leading-tight">
-        <span className="block text-sm font-semibold text-white">BSV Teranode</span>
-        <span className="block text-[10px] uppercase tracking-[0.18em] text-white/40">Testnet Faucet</span>
-      </span>
-    </span>
-  )
-}
+const WHY_SUB =
+  "Teranode is BSV's modular, microservice node architecture, the thing that broke a million TPS. These coins let you load-test against it for free."
+
+const navLink = 'text-sm font-medium text-muted-foreground transition hover:text-foreground'
 
 export default function Home() {
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? ''
@@ -46,99 +48,126 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      {/* Top nav */}
-      <header className="sticky top-0 z-20 border-b border-white/5 bg-background/70 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-4 py-3.5">
-          <Logo />
-          <nav className="flex items-center gap-1 text-sm text-white/60 sm:gap-2">
-            <a href="#api" className="rounded-lg px-3 py-1.5 transition hover:text-white">
-              Dev API
-            </a>
-            <a href={EXPLORER} className="rounded-lg px-3 py-1.5 transition hover:text-white">
-              Explorer
-            </a>
-            <a
-              href={GITHUB}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-white transition hover:bg-white/10"
-            >
-              GitHub
-            </a>
-          </nav>
+      {/* Header */}
+      <header className="border-b border-hairline">
+        <div className={`${WRAP} flex items-center justify-between py-[18px]`}>
+          <div className="flex items-center gap-3">
+            <Image
+              src="/brand/bsv-mark.png"
+              alt="BSV"
+              width={40}
+              height={40}
+              className="rounded-input"
+              style={{ boxShadow: 'var(--mark-shadow)' }}
+            />
+            <div className="leading-tight">
+              <div className="font-display text-[15px] font-semibold text-foreground">BSV Teranode</div>
+              <div className="text-xs text-muted-foreground">Testnet Faucet</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-[26px]">
+            <nav className="hidden items-center gap-[26px] min-[880px]:flex">
+              <a href="#api" className={navLink}>
+                Dev API
+              </a>
+              <a href={EXPLORER} className={navLink}>
+                Explorer
+              </a>
+              <a href={GITHUB} target="_blank" rel="noreferrer" className={navLink}>
+                GitHub
+              </a>
+            </nav>
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4">
+      <main className="flex-1">
         {/* Hero */}
-        <section className="pt-10 sm:pt-14">
-          <FaucetCard siteKey={siteKey} payoutSats={payoutSats} />
-
-          <div className="mt-12">
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 font-mono text-xs text-white/60">
-              <span className="h-1.5 w-1.5 rounded-full bg-accent-400 shadow-[0_0_8px_var(--color-accent-400)]" />
-              NETWORK ONLINE · teratestnet
-            </span>
-
-            <h1 className="mt-5 text-4xl font-bold leading-[1.05] tracking-tight text-white sm:text-5xl">
-              Free test coins to build on the <span className="text-brand-400">million-TPS</span> network.
+        <section className="relative overflow-hidden border-b border-hairline bg-band">
+          <Image
+            src="/brand/bsv-stacked-colour.png"
+            alt=""
+            aria-hidden
+            width={300}
+            height={300}
+            className="pointer-events-none absolute -bottom-10 -right-5 w-[300px]"
+            style={{ opacity: 0.05 }}
+          />
+          <div className={`${WRAP} relative pb-14 pt-[66px]`}>
+            <div className="mb-6 inline-flex items-center gap-2.5 rounded-pill bg-accent px-3.5 py-1.5 text-[12.5px] font-medium text-accent-foreground">
+              <span
+                className="dotpulse h-2 w-2 rounded-full"
+                style={{ background: 'var(--cyan)', boxShadow: '0 0 10px var(--cyan)' }}
+              />
+              Teratestnet Online
+            </div>
+            <h1
+              className="font-display text-[clamp(36px,5.6vw,58px)] font-semibold leading-[1.04] tracking-[-0.6px] text-foreground"
+              style={{ maxWidth: '17ch' }}
+            >
+              Build on the network that broke a <span className="text-hl">million TPS</span>.
             </h1>
-
-            <p className="mt-5 max-w-xl text-white/55">
-              Grab spendable teratestnet satoshis in one click and start shipping against Teranode — the
-              architecture that pushed BSV past 1,000,000 transactions per second. No signup, no waiting
-              for confirmations.
+            <p
+              className="mt-5 text-[clamp(16px,1.6vw,18px)] leading-relaxed text-muted-foreground"
+              style={{ maxWidth: '58ch' }}
+            >
+              Request spendable Teratestnet coins in a single click and start shipping against Teranode.
+              Connect a BRC-100 wallet and the funds land instantly, ready to spend, with no confirmations
+              to wait on.
             </p>
-
-            <dl className="mt-8 flex flex-wrap gap-x-10 gap-y-4">
-              {[
-                { v: '100,000', k: 'sats per claim' },
-                { v: '~0s', k: 'to spendable' },
-                { v: 'BRC-100', k: 'one-click wallet' },
-              ].map((s) => (
-                <div key={s.k}>
-                  <dt className="text-2xl font-bold text-white">{s.v}</dt>
-                  <dd className="text-xs text-white/45">{s.k}</dd>
+            <div className="mt-8 flex max-w-[560px] flex-col gap-5 min-[620px]:flex-row min-[620px]:gap-0">
+              {HERO_STATS.map((s) => (
+                <div key={s.k} className="flex-1 border-t-2 border-input-border pt-3">
+                  <div className="tnum font-display text-[30px] font-semibold text-foreground">{s.v}</div>
+                  <div className="text-[13px] text-muted-foreground">{s.k}</div>
                 </div>
               ))}
-            </dl>
+            </div>
           </div>
         </section>
 
-        {/* Stats grid */}
-        <section className="mt-14">
+        {/* Faucet card */}
+        <section id="claim" className={`${WRAP} mt-12 pb-14`}>
+          <FaucetCard siteKey={siteKey} payoutSats={payoutSats} />
+        </section>
+
+        {/* Stats */}
+        <section className={`${WRAP} pb-14`}>
           <StatsGrid />
         </section>
 
         {/* Why */}
-        <section className="mt-20">
-          <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            Why bother with teratestnet coins?
-          </h2>
-          <p className="mt-3 max-w-xl text-white/55">
-            Teranode is BSV&apos;s modular, microservice node architecture — the thing that broke a million
-            TPS. These coins let you load-test against it for free.
-          </p>
-
-          <div className="mt-8 flex flex-col gap-4">
-            {FEATURES.map((f) => (
-              <div key={f.n} className="rounded-2xl border border-white/10 bg-surface p-6">
-                <div className="font-mono text-lg font-bold text-brand-400">{f.n}</div>
-                <h3 className="mt-2 font-semibold text-white">{f.title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-white/55">{f.body}</p>
-              </div>
-            ))}
+        <section className="border-y border-hairline bg-band">
+          <div className={`${WRAP} py-14`}>
+            <h2 className="font-display text-[clamp(26px,3.4vw,32px)] font-semibold leading-[1.1] text-foreground">
+              Why builders fund on Teratestnet
+            </h2>
+            <p className="mt-2 max-w-[60ch] text-base leading-relaxed text-muted-foreground">{WHY_SUB}</p>
+            <div className="mt-[30px] grid grid-cols-1 gap-5 min-[620px]:grid-cols-2 min-[880px]:grid-cols-3">
+              {PILLARS.map(({ Icon, title, body }) => (
+                <div key={title} className="lift rounded-card border border-hairline bg-card p-[26px]">
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[13px] bg-accent text-accent-foreground">
+                    <Icon size={22} />
+                  </div>
+                  <div className="mb-2 font-display text-lg font-semibold text-foreground">{title}</div>
+                  <div className="text-sm leading-relaxed text-muted-foreground">{body}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
         {/* API */}
-        <section id="api" className="mt-20 scroll-mt-20">
-          <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 font-mono text-xs uppercase tracking-wide text-white/50">
+        <section id="api" className={`${WRAP} scroll-mt-6 py-14`}>
+          <div className="mb-4 inline-flex items-center rounded-pill bg-accent px-3 py-[5px] text-[11px] font-medium text-accent-foreground">
             For scripts &amp; CI
-          </span>
-          <h2 className="mt-4 text-2xl font-bold tracking-tight text-white sm:text-3xl">Or just hit the API.</h2>
-          <p className="mt-3 mb-7 max-w-xl text-white/55">
-            POST a teratestnet address and the faucet builds, signs, and broadcasts through arcade —
+          </div>
+          <h2 className="font-display text-[clamp(26px,3.4vw,32px)] font-semibold leading-[1.1] text-foreground">
+            Or just hit the API
+          </h2>
+          <p className="mb-[22px] mt-2 max-w-[60ch] text-base leading-relaxed text-muted-foreground">
+            POST a Teratestnet address and the faucet builds, signs, and broadcasts through arcade,
             returning the transaction in extended format.
           </p>
           <ApiTerminal />
@@ -146,25 +175,28 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-20 border-t border-white/10">
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-8 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-sm font-semibold text-white">BSV Teranode Testnet Faucet</div>
-            <div className="text-xs text-white/40">
-              Built on @bsv/wallet-toolbox · for development &amp; testing only
+      <footer className="border-t border-hairline">
+        <div className={`${WRAP} flex flex-wrap items-center justify-between gap-4 py-[30px]`}>
+          <div className="flex items-center gap-3">
+            <Image src="/brand/bsv-mark.png" alt="BSV" width={32} height={32} className="rounded-[9px]" />
+            <div className="leading-tight">
+              <div className="text-[13px] font-semibold text-foreground">BSV Teranode Testnet Faucet</div>
+              <div className="text-xs text-muted-foreground">
+                Built on @bsv/wallet-toolbox · for development &amp; testing only
+              </div>
             </div>
           </div>
-          <nav className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-white/50">
-            <a href={DOCS} target="_blank" rel="noreferrer" className="hover:text-white">
+          <nav className="flex flex-wrap gap-[22px] text-[13px] font-medium">
+            <a href={DOCS} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground">
               Docs
             </a>
-            <a href={EXPLORER} className="hover:text-white">
+            <a href={EXPLORER} className="text-muted-foreground hover:text-foreground">
               Explorer
             </a>
-            <a href={GITHUB} target="_blank" rel="noreferrer" className="hover:text-white">
+            <a href={GITHUB} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground">
               GitHub
             </a>
-            <a href={BSV} target="_blank" rel="noreferrer" className="hover:text-white">
+            <a href={BSV} target="_blank" rel="noreferrer" className="text-link">
               BSV Blockchain
             </a>
           </nav>

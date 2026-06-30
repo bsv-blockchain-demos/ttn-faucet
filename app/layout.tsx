@@ -1,44 +1,65 @@
-import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import type { Metadata, Viewport } from 'next'
+import { Noto_Sans, JetBrains_Mono } from 'next/font/google'
+import './globals.css'
+import { ThemeProvider, themeNoFlashScript } from './components/ThemeProvider'
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+const notoSans = Noto_Sans({
+  variable: '--font-noto-sans',
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600'],
+  display: 'swap',
+})
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const jetBrainsMono = JetBrains_Mono({
+  variable: '--font-jetbrains-mono',
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
-  title: "BSV Teranode Testnet Faucet",
+  title: 'BSV Teranode Testnet Faucet',
   description:
-    "Grab spendable teratestnet satoshis in one click and start shipping against Teranode — the architecture that pushed BSV past 1,000,000 transactions per second.",
+    'Request spendable Teratestnet coins in a single click and start shipping against Teranode, the architecture that pushed BSV past one million transactions per second.',
   openGraph: {
-    title: "BSV Teranode Testnet Faucet",
+    title: 'BSV Teranode Testnet Faucet',
     description:
-      "Free test coins to build on the million-TPS network. One-click BRC-100 wallet claims, instantly spendable.",
-    type: "website",
+      'Build on the network that broke a million TPS. One-click BRC-100 wallet claims, instantly spendable.',
+    type: 'website',
   },
-};
+}
 
 export const viewport: Viewport = {
-  themeColor: "#070a14",
-};
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#1e1f24' },
+  ],
+}
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
+      className={`${notoSans.variable} ${jetBrainsMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <head>
+        {/* Chillax (display) — not on Google Fonts; loaded from Fontshare. */}
+        <link rel="preconnect" href="https://api.fontshare.com" crossOrigin="" />
+        <link
+          rel="stylesheet"
+          href="https://api.fontshare.com/v2/css?f[]=chillax@400,500,600&display=swap"
+        />
+        {/* Set the theme class before paint to avoid a flash. */}
+        <script dangerouslySetInnerHTML={{ __html: themeNoFlashScript }} />
+      </head>
+      <body className="flex min-h-full flex-col">
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
-  );
+  )
 }

@@ -1,49 +1,268 @@
 @import "tailwindcss";
 
+/* ============================================================================
+   Teranode Faucet — design tokens (single source of truth).
+   Light is :root, dark is .dark on <html>. Every visual value below is a
+   named token; components reference the mapped Tailwind utility or var(--…),
+   never a raw literal. See docs handoff TOKEN_STYLE_GUIDE.md.
+   ========================================================================== */
+
 :root {
-  /* Always-dark canvas. */
-  --background: #070a14;
-  --foreground: #e7eaf3;
+  /* surfaces */
+  --page: #ffffff;
+  --card: #ffffff;
+  --band: #f4f6fc;
+  --muted: #eff0f7;
+  --hairline: #e7e9f4;
+  --input-border: #dae3ff;
+
+  /* text */
+  --fg: #2d2d31;
+  --muted-fg: #63656f;
+
+  /* brand / actions */
+  --primary: #1b1ea9;
+  --primary-fg: #ffffff;
+  --accent: #dae3ff; /* Ice */
+  --accent-fg: #1b1ea9;
+  --link: #003fff;
+  --hl: #1b1ea9;
+  --btn2-fg: #1b1ea9;
+  --btn2-bd: #1b1ea9;
+
+  /* status (badges / result blocks only) */
+  --pos: #1d9e75;
+  --pos-bg: rgba(29, 158, 117, 0.12);
+  --neg: #b0443c;
+  --neg-bg: rgba(176, 68, 60, 0.12);
+
+  /* effects */
+  --ring: rgba(0, 230, 255, 0.55);
+  --shadow: 0 8px 28px rgba(45, 45, 49, 0.08);
+  --pshadow: 0 10px 24px -8px rgba(27, 30, 169, 0.5);
+
+  /* radius */
+  --r-input: 12px;
+  --r-panel: 16px;
+  --r-card: 20px;
+  --r-pill: 9999px;
 }
 
+.dark {
+  --page: #1e1f24;
+  --card: #2d2d31;
+  --band: #26272d;
+  --muted: #33343b;
+  --hairline: #3a3a41;
+  --input-border: #44454d;
+
+  --fg: #ffffff;
+  --muted-fg: #b9bcc9;
+
+  --primary: #003fff; /* Blue in dark */
+  --primary-fg: #ffffff;
+  --accent: #26284a;
+  --accent-fg: #ffffff;
+  --link: #00e6ff; /* Cyan links in dark */
+  --hl: #7c8cff; /* brighter periwinkle so the highlight stays legible on dark */
+  --btn2-fg: #ffffff;
+  --btn2-bd: rgba(255, 255, 255, 0.5);
+
+  --pos: #5dcaa5;
+  --pos-bg: rgba(93, 202, 165, 0.16);
+  --neg: #e0837c;
+  --neg-bg: rgba(224, 131, 124, 0.16);
+
+  --ring: rgba(0, 230, 255, 0.55);
+  --shadow: 0 10px 32px rgba(0, 0, 0, 0.35);
+  --pshadow: 0 12px 28px -8px rgba(0, 63, 255, 0.55);
+}
+
+/* Code / terminal surface — theme-independent (always dark). */
+:root,
+.dark {
+  --cyan: #00e6ff; /* brand Cyan — used sparingly (live dot glow) */
+  --scrim: rgba(8, 9, 16, 0.55); /* modal backdrop */
+  --mark-shadow: 0 4px 14px rgba(27, 30, 169, 0.3); /* brand mark lift */
+  --code-bd: rgba(255, 255, 255, 0.09); /* terminal panel border */
+  --code-bd-soft: rgba(255, 255, 255, 0.07); /* terminal header divider */
+  --qr-bg: #ffffff; /* QR must stay dark-on-white in both themes for scannability */
+  --qr-fg: #11131d;
+  --code-bg: #11131d;
+  --code-fg: #9aa4c4;
+  --code-dim: #6b7494;
+  --code-link: #8ea0ff;
+  --code-pos: #5dcaa5;
+  --code-warn: #e9b949;
+  --tl-red: #ff5f56;
+  --tl-amber: #ffbd2e;
+  --tl-green: #27c93f;
+  /* amber warning band (works on both themes) */
+  --warn-bg: rgba(233, 185, 73, 0.13);
+  --warn-bd: rgba(233, 185, 73, 0.4);
+  --warn-icon: #b8860b;
+}
+
+/* ---- Tailwind v4 token mapping: utilities resolve to the tokens above ---- */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-page: var(--page);
+  --color-card: var(--card);
+  --color-band: var(--band);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-fg);
+  --color-hairline: var(--hairline);
+  --color-input-border: var(--input-border);
+  --color-foreground: var(--fg);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-fg);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-fg);
+  --color-link: var(--link);
+  --color-hl: var(--hl);
+  --color-pos: var(--pos);
+  --color-pos-bg: var(--pos-bg);
+  --color-neg: var(--neg);
+  --color-neg-bg: var(--neg-bg);
+  --color-code-bg: var(--code-bg);
+  --color-code-fg: var(--code-fg);
+  --color-code-dim: var(--code-dim);
+  --color-code-link: var(--code-link);
+  --color-code-pos: var(--code-pos);
 
-  /* Brand — indigo/blue used for CTAs and highlighted words. */
-  --color-brand-400: #6b82ff;
-  --color-brand-500: #4f6bff;
-  --color-brand-600: #3d54e0;
+  --radius-input: var(--r-input);
+  --radius-panel: var(--r-panel);
+  --radius-card: var(--r-card);
+  --radius-pill: var(--r-pill);
 
-  /* Accent — "live"/online status. */
-  --color-accent-400: #34d399;
-  --color-accent-500: #10b981;
+  --shadow-card: var(--shadow);
+  --shadow-primary: var(--pshadow);
 
-  /* Dark surfaces for cards/panels. */
-  --color-surface: #0d1322;
-  --color-surface-raised: #131a2c;
+  --font-display: "Chillax", var(--font-noto-sans), sans-serif;
+  --font-sans: var(--font-noto-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
 }
 
+/* ---------------------------------- base --------------------------------- */
 body {
-  /* Navy base with two faint radial glows (top-left blue, top-right cyan), matching the mock. */
-  background:
-    radial-gradient(58rem 40rem at 12% -12%, rgba(79, 107, 255, 0.20), transparent 60%),
-    radial-gradient(52rem 40rem at 102% -4%, rgba(56, 189, 248, 0.12), transparent 55%),
-    var(--background);
-  background-attachment: fixed;
-  color: var(--foreground);
-  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  background: var(--page);
+  color: var(--fg);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
-/* Thin, dark-friendly scrollbars inside code/terminal blocks. */
+/* tabular figures for stats/amounts */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------- interactive layer -------------------------- */
+/* Cyan focus ring on inputs (token-driven). */
+.field:focus,
+.field:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+/* Primary button shine: a diagonal streak that auto-loops on the main CTA and
+   sweeps once on hover. */
+.shine {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.18s cubic-bezier(0.22, 0.61, 0.36, 1), filter 0.18s;
+}
+.shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.5) 50%,
+    transparent 70%
+  );
+  transform: translateX(-130%) skewX(-20deg);
+  pointer-events: none;
+}
+.shine:not(:disabled):hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+.shine:not(:disabled):active {
+  transform: translateY(0);
+}
+.shine:not(:disabled):hover::after {
+  animation: shine-sweep 0.7s ease;
+}
+/* the hero CTA opts into the slow auto loop */
+.shine-loop:not(:disabled)::after {
+  animation: shine-sweep 3.6s ease-in-out 1.1s infinite;
+}
+@keyframes shine-sweep {
+  to {
+    transform: translateX(130%) skewX(-20deg);
+  }
+}
+
+/* Hover-lift for tiles / pillar cards (not the faucet card or modal). */
+.lift {
+  transition: transform 0.25s cubic-bezier(0.22, 0.61, 0.36, 1),
+    box-shadow 0.25s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.lift:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow);
+}
+
+/* Pulsing live dot. */
+.dotpulse {
+  animation: dotpulse 1.5s ease-in-out infinite;
+}
+@keyframes dotpulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Stepper circles transition as the phase advances. */
+.step-dot {
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+/* Modal pending spinner. */
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Thin, theme-friendly scrollbars inside code/terminal blocks. */
 .scrollbar-faint::-webkit-scrollbar {
   height: 8px;
   width: 8px;
 }
 .scrollbar-faint::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--hairline);
   border-radius: 9999px;
+}
+
+/* Respect reduced-motion: kill every animation + transition added above. */
+@media (prefers-reduced-motion: reduce) {
+  .shine,
+  .shine::after,
+  .shine-loop::after,
+  .lift,
+  .dotpulse,
+  .step-dot,
+  .spin {
+    animation: none !important;
+    transition: none !important;
+  }
 }
