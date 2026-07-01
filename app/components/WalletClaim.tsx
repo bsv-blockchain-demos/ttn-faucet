@@ -56,6 +56,23 @@ const PRIMARY_CTA =
 const SECONDARY_CTA =
   'inline-flex h-11 w-full items-center justify-center rounded-pill border-[1.5px] border-[color:var(--btn2-bd)] bg-transparent px-[22px] text-sm font-semibold text-[color:var(--btn2-fg)] transition min-[620px]:w-auto'
 
+/** "Need a wallet?" download prompt — shown while detecting and when no wallet is found. */
+function DownloadHint() {
+  return (
+    <p className="w-full text-[13px] leading-relaxed text-muted-foreground">
+      Need a wallet? Download{' '}
+      <a href="https://desktop.bsvb.tech/" target="_blank" rel="noreferrer" className="font-medium text-link">
+        BSV Desktop
+      </a>{' '}
+      or{' '}
+      <a href="https://mobile.bsvb.tech/" target="_blank" rel="noreferrer" className="font-medium text-link">
+        BSV Browser
+      </a>{' '}
+      for mobile.
+    </p>
+  )
+}
+
 /** Wallet tab of the faucet card — one-click BRC-100 claim, internalized as Atomic BEEF. */
 export function WalletPanel({
   siteKey,
@@ -74,6 +91,7 @@ export function WalletPanel({
   const [error, setError] = useState('')
   const [result, setResult] = useState<{ txid: string; amount: number } | null>(null)
   const [networkWarning, setNetworkWarning] = useState('')
+  const [networkOk, setNetworkOk] = useState(false)
 
   // Detect a BRC-100 wallet on load. WalletClient('auto') is lazy (safe to construct), but its
   // first call has no built-in connect timeout — so probe getVersion() inside a Promise.race.
@@ -95,8 +113,11 @@ export function WalletPanel({
       // A teratestnet wallet reports 'testnet'; only 'mainnet' is a real mismatch worth flagging.
       w.getNetwork()
         .then(({ network }) => {
-          if (!cancelled && network === 'mainnet') {
-            setNetworkWarning('Your wallet is on mainnet. These are Teratestnet coins and may not appear.')
+          if (cancelled) return
+          if (network === 'mainnet') {
+            setNetworkWarning("Your wallet is on mainnet. Switch it to Teratestnet before claiming, or these coins won't appear.")
+          } else {
+            setNetworkOk(true)
           }
         })
         .catch(() => {})
@@ -152,18 +173,27 @@ export function WalletPanel({
       <Stepper phase={phase} />
 
       {phase === 'detecting' && (
-        <div className="flex items-center gap-3 py-1 text-sm text-muted-foreground">
-          <span className="dotpulse h-2 w-2 rounded-full bg-primary" />
-          Looking for a BRC-100 wallet…
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2.5 rounded-input border border-primary/20 bg-primary/10 p-3 text-[13px] leading-snug text-foreground">
+            <span className="relative flex h-2 w-2 flex-none">
+              <span className="ping-ring absolute inline-flex h-full w-full rounded-full bg-primary" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+            </span>
+            Looking for a BRC-100 wallet…
+          </div>
+          <DownloadHint />
         </div>
       )}
 
       {phase === 'unavailable' && (
-        <div className="text-center">
-          <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
-            No BRC-100 wallet detected. Install BSV Browser, BSV Desktop, or Metanet. Or paste an
-            address instead.
-          </p>
+        <div className="flex flex-col items-start gap-4">
+          <div className="flex w-full items-start gap-2.5 rounded-input border border-neg bg-neg-bg p-3">
+            <WarningIcon size={16} className="mt-[1px] flex-none text-neg" />
+            <span className="text-[13px] font-medium leading-snug text-foreground">
+              No BRC-100 wallet detected.
+            </span>
+          </div>
+          <DownloadHint />
           <button type="button" onClick={onUsePaste} className={`${SECONDARY_CTA} hover:bg-band`}>
             Paste an address instead
           </button>
@@ -172,35 +202,16 @@ export function WalletPanel({
 
       {(phase === 'idle' || phase === 'claiming' || phase === 'error') && (
         <div className="flex flex-col gap-4">
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            Connect a BRC-100 wallet and we&apos;ll pay a BRC-29 output straight to your identity key,
-            internalized as Atomic BEEF and{' '}
-            <span className="font-semibold text-foreground">spendable instantly</span>.
-          </p>
+          {phase === 'idle' && networkOk && (
+            <div className="flex items-start gap-2.5 rounded-input border border-pos bg-pos-bg p-3">
+              <CheckIcon size={16} className="mt-[1px] flex-none text-pos" />
+              <span className="text-[13px] leading-snug text-foreground">
+                Your wallet is connected and on Teratestnet.
+              </span>
+            </div>
+          )}
 
-          <p className="text-[13px] leading-relaxed text-muted-foreground">
-            Need a wallet? Download{' '}
-            <a
-              href="https://desktop.bsvb.tech/"
-              target="_blank"
-              rel="noreferrer"
-              className="font-medium text-link"
-            >
-              BSV Desktop
-            </a>{' '}
-            or{' '}
-            <a
-              href="https://mobile.bsvb.tech/"
-              target="_blank"
-              rel="noreferrer"
-              className="font-medium text-link"
-            >
-              BSV Browser
-            </a>{' '}
-            for mobile.
-          </p>
-
-          {networkWarning && phase !== 'claiming' && (
+          {phase === 'idle' && networkWarning && (
             <div
               className="flex items-start gap-2.5 rounded-input p-3"
               style={{ background: 'var(--warn-bg)', border: '1px solid var(--warn-bd)' }}
@@ -209,6 +220,25 @@ export function WalletPanel({
               <span className="text-[13px] leading-snug text-foreground">{networkWarning}</span>
             </div>
           )}
+
+          {phase === 'claiming' && (
+            <div className="flex items-center gap-2.5 rounded-input border border-primary/20 bg-primary/10 p-3">
+              <span className="dotpulse h-2 w-2 flex-none rounded-full bg-primary" />
+              <span className="text-[13px] leading-snug text-foreground">Approve the request in your wallet…</span>
+            </div>
+          )}
+
+          {phase === 'error' && (
+            <div className="flex w-full items-start gap-2.5 rounded-input border border-neg bg-neg-bg p-3">
+              <WarningIcon size={16} className="mt-[1px] flex-none text-neg" />
+              <span className="text-[13px] font-medium leading-snug text-foreground">{error}</span>
+            </div>
+          )}
+
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            We&apos;ll pay a BRC-29 output straight to your identity key, internalized as Atomic BEEF
+            and <span className="font-semibold text-foreground">spendable instantly</span>.
+          </p>
 
           {/* TODO: re-enable Turnstile — and restore `!token` in the button's disabled below. */}
           {/* {(phase === 'idle' || phase === 'error') && <TurnstileWidget siteKey={siteKey} onToken={setToken} />} */}
@@ -219,11 +249,9 @@ export function WalletPanel({
             disabled={busy}
             className={`${PRIMARY_CTA} shine-loop`}
           >
-            {busy ? 'Connecting…' : `Connect wallet & claim ${fmt(payoutSats)} sats`}
+            {busy ? 'Claiming…' : `Claim ${fmt(payoutSats)} sats`}
             {!busy && <ArrowRightIcon size={18} />}
           </button>
-
-          {phase === 'error' && <p className="text-sm font-medium text-neg">{error}</p>}
 
           <p className="text-center text-xs text-muted-foreground">
             No address to type, no key to paste, ~{tbsv(payoutSats)} tBSV
