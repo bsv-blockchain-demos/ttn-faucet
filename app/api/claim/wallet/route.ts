@@ -13,7 +13,8 @@ const CORS = {
 const BodySchema = z.object({
   identityKey: z.string().regex(/^0[23][0-9a-fA-F]{64}$/, 'Invalid identity key'),
   amount: z.number().int().positive().optional(),
-  captchaToken: z.string().min(1).optional(),
+  // Turnstile temporarily disabled (see lib/guard.ts); token is unused server-side, so accept "" too.
+  captchaToken: z.string().optional(),
 })
 
 function clientIp(req: Request): string {

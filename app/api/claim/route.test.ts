@@ -27,6 +27,13 @@ describe('POST /api/claim', () => {
     expect(res.status).toBe(400)
   })
 
+  it('does not 400 on an empty captchaToken (captcha disabled)', async () => {
+    ;(guard as any).mockResolvedValue({ ok: true, subject: 's' })
+    ;(claimToAddress as any).mockResolvedValue({ txid: 'tx1', ef: '00ef', amountSats: 100 })
+    const res = await POST(req({ address: ADDR, captchaToken: '' }))
+    expect(res.status).toBe(200)
+  })
+
   it('403 when the guard rejects the captcha', async () => {
     ;(guard as any).mockResolvedValue({ ok: false, code: 'captcha', status: 403, message: 'no' })
     const res = await POST(req({ address: ADDR, captchaToken: 't' }))

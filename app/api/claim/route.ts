@@ -13,7 +13,8 @@ const CORS = {
 const BodySchema = z.object({
   address: z.string().min(26).max(64),
   amount: z.number().int().positive().optional(),
-  captchaToken: z.string().min(1).optional(),
+  // Turnstile temporarily disabled (see lib/guard.ts); token is unused server-side, so accept "" too.
+  captchaToken: z.string().optional(),
 })
 
 function clientIp(req: Request): string {
