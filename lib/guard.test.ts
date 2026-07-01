@@ -47,13 +47,14 @@ describe('guard', () => {
     expect(r).toMatchObject({ ok: false, code: 'unauthorized', status: 401 })
   })
 
-  it('public path with failing captcha → 403', async () => {
-    ;(verifyTurnstile as any).mockResolvedValue(false)
-    const r = await guard({ ip: '1.2.3.4', captchaToken: 'tok' })
-    expect(r).toMatchObject({ ok: false, code: 'captcha', status: 403 })
-  })
+  // TODO: re-enable with Turnstile — captcha is temporarily disabled, so a failing token no longer 403s.
+  // it('public path with failing captcha → 403', async () => {
+  //   ;(verifyTurnstile as any).mockResolvedValue(false)
+  //   const r = await guard({ ip: '1.2.3.4', captchaToken: 'tok' })
+  //   expect(r).toMatchObject({ ok: false, code: 'captcha', status: 403 })
+  // })
 
-  it('public path, captcha ok, under limit → ok with ipHash subject and no apiKeyId', async () => {
+  it('public path, under limit → ok with ipHash subject and no apiKeyId', async () => {
     ;(verifyTurnstile as any).mockResolvedValue(true)
     const r = await guard({ ip: '1.2.3.4', captchaToken: 'tok' })
     expect(r.ok).toBe(true)
@@ -70,7 +71,7 @@ describe('guard', () => {
     expect(r).toMatchObject({ ok: false, code: 'rate_limit', status: 429, retryAfterMs: 500 })
   })
 
-  it('RATE_LIMIT_DISABLED → still requires captcha but never records or rejects on the limit', async () => {
+  it('RATE_LIMIT_DISABLED → never records or rejects on the limit', async () => {
     cfg.RATE_LIMIT_DISABLED = true
     ;(verifyTurnstile as any).mockResolvedValue(true)
     ;(checkAndRecord as any).mockResolvedValue({ allowed: false, remaining: 0, retryAfterMs: 500 })
@@ -79,10 +80,11 @@ describe('guard', () => {
     expect(checkAndRecord).not.toHaveBeenCalled()
   })
 
-  it('RATE_LIMIT_DISABLED still rejects a failing captcha (only the limit is off)', async () => {
-    cfg.RATE_LIMIT_DISABLED = true
-    ;(verifyTurnstile as any).mockResolvedValue(false)
-    const r = await guard({ ip: '1.2.3.4', captchaToken: 'bad' })
-    expect(r).toMatchObject({ ok: false, code: 'captcha', status: 403 })
-  })
+  // TODO: re-enable with Turnstile — captcha is temporarily disabled.
+  // it('RATE_LIMIT_DISABLED still rejects a failing captcha (only the limit is off)', async () => {
+  //   cfg.RATE_LIMIT_DISABLED = true
+  //   ;(verifyTurnstile as any).mockResolvedValue(false)
+  //   const r = await guard({ ip: '1.2.3.4', captchaToken: 'bad' })
+  //   expect(r).toMatchObject({ ok: false, code: 'captcha', status: 403 })
+  // })
 })

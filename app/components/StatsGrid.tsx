@@ -1,5 +1,36 @@
 'use client'
+import { useEffect, useState } from 'react'
 import { useFaucetBalanceSats } from './FaucetBalance'
+
+type Stats = { payoutCount: number; totalSatsDisbursed: number }
+
+/** Polls /api/stats every 30s for lifetime payout count + sats disbursed. */
+function useFaucetStats(): Stats | undefined {
+  const [stats, setStats] = useState<Stats | undefined>(undefined)
+
+  useEffect(() => {
+    let alive = true
+    const load = async () => {
+      try {
+        const res = await fetch('/api/stats')
+        const json = await res.json()
+        if (alive && typeof json.payoutCount === 'number' && typeof json.totalSatsDisbursed === 'number') {
+          setStats({ payoutCount: json.payoutCount, totalSatsDisbursed: json.totalSatsDisbursed })
+        }
+      } catch {
+        /* keep last value */
+      }
+    }
+    load()
+    const id = setInterval(load, 30_000)
+    return () => {
+      alive = false
+      clearInterval(id)
+    }
+  }, [])
+
+  return stats
+}
 
 function StatCard({
   label,
@@ -22,28 +53,32 @@ function StatCard({
 }
 
 /**
- * Treasury balance is live (polled /api/balance). The other three are marketing
- * figures kept as-is per the client.
+ * Sats dispensed + Total payouts are live from /api/stats (broadcast Claim rows). Treasury
+ * balance is live from /api/balance. Network throughput is an intentionally static marketing figure.
  */
 export function StatsGrid() {
   const sats = useFaucetBalanceSats()
+  const stats = useFaucetStats()
+
   const treasuryBsv =
     sats === undefined
       ? '…'
       : sats === null
       ? 'n/a'
       : (sats / 1e8).toLocaleString(undefined, { maximumFractionDigits: 2 })
+  const dispensed = stats === undefined ? '…' : stats.totalSatsDisbursed.toLocaleString()
+  const payouts = stats === undefined ? '…' : stats.payoutCount.toLocaleString()
 
   return (
     <div className="grid grid-cols-1 gap-4 min-[620px]:grid-cols-2 min-[880px]:grid-cols-4">
       <StatCard
         label="Sats dispensed"
-        value="184,320,000"
+        value={dispensed}
         sub={<span className="font-medium text-pos">▲ live</span>}
       />
       <StatCard
-        label="Claims today"
-        value="1,287"
+        label="Total payouts"
+        value={payouts}
         sub={<span className="text-muted-foreground">across all subjects</span>}
       />
       <StatCard

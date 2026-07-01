@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { WalletClient, Utils } from '@bsv/sdk'
-import { TurnstileWidget } from './TurnstileWidget'
+// TODO: re-enable Turnstile — temporarily disabled.
+// import { TurnstileWidget } from './TurnstileWidget'
 import { ArrowRightIcon, CheckIcon, WarningIcon } from './icons'
 
 type Phase = 'detecting' | 'unavailable' | 'idle' | 'claiming' | 'success' | 'error'
@@ -209,12 +210,13 @@ export function WalletPanel({
             </div>
           )}
 
-          {(phase === 'idle' || phase === 'error') && <TurnstileWidget siteKey={siteKey} onToken={setToken} />}
+          {/* TODO: re-enable Turnstile — and restore `!token` in the button's disabled below. */}
+          {/* {(phase === 'idle' || phase === 'error') && <TurnstileWidget siteKey={siteKey} onToken={setToken} />} */}
 
           <button
             type="button"
             onClick={claim}
-            disabled={busy || !token}
+            disabled={busy}
             className={`${PRIMARY_CTA} shine-loop`}
           >
             {busy ? 'Connecting…' : `Connect wallet & claim ${fmt(payoutSats)} sats`}

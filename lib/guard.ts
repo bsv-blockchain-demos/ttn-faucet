@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto'
 import { prisma } from './prisma'
 import { getConfig } from './config'
-import { verifyTurnstile } from './turnstile'
+// TODO: re-enable Turnstile — temporarily disabled (captcha check commented out below).
+// import { verifyTurnstile } from './turnstile'
 import { checkAndRecord } from './rate-limit'
 
 export function hashIp(ip: string): string {
@@ -38,10 +39,10 @@ export async function guard(ctx: GuardContext): Promise<GuardResult> {
     return { ok: true, subject: key.id, apiKeyId: key.id }
   }
 
-  // Public path: captcha required.
-  if (!ctx.captchaToken || !(await verifyTurnstile(cfg.TURNSTILE_SECRET_KEY, ctx.captchaToken, ctx.ip))) {
-    return { ok: false, code: 'captcha', status: 403, message: 'Captcha verification failed' }
-  }
+  // Public path: captcha temporarily disabled — TODO re-enable Turnstile.
+  // if (!ctx.captchaToken || !(await verifyTurnstile(cfg.TURNSTILE_SECRET_KEY, ctx.captchaToken, ctx.ip))) {
+  //   return { ok: false, code: 'captcha', status: 403, message: 'Captcha verification failed' }
+  // }
   const subject = hashIp(ctx.ip)
   if (!cfg.RATE_LIMIT_DISABLED) {
     const rl = await checkAndRecord({ subject, limit: cfg.RATE_LIMIT_MAX, windowMs: cfg.RATE_LIMIT_WINDOW_MS })

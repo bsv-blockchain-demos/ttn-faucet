@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
-import { TurnstileWidget } from './TurnstileWidget'
+// TODO: re-enable Turnstile — temporarily disabled.
+// import { TurnstileWidget } from './TurnstileWidget'
 import { generateTestnetKey } from '@/lib/keygen'
 import { ArrowRightIcon, CheckIcon, CopyIcon, WarningIcon } from './icons'
 
@@ -141,9 +142,10 @@ export function AddressPanel({
         </div>
       )}
 
-      <TurnstileWidget siteKey={siteKey} onToken={setToken} />
+      {/* TODO: re-enable Turnstile — and restore `!token` in the button's disabled below. */}
+      {/* <TurnstileWidget siteKey={siteKey} onToken={setToken} /> */}
 
-      <button type="submit" disabled={busy || !token || !address} className={PRIMARY_CTA}>
+      <button type="submit" disabled={busy || !address} className={PRIMARY_CTA}>
         {busy ? 'Sending…' : `Claim ${fmt(payoutSats)} sats`}
       </button>
 
