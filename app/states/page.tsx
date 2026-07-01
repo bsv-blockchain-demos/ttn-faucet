@@ -96,7 +96,7 @@ function CardShell({ tab, children }: { tab: 'wallet' | 'address'; children: Rea
       <div className="px-6 pt-5">
         <div className="flex gap-[7px] rounded-pill bg-muted p-[5px]">
           <span className={tabCls(tab === 'wallet')}>Auto: BRC-100 Wallet</span>
-          <span className={tabCls(tab === 'address')}>Manual: Paste address</span>
+          <span className={tabCls(tab === 'address')}>Manual: Legacy Address</span>
         </div>
       </div>
       <div className="px-6 pb-6 pt-[22px]">{children}</div>
@@ -106,23 +106,22 @@ function CardShell({ tab, children }: { tab: 'wallet' | 'address'; children: Rea
 
 function WalletExplainer() {
   return (
-    <>
-      <p className="text-sm leading-relaxed text-muted-foreground">
-        Connect a BRC-100 wallet and we&apos;ll pay a BRC-29 output straight to your identity key,
-        internalized as Atomic BEEF and <span className="font-semibold text-foreground">spendable instantly</span>.
-      </p>
-      <p className="text-[13px] leading-relaxed text-muted-foreground">
-        Need a wallet? Download{' '}
-        <a href="https://desktop.bsvb.tech/" target="_blank" rel="noreferrer" className="font-medium text-link">
-          BSV Desktop
-        </a>{' '}
-        or{' '}
-        <a href="https://mobile.bsvb.tech/" target="_blank" rel="noreferrer" className="font-medium text-link">
-          BSV Browser
-        </a>{' '}
-        for mobile.
-      </p>
-    </>
+    <p className="text-sm leading-relaxed text-muted-foreground">
+      We&apos;ll pay a BRC-29 output straight to your identity key, internalized as Atomic BEEF
+      and <span className="font-semibold text-foreground">spendable instantly</span>.
+    </p>
+  )
+}
+
+function DownloadHint() {
+  return (
+    <p className="w-full text-[13px] leading-relaxed text-muted-foreground">
+      Need a wallet? Download{' '}
+      <a href="https://desktop.bsvb.tech/" target="_blank" rel="noreferrer" className="font-medium text-link">BSV Desktop</a>{' '}
+      or{' '}
+      <a href="https://mobile.bsvb.tech/" target="_blank" rel="noreferrer" className="font-medium text-link">BSV Browser</a>{' '}
+      for mobile.
+    </p>
   )
 }
 
@@ -140,29 +139,54 @@ function WalletBody({ phase }: { phase: Phase }) {
     <div>
       <Stepper phase={phase} />
       {phase === 'detecting' && (
-        <div className="flex items-center gap-3 py-1 text-sm text-muted-foreground">
-          <span className="h-2 w-2 rounded-full bg-primary" />
-          Looking for a BRC-100 wallet…
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-2.5 rounded-input border border-primary/20 bg-primary/10 p-3 text-[13px] leading-snug text-foreground">
+            <span className="relative flex h-2 w-2 flex-none">
+              <span className="ping-ring absolute inline-flex h-full w-full rounded-full bg-primary" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+            </span>
+            Looking for a BRC-100 wallet…
+          </div>
+          <DownloadHint />
         </div>
       )}
       {phase === 'unavailable' && (
-        <div className="text-center">
-          <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
-            No BRC-100 wallet detected. Install BSV Browser, BSV Desktop, or Metanet. Or paste an address instead.
-          </p>
+        <div className="flex flex-col items-start gap-4">
+          <div className="flex w-full items-start gap-2.5 rounded-input border border-neg bg-neg-bg p-3">
+            <WarningIcon size={16} className="mt-[1px] flex-none text-neg" />
+            <span className="text-[13px] font-medium leading-snug text-foreground">No BRC-100 wallet detected.</span>
+          </div>
+          <DownloadHint />
           <span className={SECONDARY_CTA}>Paste an address instead</span>
         </div>
       )}
       {(phase === 'idle' || phase === 'idlewarn' || phase === 'claiming' || phase === 'error') && (
         <div className="flex flex-col gap-4">
+          {phase === 'idle' && (
+            <div className="flex items-start gap-2.5 rounded-input border border-pos bg-pos-bg p-3">
+              <CheckIcon size={16} className="mt-[1px] flex-none text-pos" />
+              <span className="text-[13px] leading-snug text-foreground">Your wallet is connected and on Teratestnet.</span>
+            </div>
+          )}
+          {phase === 'idlewarn' && <WarnBand>Your wallet is on mainnet. Switch it to Teratestnet before claiming, or these coins won&apos;t appear.</WarnBand>}
+          {phase === 'claiming' && (
+            <div className="flex items-center gap-2.5 rounded-input border border-primary/20 bg-primary/10 p-3">
+              <span className="dotpulse h-2 w-2 flex-none rounded-full bg-primary" />
+              <span className="text-[13px] leading-snug text-foreground">Approve the request in your wallet…</span>
+            </div>
+          )}
+          {phase === 'error' && (
+            <div className="flex w-full items-start gap-2.5 rounded-input border border-neg bg-neg-bg p-3">
+              <WarningIcon size={16} className="mt-[1px] flex-none text-neg" />
+              <span className="text-[13px] font-medium leading-snug text-foreground">internalizeAction rejected the payment</span>
+            </div>
+          )}
           <WalletExplainer />
-          {phase === 'idlewarn' && <WarnBand>Your wallet is on mainnet. These are Teratestnet coins and may not appear.</WarnBand>}
           {phase !== 'claiming' && <Captcha />}
           <span className={`${PRIMARY_CTA} ${phase === 'claiming' ? 'opacity-60' : ''}`}>
-            {phase === 'claiming' ? 'Connecting…' : `Connect wallet & claim ${fmt(PAYOUT)} sats`}
+            {phase === 'claiming' ? 'Claiming…' : `Claim ${fmt(PAYOUT)} sats`}
             {phase !== 'claiming' && <ArrowRightIcon size={18} />}
           </span>
-          {phase === 'error' && <p className="text-sm font-medium text-neg">internalizeAction rejected the payment</p>}
           <p className="text-center text-xs text-muted-foreground">No address to type, no key to paste, ~0.001 tBSV</p>
         </div>
       )}
@@ -235,8 +259,14 @@ function AddressBody({ state }: { state: 'empty' | 'generated' | 'busy' | 'error
               Track <ArrowRightIcon size={13} />
             </span>
           </div>
-          <div className="mb-[5px] text-[11px] font-medium text-muted-foreground">Extended format (EF)</div>
-          <div className="max-h-16 overflow-auto break-all rounded-lg border border-hairline bg-card p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
+          <div className="mb-[5px] flex items-center justify-between gap-2">
+            <span className="text-[11px] font-medium text-muted-foreground">Extended format (EF)</span>
+            <span className="inline-flex flex-none items-center gap-1 text-[11px] font-medium text-link">
+              <CopyIcon size={12} />
+              Copy
+            </span>
+          </div>
+          <div className="break-all rounded-lg border border-hairline bg-card p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
             {MOCK_EF}
           </div>
         </div>

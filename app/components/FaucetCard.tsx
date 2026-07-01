@@ -37,7 +37,7 @@ export function FaucetCard({ siteKey, payoutSats }: { siteKey: string; payoutSat
             Auto: BRC-100 Wallet
           </button>
           <button type="button" onClick={() => setTab('address')} className={tabCls(tab === 'address')}>
-            Manual: Paste address
+            Manual: Legacy Address
           </button>
         </div>
       </div>

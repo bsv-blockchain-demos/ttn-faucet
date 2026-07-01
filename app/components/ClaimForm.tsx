@@ -64,7 +64,7 @@ export function AddressPanel({
   const [result, setResult] = useState<{ txid: string; ef: string } | null>(null)
   const [error, setError] = useState('')
   const [generated, setGenerated] = useState<{ wif: string; address: string } | null>(null)
-  const [copied, setCopied] = useState<'addr' | 'wif' | ''>('')
+  const [copied, setCopied] = useState<'addr' | 'wif' | 'ef' | ''>('')
 
   function generate() {
     const g = generateTestnetKey()
@@ -72,7 +72,7 @@ export function AddressPanel({
     setAddress(g.address) // auto-fill the claim field
   }
 
-  function copy(text: string, which: 'addr' | 'wif') {
+  function copy(text: string, which: 'addr' | 'wif' | 'ef') {
     void navigator.clipboard?.writeText(text)
     setCopied(which)
     setTimeout(() => setCopied(''), 1500)
@@ -166,8 +166,28 @@ export function AddressPanel({
               Track <ArrowRightIcon size={13} />
             </button>
           </div>
-          <div className="mb-[5px] text-[11px] font-medium text-muted-foreground">Extended format (EF)</div>
-          <div className="scrollbar-faint max-h-16 overflow-auto break-all rounded-lg border border-hairline bg-card p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
+          <div className="mb-[5px] flex items-center justify-between gap-2">
+            <span className="text-[11px] font-medium text-muted-foreground">Extended format (EF)</span>
+            <button
+              type="button"
+              onClick={() => copy(result.ef, 'ef')}
+              title="Copy EF"
+              className="inline-flex flex-none items-center gap-1 text-[11px] font-medium text-link"
+            >
+              {copied === 'ef' ? (
+                <>
+                  <CheckIcon size={12} className="text-pos" />
+                  <span className="text-pos">Copied</span>
+                </>
+              ) : (
+                <>
+                  <CopyIcon size={12} />
+                  Copy
+                </>
+              )}
+            </button>
+          </div>
+          <div className="break-all rounded-lg border border-hairline bg-card p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
             {result.ef}
           </div>
         </div>
