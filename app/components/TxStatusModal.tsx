@@ -2,8 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { CheckIcon, CloseIcon, ExternalIcon } from './icons'
 
-// NOTE: no public Teratestnet explorer URL is known yet — placeholder to confirm.
-const EXPLORER = '#'
+const EXPLORER = 'https://woc-ttn.bsvblockchain.tech'
 
 type StatusResp = { txid: string; status: string; blockHeight: number | null }
 
@@ -200,7 +199,9 @@ export function TxStatusModal({ txid, onClose }: { txid: string; onClose: () => 
           )}
 
           <a
-            href={EXPLORER}
+            href={`${EXPLORER}/tx/${txid}`}
+            target="_blank"
+            rel="noopener noreferrer"
             className="mt-[18px] inline-flex items-center gap-1.5 text-[13px] font-semibold text-link"
           >
             View on explorer <ExternalIcon size={14} />

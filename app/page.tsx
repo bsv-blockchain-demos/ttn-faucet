@@ -6,8 +6,7 @@ import { ThemeToggle } from './components/ThemeProvider'
 import { BoltIcon, TargetIcon, RefreshIcon } from './components/icons'
 
 const GITHUB = 'https://github.com/bsv-blockchain-demos/ttn-faucet'
-// NOTE: no public Teratestnet explorer URL is known yet — placeholder to confirm.
-const EXPLORER = '#'
+const EXPLORER = 'https://woc-ttn.bsvblockchain.tech'
 const DOCS = `${GITHUB}#readme`
 const BSV = 'https://www.bsvblockchain.org'
 
