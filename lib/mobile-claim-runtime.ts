@@ -2,7 +2,7 @@ import { MobileClaims } from './mobile-claim'
 import { createRelaySession, getRelayStatus, relayCall } from './relay-api'
 import { guard, hashIp } from './guard'
 import { claimToWallet, findUndeliveredPayout, hasPayoutInFlight, markDelivered } from './faucet'
-import { payToWallet } from './wallet'
+import { freshAtomicBeef, payToWallet } from './wallet'
 
 /**
  * Backstop for the relay's connect webhook: check waiting claims this often. On one phone the
@@ -23,6 +23,7 @@ export function mobileClaims(): MobileClaims {
       pay: (identityKey, ip) =>
         claimToWallet({ identityKey, ipHash: hashIp(ip), recordRemittance: true }, { payWallet: payToWallet }),
       findUndelivered: findUndeliveredPayout,
+      refreshBeef: freshAtomicBeef,
       markDelivered,
       hasPayoutInFlight: (identityKey) => hasPayoutInFlight(identityKey),
       log: (msg) => console.log(msg),

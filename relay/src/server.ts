@@ -124,11 +124,13 @@ export function createRequestHandler(relay: RelayLike, origin: string) {
           const status =
             msg === 'Invalid desktop token'
               ? 401
-              : msg.startsWith('Session is') || code === 400
-                ? 400
-                : code === 429
-                  ? 429
-                  : 504
+              : /exceeds|too large/i.test(msg)
+                ? 413 // e.g. "Relay plaintext exceeds 48 KiB": the call can't fit in one relay message
+                : msg.startsWith('Session is') || code === 400
+                  ? 400
+                  : code === 429
+                    ? 429
+                    : 504
           return send(res, status, { error: msg })
         }
       }

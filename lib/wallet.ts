@@ -9,7 +9,6 @@ import {
   PrivateKey,
   CachedKeyDeriver,
   Transaction,
-  MerklePath,
   P2PKH,
   Beef,
   Utils,
@@ -18,11 +17,17 @@ import {
 import { knex as makeKnex } from 'knex'
 import { getConfig, CHAIN } from './config'
 import { deriveBrc29, newDerivationValues } from './brc29'
-import { broadcastRawTx, getTxStatus } from './arcade'
+import { broadcastRawTx } from './arcade'
 import { ArcadeChaintracks } from './arcade-chaintracks'
 import { makeArcadePostBeefResult } from './postbeef-result'
+import { arcadeMerklePath, startProofCompletion } from './proofs'
 
-let walletPromise: Promise<{ wallet: Wallet; identityKey: string; services: Services }> | null = null
+let walletPromise: Promise<{
+  wallet: Wallet
+  identityKey: string
+  services: Services
+  storage: WalletStorageManager
+}> | null = null
 
 export function getWallet() {
   if (!walletPromise) walletPromise = buildWallet()
@@ -54,10 +59,8 @@ async function buildWallet() {
   await activeStorage.findOrInsertUser(identityKey)
 
   const options = Services.createDefaultOptions(CHAIN)
-  options.chaintracks = new ArcadeChaintracks(
-    CHAIN,
-    cfg.ARCADE_CHAINTRACKS_URL,
-  ) as unknown as typeof options.chaintracks
+  const chaintracks = new ArcadeChaintracks(CHAIN, cfg.ARCADE_CHAINTRACKS_URL)
+  options.chaintracks = chaintracks as unknown as typeof options.chaintracks
   const services = new Services(options)
 
   services.postBeefServices.services = [
@@ -91,15 +94,13 @@ async function buildWallet() {
 
   services.getMerklePathServices.add({
     name: 'arcade',
-    service: async (txid: string) => {
-      const st = await getTxStatus(cfg.ARCADE_URL, txid)
-      if (!st || st.txStatus !== 'MINED' || !st.merklePath) return { name: 'arcade', notes: [] }
-      return { name: 'arcade', merklePath: MerklePath.fromHex(st.merklePath) }
-    },
+    service: (txid: string) => arcadeMerklePath(cfg.ARCADE_URL, chaintracks, txid),
   })
 
   const wallet = new Wallet({ chain: CHAIN, keyDeriver, storage, services })
-  return { wallet, identityKey, services }
+  // Record merkle proofs as blocks arrive, so payout BEEFs stay small (see lib/proofs.ts).
+  startProofCompletion(async () => ({ chain: CHAIN, storage, services, chaintracks }))
+  return { wallet, identityKey, services, storage }
 }
 
 /**
@@ -198,6 +199,21 @@ async function stopTrackingPayoutOutput(wallet: Wallet, txid: string): Promise<v
 }
 
 /** Total spendable balance (sats) the faucet wallet holds in its default basket. */
+/**
+ * A payout's Atomic BEEF (hex) rebuilt from the wallet as it stands now. Ancestors proven since the
+ * payout carry a merkle path instead of their own ancestry, so this is usually far smaller than the
+ * copy stored at payout time. Null if the wallet can't build it.
+ */
+export async function freshAtomicBeef(txid: string): Promise<string | null> {
+  const { storage } = await getWallet()
+  try {
+    const beef = await storage.runAsStorageProvider((sp) => sp.getBeefForTransaction(txid, {}))
+    return Utils.toHex(beef.toBinaryAtomic(txid))
+  } catch {
+    return null
+  }
+}
+
 export async function getFaucetBalanceSats(): Promise<number> {
   const { wallet } = await getWallet()
   const outs: any = await wallet.listOutputs({ basket: 'default', limit: 10000 })

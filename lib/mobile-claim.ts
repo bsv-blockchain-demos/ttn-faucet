@@ -16,7 +16,7 @@ import { RelayError, type RelaySession, type RelayStatus } from './relay-api'
  */
 
 export type MobileClaimState = 'waiting' | 'claiming' | 'done' | 'error' | 'expired'
-export type MobileClaimErrorCode = 'disconnected' | 'undelivered' | 'rate_limit' | 'in_flight' | 'failed'
+export type MobileClaimErrorCode = 'disconnected' | 'undelivered' | 'too_large' | 'rate_limit' | 'in_flight' | 'failed'
 
 /** What the browser sees (never the desktop token). */
 export interface MobileClaimView {
@@ -42,6 +42,11 @@ export interface MobileClaimDeps {
   guard: (ip: string) => Promise<GuardResult>
   pay: (identityKey: string, ip: string) => Promise<WalletClaimResult>
   findUndelivered: (identityKey: string) => Promise<WalletClaimResult | null>
+  /**
+   * Current Atomic BEEF (hex) for an earlier payout, rebuilt from the faucet wallet: ancestors
+   * proven since the payout drop out, so a redelivery is much smaller than the stored copy.
+   */
+  refreshBeef?: (txid: string) => Promise<string | null>
   markDelivered: (txid: string) => Promise<void>
   hasPayoutInFlight: (identityKey: string) => Promise<boolean>
   now?: () => number
@@ -78,6 +83,10 @@ const MESSAGES = {
     'BSV Wallet disconnected before the claim could start. Try again, and stay in BSV Wallet for a few seconds after approving.',
   undelivered:
     "The coins were sent, but BSV Wallet closed before accepting them. Try again and approve in BSV Wallet: you'll receive this same payout, not a new one.",
+  tooLarge:
+    "The coins were sent, but this payout's proof data is too large for the mobile connection until the network mines recent transactions. It's saved for you: try again in a few minutes and you'll receive this same payout.",
+  deliveryFailed: (reason: string) =>
+    `The coins were sent, but delivering them to BSV Wallet failed (${reason}). Try again: you'll receive this same payout, not a new one.`,
   inFlight: 'A payout to this wallet is already in progress. Try again in a minute.',
 } as const
 
@@ -88,6 +97,17 @@ function message(err: unknown): string {
 /** The relay rejects calls on a dead socket with "Session is disconnected"/"expired". */
 function isSessionGone(err: unknown): boolean {
   return err instanceof RelayError && /^Session is (disconnected|expired|not found)/.test(err.message)
+}
+
+/** The call didn't fit in one relay message (the relay answers 413). */
+function isTooLarge(err: unknown): boolean {
+  return err instanceof RelayError && (err.code === 413 || /exceeds|too large/i.test(err.message))
+}
+
+function deliveryFailure(err: unknown): ClaimFailure {
+  if (isTooLarge(err)) return new ClaimFailure('too_large', MESSAGES.tooLarge)
+  if (isSessionGone(err)) return new ClaimFailure('undelivered', MESSAGES.undelivered)
+  return new ClaimFailure('undelivered', MESSAGES.deliveryFailed(message(err)))
 }
 
 function internalizeArgs(p: WalletClaimResult) {
@@ -184,6 +204,10 @@ export class MobileClaims {
       // 2. Redeliver an earlier payout the wallet never accepted, else pay a new one.
       paid = await deps.findUndelivered(identityKey)
       redelivered = paid !== null
+      if (paid && deps.refreshBeef) {
+        const fresh = await deps.refreshBeef(paid.txid).catch(() => null)
+        if (fresh) paid = { ...paid, atomicBEEF: fresh }
+      }
       if (!paid) {
         if (await deps.hasPayoutInFlight(identityKey)) throw new ClaimFailure('in_flight', MESSAGES.inFlight)
         const g = await deps.guard(entry.ip)
@@ -198,8 +222,10 @@ export class MobileClaims {
       try {
         await deps.call(entry.session, 'internalizeAction', internalizeArgs(paid))
       } catch (err) {
-        deps.log?.(`[mobile-claim] internalizeAction failed session=${sessionId} txid=${paid.txid}: ${message(err)}`)
-        throw new ClaimFailure('undelivered', MESSAGES.undelivered)
+        deps.log?.(
+          `[mobile-claim] internalizeAction failed session=${sessionId} txid=${paid.txid} beefBytes=${paid.atomicBEEF.length / 2}: ${message(err)}`,
+        )
+        throw deliveryFailure(err)
       }
       await deps.markDelivered(paid.txid)
       entry.view = { state: 'done', txid: paid.txid, amount: paid.amountSats, redelivered }
