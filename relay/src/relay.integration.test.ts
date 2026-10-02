@@ -15,7 +15,7 @@ afterEach(() => {
   cleanup = []
 })
 
-async function startRelay() {
+async function startRelay(onSessionConnected?: (sessionId: string) => void) {
   const server = http.createServer()
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
   const { port } = server.address() as AddressInfo
@@ -27,6 +27,7 @@ async function startRelay() {
     relayUrl: `ws://127.0.0.1:${port}`,
     allowedOrigins: [origin],
     schema: 'bsv-wallet',
+    onSessionConnected,
   })
   const handle = createRequestHandler(relay, origin)
   server.on('request', (req, res) => void handle(req, res))
@@ -34,7 +35,7 @@ async function startRelay() {
     relay.stop()
     server.close()
   })
-  return { origin }
+  return { origin, relay }
 }
 
 // bsv-wallet parses `bsv-wallet://pair?…` itself (the library's parsePairingUri only knows its
@@ -152,5 +153,25 @@ describe('relay end-to-end', () => {
       body: JSON.stringify({ method: 'getPublicKey', params: { identityKey: true } }),
     })
     expect(res.status).toBe(401)
+  }, 20000)
+
+  it('reports the session connected by the time onSessionConnected fires', async () => {
+    let statusAtCallback: string | undefined
+    let relayRef: WalletRelayService | undefined
+    const { origin, relay } = await startRelay((id) => {
+      statusAtCallback = relayRef?.getSession(id)?.status
+    })
+    relayRef = relay
+    const created = await (await fetch(`${origin}/api/session`)).json()
+    const phone = new WalletPairingSession(new ProtoWallet(PrivateKey.fromRandom()), pairingParams(created.pairingUri), {
+      onApprovalRequired: async () => true,
+    })
+    phone.onRequest(async () => ({}))
+    cleanup.push(() => phone.disconnect())
+    await phone.resolveRelay()
+    await phone.connect()
+    await waitFor(async () => (statusAtCallback ? statusAtCallback : undefined))
+    // The faucet re-checks status when notified, so it must already read 'connected'.
+    expect(statusAtCallback).toBe('connected')
   }, 20000)
 })

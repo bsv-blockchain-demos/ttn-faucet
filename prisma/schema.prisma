@@ -18,8 +18,14 @@ model Claim {
   apiKeyId       String?
   idempotencyKey String?  @unique
   ef             String?
+  /// Mobile-wallet claims only: JSON { derivationPrefix, derivationSuffix, senderIdentityKey,
+  /// outputIndex } so a payout the phone didn't accept can be redelivered on its next connect.
+  remittance     String?
+  /// When the phone confirmed internalizeAction (mobile-wallet claims only).
+  deliveredAt    DateTime?
 
   @@index([ipHash, createdAt])
+  @@index([recipient, createdAt])
 }
 
 model RateEvent {

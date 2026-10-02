@@ -79,7 +79,9 @@ export const ClaimScalarFieldEnum = {
   ipHash: 'ipHash',
   apiKeyId: 'apiKeyId',
   idempotencyKey: 'idempotencyKey',
-  ef: 'ef'
+  ef: 'ef',
+  remittance: 'remittance',
+  deliveredAt: 'deliveredAt'
 } as const
 
 export type ClaimScalarFieldEnum = (typeof ClaimScalarFieldEnum)[keyof typeof ClaimScalarFieldEnum]
