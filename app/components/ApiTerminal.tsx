@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { CopyIcon } from './icons'
 
 const CURL = `# claim test coins to an address
-curl -X POST https://faucet.teratestnet.org/api/claim \\
+curl -X POST https://faucet-ttn.bsvblockchain.tech/api/claim \\
   -H 'content-type: application/json' \\
   -d '{"address":"<your-teratestnet-address>","captchaToken":"<turnstile>"}'
 

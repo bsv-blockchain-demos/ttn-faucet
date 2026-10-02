@@ -18,7 +18,7 @@ const jetBrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://faucet.teratestnet.org'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://faucet-ttn.bsvblockchain.tech'),
   title: 'BSV Teranode Testnet Faucet',
   description:
     'A BSV Blockchain faucet for the Teranode scaling testnet. Grab free, spendable Teratestnet coins in one click with a BRC-100 wallet, or POST an address via the dev API, and start building on the network that broke one million transactions per second.',
