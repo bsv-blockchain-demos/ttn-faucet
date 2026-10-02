@@ -18,6 +18,12 @@ const relay = new WalletRelayService({
   schema: cfg.QR_SCHEMA,
   onSessionConnected: (sessionId) => console.log(`[relay] mobile wallet paired session=${sessionId}`),
   onSessionDisconnected: (sessionId) => console.log(`[relay] mobile wallet disconnected session=${sessionId}`),
+  // Who closed each socket and how: cause client|heartbeat|server, code 1006 = abnormal drop.
+  onSocketClosed: (info) =>
+    console.log(
+      `[relay] socket closed session=${info.topic} role=${info.role} cause=${info.cause} code=${info.code}` +
+        ` reason=${JSON.stringify(info.reason)} connectedForMs=${info.connectedForMs} missedPongs=${info.missedPongs}`,
+    ),
 })
 
 const handle = createRequestHandler(relay, cfg.FAUCET_PUBLIC_URL)
