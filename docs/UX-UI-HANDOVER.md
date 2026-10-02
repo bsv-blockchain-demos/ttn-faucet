@@ -134,12 +134,15 @@ interaction happens.
 ## 7. User pathways & every UI state
 
 ### 7.1 Wallet 1-click flow (`WalletClaim.tsx` → `WalletPanel`)
-A state machine. **Phases:** `detecting → unavailable | idle → claiming → success | error`.
+A state machine. **Phases:** `detecting → pairing | unavailable | idle → claiming → success | error`
+(`pairing → idle | pair-expired`).
 
 | Phase | What renders |
 |---|---|
-| `detecting` | Pulsing brand dot + "Looking for a BRC-100 wallet…" (probes `WalletClient('auto').getVersion()` with a 1.5s timeout) |
-| `unavailable` | "No BRC-100 wallet detected…" + **"Paste an address instead →"** button (switches to Tab B) |
+| `detecting` | Pulsing brand dot + "Looking for a BRC-100 wallet…" (resumes a phone paired earlier in this tab, else probes `WalletClient('auto').getVersion()` with a 1.5s timeout) |
+| `pairing` | **Default when no local wallet answers.** "No browser wallet found. Scan with BSV Wallet…" + pairing QR (`@bsv/wallet-relay`) + "On your phone? Open in BSV Wallet" deep link + "Waiting for your phone…" + download hint + "Paste an address instead" link. Polls `/api/session/:id` every 2s |
+| `pair-expired` | "The pairing code expired…" + **"Generate new QR"** + paste-address link |
+| `unavailable` | Only when mobile pairing is unavailable (relay disabled/unreachable): "No BRC-100 wallet detected…" + **"Paste an address instead →"** button (switches to Tab B) |
 | `idle` | Explainer copy → optional **network-mismatch warning** (amber, if wallet reports `mainnet`) → Turnstile → primary CTA **"Connect wallet & claim {N} sats →"** (disabled until captcha token) → microcopy |
 | `claiming` | Same CTA, label flips to "Connecting…", disabled |
 | `success` | Green ✓ badge "Funds in your wallet!" + "{amount} sats are now spendable" + txid link (→ raw JSON) |
@@ -147,6 +150,9 @@ A state machine. **Phases:** `detecting → unavailable | idle → claiming → 
 
 Mechanics (preserve): on claim it reads `getPublicKey({identityKey:true})`, POSTs to `/api/claim/wallet`,
 then **client-side** calls `wallet.internalizeAction(...)` with the returned Atomic BEEF + remittance.
+With a paired phone the same calls go through `RelayWallet` (`lib/relay-wallet.ts`); `idle` then shows
+"Your mobile wallet is paired. Make sure it's set to Teratestnet." + **Disconnect** (the relay can't
+report the phone's network), and a dropped phone (checked every 10s) returns to a fresh QR.
 
 ### 7.2 Paste-address flow (`ClaimForm.tsx` → `AddressPanel`)
 | Element | Behavior |
