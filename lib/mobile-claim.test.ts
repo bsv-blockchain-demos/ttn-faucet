@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { MobileClaims, type MobileClaimDeps } from './mobile-claim'
+import { MAX_WAITING, MobileClaims, type MobileClaimDeps } from './mobile-claim'
 import { RelayError, type RelayStatus } from './relay-api'
 import type { WalletClaimResult } from './faucet'
 
@@ -153,5 +153,13 @@ describe('MobileClaims', () => {
     deps.now.mockReturnValue(1_000_000 + 16 * 60 * 1000)
     await claims.sweep()
     expect(claims.view('s1')).toBeNull()
+  })
+
+  it('refuses new claims once too many are waiting', async () => {
+    let n = 0
+    deps.createSession.mockImplementation(async () => ({ ...session, sessionId: `s${++n}` }))
+    const fresh = new MobileClaims(deps as unknown as MobileClaimDeps)
+    for (let i = 0; i < MAX_WAITING; i++) await fresh.create('1.2.3.4')
+    await expect(fresh.create('1.2.3.4')).rejects.toMatchObject({ code: 429 })
   })
 })

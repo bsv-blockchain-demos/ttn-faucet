@@ -58,6 +58,12 @@ interface Entry {
 /** Finished/expired claims are kept this long so a returning browser can read the outcome. */
 const RETAIN_MS = 15 * 60 * 1000
 
+/**
+ * Most claims waiting for a phone at once. Starting a claim is unguarded (the guard runs on
+ * connect) and every waiting claim is polled each sweep, so this bounds the load on the relay.
+ */
+export const MAX_WAITING = 200
+
 class ClaimFailure extends Error {
   constructor(
     readonly code: MobileClaimErrorCode,
@@ -113,6 +119,9 @@ export class MobileClaims {
 
   /** Open a relay pairing session for a claim. The guard runs at connect time, not here. */
   async create(ip: string): Promise<NewMobileClaim> {
+    let waiting = 0
+    for (const e of this.entries.values()) if (e.view.state === 'waiting') waiting++
+    if (waiting >= MAX_WAITING) throw new RelayError('Too many mobile claims in progress. Try again shortly.', 429)
     const session = await this.deps.createSession()
     this.entries.set(session.sessionId, { session, ip, createdAt: this.now(), view: { state: 'waiting' } })
     return { sessionId: session.sessionId, qrDataUrl: session.qrDataUrl, pairingUri: session.pairingUri }
