@@ -160,4 +160,4 @@ funded treasury:
 
 ## Licence
 
-No licence file or package licence declaration is included in this checkout. Licensing terms need to be confirmed by the maintainers.
+**Open BSV Licence v6.** See [LICENSE.txt](LICENSE.txt) for the full terms. The licence applies to this project's original code and documentation and restricts use to the BSV blockchain defined in the licence. Third-party code, assets and referenced standards retain their respective terms.
