@@ -4,16 +4,18 @@ A faucet for the BSV **teratestnet** network with two ways to claim:
 
 - **Dev API** — `POST` a teratestnet address and the service builds, signs, and **broadcasts**
   a funding transaction through [arcade](https://github.com/bsv-blockchain/arcade), then returns
-  the transaction in **extended format (EF)**. Funds are live on-chain immediately.
+  the transaction in **extended format (EF)**. The returned transaction ID can be used to check its broadcast and mining status.
 - **BRC-100 wallet onboarding** — load the page with a BRC-100 wallet (BSV Browser / BSV Desktop /
   Metanet Desktop) and click once: the faucet pays a BRC-29 output to your wallet's identity key
   and hands back **Atomic BEEF**, which the wallet accepts via `internalizeAction`. No key or
-  address to type, and the coins are spendable immediately (the BEEF carries the funded ancestors'
-  proofs, so there's no wait for mining).
+  address to type, with the funded ancestors' proofs included in the BEEF. The recipient wallet must accept the transaction before it can use the funds.
 
 Built on a [`@bsv/wallet-toolbox`](https://github.com/bsv-blockchain/wallet-toolbox)
-server wallet (seeded once from a flat treasury key) with light abuse prevention
-(per-subject rate limiting + Cloudflare Turnstile, or an API key for higher limits).
+server wallet, seeded once from a flat treasury key.
+
+[Hosted faucet](https://faucet-ttn.bsvblockchain.tech/).
+
+**Current claim controls:** captcha verification is commented out in `lib/guard.ts`, and rate limiting defaults to disabled. Set `RATE_LIMIT_DISABLED=false` to enable per-subject limits. Turnstile keys alone do not enable captcha verification. Valid API keys receive tier-based limits when rate limiting is enabled.
 
 > See `docs/superpowers/specs/2026-06-23-teratestnet-faucet-design.md` for the full design.
 
@@ -21,15 +23,21 @@ server wallet (seeded once from a flat treasury key) with light abuse prevention
 
 Next.js 16 (App Router) · TypeScript · `@bsv/sdk` 1.10.4 · `@bsv/wallet-toolbox` 1.8.2 ·
 `knex` + `sqlite3` (toolbox storage) · Prisma 7 + SQLite (policy DB) · Zod · Tailwind ·
-Vitest · pnpm. (Requires Node ≥ 20; developed on Node 25.)
+Vitest · pnpm. Use Node.js 22.12+ and pnpm 10.31.0, matching the package requirements and Docker toolchain.
 
 ## Setup
 
 ```bash
-pnpm install
+git clone https://github.com/bsv-blockchain-demos/ttn-faucet.git
+cd ttn-faucet
+pnpm install --frozen-lockfile
 cp .env.example .env            # then fill in the values (see below)
-DATABASE_URL="file:./prisma/dev.db" pnpm prisma migrate dev   # create the policy DB
+mkdir -p data
+DATABASE_URL="file:$PWD/data/policy.sqlite" pnpm prisma migrate deploy
+DATABASE_URL="file:$PWD/data/policy.sqlite" pnpm prisma generate
 ```
+
+Set the same absolute `DATABASE_URL` in `.env` for the running app. The Prisma CLI configuration does not load `.env` itself, so pass this variable when running Prisma commands. An absolute path also avoids a mismatch between the CLI's and SQLite adapter's relative paths.
 
 ### Environment (`.env`)
 
@@ -44,6 +52,7 @@ DATABASE_URL="file:./prisma/dev.db" pnpm prisma migrate dev   # create the polic
 | `TURNSTILE_SECRET_KEY` / `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Cloudflare Turnstile keys. |
 | `FAUCET_PAYOUT_SATS` / `FAUCET_MAX_SATS` | Default payout and per-request cap (satoshis). |
 | `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS` | Max claims per window per subject. |
+| `RATE_LIMIT_DISABLED` | Set to the literal `false` to enable rate limiting. Unset or any other value disables it. |
 | `BOOTSTRAP_SPLIT_COUNT` | How many parallel-spendable UTXOs the bootstrap splits the treasury into. |
 
 ## Treasury bootstrap (one-time)
@@ -79,10 +88,10 @@ pnpm build && pnpm start
 ### `POST /api/claim`
 ```
 Body:    { "address": "n…", "amount"?: <sats>, "captchaToken"?: "…" }
-Headers: Authorization: Bearer <api-key>   (optional → higher limits, skips captcha)
+Headers: Authorization: Bearer <api-key>   (optional; tier-based limits when enabled)
          Idempotency-Key: <uuid>           (optional → replays the prior result)
 200:     { "txid", "ef", "outputs": [{ "vout", "satoshis", "address" }], "network": "teratestnet" }
-Errors:  400 bad input · 401 bad key · 403 captcha · 429 rate-limited (+Retry-After) · 503 faucet error
+Errors:  400 bad input · 401 bad key · 429 rate-limited when enabled (+Retry-After) · 503 faucet error
 ```
 ```bash
 curl -X POST http://localhost:3000/api/claim \
@@ -95,10 +104,10 @@ BRC-100 onboarding. The browser supplies its wallet identity key; the faucet ret
 the remittance the wallet needs to `internalizeAction`.
 ```
 Body:    { "identityKey": "02…", "amount"?: <sats>, "captchaToken"?: "…" }
-Headers: Authorization: Bearer <api-key>   (optional → higher limits, skips captcha)
+Headers: Authorization: Bearer <api-key>   (optional; tier-based limits when enabled)
 200:     { "txid", "atomicBEEF": "<hex>", "derivationPrefix", "derivationSuffix",
            "senderIdentityKey": "02…", "outputIndex", "amount", "network": "teratestnet" }
-Errors:  400 bad input · 401 bad key · 403 captcha · 429 rate-limited (+Retry-After) · 503 faucet error
+Errors:  400 bad input · 401 bad key · 429 rate-limited when enabled (+Retry-After) · 503 faucet error
 ```
 The client completes the handoff (BEEF hex → bytes via `Utils.toArray(hex, 'hex')`):
 ```ts
@@ -118,16 +127,19 @@ Proxies arcade → `{ txid, status, blockHeight }` (404 if unknown).
 
 ## Tests
 
+The database-backed tests write fixture records. Use a separate test database:
+
 ```bash
-DATABASE_URL="file:./prisma/dev.db" pnpm test    # 40 unit/integration tests
+DATABASE_URL="file:$PWD/data/tests.sqlite" pnpm prisma migrate deploy
+DATABASE_URL="file:$PWD/data/tests.sqlite" pnpm test
 pnpm exec tsc --noEmit                           # type-check
 pnpm build                                        # production build
 ```
 
-## Live verification (Task 18 — run against real infra)
+## Live verification
 
 The unit suite mocks arcade. Before a real deploy, verify against the live arcade +
-funded treasury (see the plan's Task 18 for the full checklist):
+funded treasury:
 
 1. Confirm arcade's actual routes/field names: `POST /tx` body/response, `GET /tx/{txid}`
    (`txStatus`/`merklePath`/`blockHeight` casing), and chaintracks `/height` +
@@ -135,14 +147,17 @@ funded treasury (see the plan's Task 18 for the full checklist):
    if names differ.
 2. Run `pnpm bootstrap` with a funded `TREASURY_WIF` + `treasury-utxos.json`.
 3. `curl` a claim end-to-end; confirm the returned `ef` parses and the status advances to `MINED`.
-4. Verify guard behaviour (403 without captcha; 429 over the limit; idempotent replay).
+4. Enable rate limiting and check for HTTP 429 over the limit, invalid API key rejection, and idempotent replay. Captcha rejection requires restoring the verification code first.
 5. If arcade has no `/health` route, point the health probe at `${ARCADE_URL}/` instead.
 
-## Known follow-ups (non-blocking)
+## Known limitations
 
 - A claim that **fails** while carrying an `Idempotency-Key` keeps the key, so retrying with
-  the same key returns 503 (unique-constraint) instead of cleanly retrying. Behaviour is safe
-  (never double-pays); use a fresh key to retry, or add upsert handling in `lib/faucet.ts`.
+  the same key returns 503 (unique-constraint) instead of cleanly retrying. Check the wallet and broadcast state before attempting another payout: a failure after broadcasting can leave the database without the transaction result.
 - The generated Prisma client is committed (Prisma 7 + driver-adapter, custom output dir).
 - Background proof completion (the toolbox `Monitor`) is not enabled; pure-change payouts
-  don't need it, but long-running deployments may want it (see Plan 1 §Out of scope).
+  use already proven funding ancestors, but long-running deployments need a separate proof-completion strategy.
+
+## Licence
+
+No licence file or package licence declaration is included in this checkout. Licensing terms need to be confirmed by the maintainers.
