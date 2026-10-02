@@ -173,6 +173,12 @@ relay   ─ POST {FAUCET_INTERNAL_URL}/api/claim/mobile/:id ─▶ faucet       
 | `POST /api/claim/mobile/:id` | Relay's connect notification. It only prompts a check; the claim runs only if the relay reports the session connected |
 | `GET /api/session/:id` | Proxied to the relay: how the phone finds the relay socket after scanning |
 
+**Size limit.** A relay message carries at most 48 KiB of plaintext, which fits an Atomic BEEF of
+about 13 KB. With merkle proofs completed (see Known limitations) a payout's BEEF is usually under
+a few KB; a long run of payouts between blocks can exceed the limit, in which case the claim fails
+with a "too large for now" message, the payout is kept, and a retry after the next block delivers a
+rebuilt (smaller) BEEF.
+
 The faucet notices a connect through the relay's notification (immediate) and also checks waiting
 claims every 1.5s, so a lost notification costs at most a second or two. With `RELAY_INTERNAL_URL`
 unset, `POST /api/claim/mobile` returns 503 `relay_disabled` and the UI falls back to "No BRC-100
@@ -247,8 +253,11 @@ funded treasury:
 - Mobile claims in progress live in the faucet process's memory (as relay sessions do in the relay),
   so a faucet restart drops them; the page then starts a fresh claim. Undelivered payouts are in
   the database and survive restarts.
-- Background proof completion (the toolbox `Monitor`) is not enabled; pure-change payouts
-  use already proven funding ancestors, but long-running deployments need a separate proof-completion strategy.
+- Merkle proofs are completed by a small job in the faucet process (`lib/proofs.ts`), every
+  minute, from arcade. It doesn't count as a proof attempt, so a transaction arcade can't find is
+  never given up on. Without proofs, payout BEEFs carried every earlier payout as an unconfirmed
+  ancestor (125 KB, 530 transactions); with them a payout's BEEF is its parents since the last
+  block plus one merkle path each.
 
 ## Licence
 

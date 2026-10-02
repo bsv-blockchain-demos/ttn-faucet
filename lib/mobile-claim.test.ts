@@ -38,6 +38,7 @@ beforeEach(async () => {
     guard: vi.fn(async () => ({ ok: true, subject: 'h' })),
     pay: vi.fn(async () => payment),
     findUndelivered: vi.fn(async () => null),
+    refreshBeef: vi.fn(async () => null),
     markDelivered: vi.fn(async () => {}),
     hasPayoutInFlight: vi.fn(async () => false),
     now: vi.fn(() => 1_000_000),
@@ -93,7 +94,11 @@ describe('MobileClaims', () => {
 
   it('redelivers an undelivered payout instead of paying again', async () => {
     deps.findUndelivered.mockResolvedValue({ ...payment, txid: 'old' })
+    deps.refreshBeef.mockResolvedValue('0102')
     await connectAndSettle()
+    expect(deps.refreshBeef).toHaveBeenCalledWith('old')
+    // The rebuilt (smaller) BEEF is what the wallet receives.
+    expect((deps.call.mock.calls[1][2] as { tx: number[] }).tx).toEqual([1, 2])
     expect(deps.pay).not.toHaveBeenCalled()
     expect(deps.guard).not.toHaveBeenCalled()
     expect(deps.markDelivered).toHaveBeenCalledWith('old')
@@ -109,6 +114,36 @@ describe('MobileClaims', () => {
     await connectAndSettle()
     expect(claims.view('s1')).toMatchObject({ state: 'error', code: 'undelivered', txid: 'tx1', amount: 100_000 })
     expect(deps.markDelivered).not.toHaveBeenCalled()
+  })
+
+  it('falls back to the stored BEEF when it cannot be rebuilt', async () => {
+    deps.findUndelivered.mockResolvedValue({ ...payment, txid: 'old' })
+    deps.refreshBeef.mockRejectedValue(new Error('no storage'))
+    await connectAndSettle()
+    expect((deps.call.mock.calls[1][2] as { tx: number[] }).tx).toEqual([1, 1, 1, 1, 0])
+    expect(claims.view('s1')?.state).toBe('done')
+  })
+
+  it('says so honestly when the payment is too large for the relay', async () => {
+    phone({
+      internalizeAction: () => {
+        throw new RelayError('Relay plaintext exceeds 48 KiB', 413)
+      },
+    })
+    await connectAndSettle()
+    expect(claims.view('s1')).toMatchObject({ state: 'error', code: 'too_large', txid: 'tx1' })
+    expect(claims.view('s1')?.error).toMatch(/too large for the mobile connection/)
+  })
+
+  it('names the reason for other delivery failures instead of blaming the wallet', async () => {
+    phone({
+      internalizeAction: () => {
+        throw new RelayError('Wallet storage busy', 500)
+      },
+    })
+    await connectAndSettle()
+    expect(claims.view('s1')).toMatchObject({ state: 'error', code: 'undelivered' })
+    expect(claims.view('s1')?.error).toMatch(/delivering them to BSV Wallet failed \(Wallet storage busy\)/)
   })
 
   it('reports a disconnect before the identity key without paying', async () => {

@@ -87,6 +87,7 @@ describe('POST /api/request/:id', () => {
     [err('bad args', 400), 400],
     [err('busy', 429), 429],
     [err('Request timed out'), 504],
+    [err('Relay plaintext exceeds 48 KiB'), 413],
   ])('maps %s to %i', async (e, status) => {
     relay.sendRequest.mockRejectedValue(e)
     expect((await post({ method: 'getPublicKey' }, 'tok')).status).toBe(status)
