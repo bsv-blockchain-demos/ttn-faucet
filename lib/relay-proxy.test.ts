@@ -22,7 +22,7 @@ describe('relayFetch', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('forwards only content-type and the desktop token, plus the body', async () => {
+  it('forwards only content-type, plus the body', async () => {
     fetchMock.mockResolvedValue(new Response('{"result":1}', { status: 200, headers: { 'content-type': 'application/json' } }))
     const req = new Request('http://x/api/request/abc', {
       method: 'POST',
@@ -36,7 +36,7 @@ describe('relayFetch', () => {
     expect(init.method).toBe('POST')
     expect(init.body).toBe('{"method":"getPublicKey"}')
     const sent = init.headers as Headers
-    expect(sent.get('x-desktop-token')).toBe('tok')
+    expect(sent.get('x-desktop-token')).toBeNull()
     expect(sent.get('content-type')).toBe('application/json')
     expect(sent.get('cookie')).toBeNull()
     expect(sent.get('origin')).toBeNull()

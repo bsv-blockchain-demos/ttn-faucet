@@ -31,6 +31,9 @@ const schema = z.object({
       return u.protocol === 'wss:' || (u.protocol === 'ws:' && LOOPBACK.has(u.hostname))
     }, 'must be wss:// (ws:// only on loopback)')
     .transform((v) => v.replace(/\/$/, '')),
+  // In-cluster base URL of the faucet (e.g. http://faucet:3000). When set, the relay notifies
+  // POST {FAUCET_INTERNAL_URL}/api/claim/mobile/:sessionId the moment a phone connects.
+  FAUCET_INTERNAL_URL: z.string().url().optional(),
   // Deep-link scheme the wallet app registers (bsv-wallet accepts bsv-wallet:// and bsv-browser://).
   QR_SCHEMA: z.string().regex(/^[a-z][a-z0-9+.-]*$/).default('bsv-wallet'),
   PORT: z.coerce.number().int().positive().default(8787),

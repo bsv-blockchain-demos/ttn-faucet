@@ -45,6 +45,8 @@ export type ClaimMinAggregateOutputType = {
   apiKeyId: string | null
   idempotencyKey: string | null
   ef: string | null
+  remittance: string | null
+  deliveredAt: Date | null
 }
 
 export type ClaimMaxAggregateOutputType = {
@@ -58,6 +60,8 @@ export type ClaimMaxAggregateOutputType = {
   apiKeyId: string | null
   idempotencyKey: string | null
   ef: string | null
+  remittance: string | null
+  deliveredAt: Date | null
 }
 
 export type ClaimCountAggregateOutputType = {
@@ -71,6 +75,8 @@ export type ClaimCountAggregateOutputType = {
   apiKeyId: number
   idempotencyKey: number
   ef: number
+  remittance: number
+  deliveredAt: number
   _all: number
 }
 
@@ -94,6 +100,8 @@ export type ClaimMinAggregateInputType = {
   apiKeyId?: true
   idempotencyKey?: true
   ef?: true
+  remittance?: true
+  deliveredAt?: true
 }
 
 export type ClaimMaxAggregateInputType = {
@@ -107,6 +115,8 @@ export type ClaimMaxAggregateInputType = {
   apiKeyId?: true
   idempotencyKey?: true
   ef?: true
+  remittance?: true
+  deliveredAt?: true
 }
 
 export type ClaimCountAggregateInputType = {
@@ -120,6 +130,8 @@ export type ClaimCountAggregateInputType = {
   apiKeyId?: true
   idempotencyKey?: true
   ef?: true
+  remittance?: true
+  deliveredAt?: true
   _all?: true
 }
 
@@ -220,6 +232,8 @@ export type ClaimGroupByOutputType = {
   apiKeyId: string | null
   idempotencyKey: string | null
   ef: string | null
+  remittance: string | null
+  deliveredAt: Date | null
   _count: ClaimCountAggregateOutputType | null
   _avg: ClaimAvgAggregateOutputType | null
   _sum: ClaimSumAggregateOutputType | null
@@ -256,6 +270,8 @@ export type ClaimWhereInput = {
   apiKeyId?: Prisma.StringNullableFilter<"Claim"> | string | null
   idempotencyKey?: Prisma.StringNullableFilter<"Claim"> | string | null
   ef?: Prisma.StringNullableFilter<"Claim"> | string | null
+  remittance?: Prisma.StringNullableFilter<"Claim"> | string | null
+  deliveredAt?: Prisma.DateTimeNullableFilter<"Claim"> | Date | string | null
 }
 
 export type ClaimOrderByWithRelationInput = {
@@ -269,6 +285,8 @@ export type ClaimOrderByWithRelationInput = {
   apiKeyId?: Prisma.SortOrderInput | Prisma.SortOrder
   idempotencyKey?: Prisma.SortOrderInput | Prisma.SortOrder
   ef?: Prisma.SortOrderInput | Prisma.SortOrder
+  remittance?: Prisma.SortOrderInput | Prisma.SortOrder
+  deliveredAt?: Prisma.SortOrderInput | Prisma.SortOrder
 }
 
 export type ClaimWhereUniqueInput = Prisma.AtLeast<{
@@ -285,6 +303,8 @@ export type ClaimWhereUniqueInput = Prisma.AtLeast<{
   ipHash?: Prisma.StringFilter<"Claim"> | string
   apiKeyId?: Prisma.StringNullableFilter<"Claim"> | string | null
   ef?: Prisma.StringNullableFilter<"Claim"> | string | null
+  remittance?: Prisma.StringNullableFilter<"Claim"> | string | null
+  deliveredAt?: Prisma.DateTimeNullableFilter<"Claim"> | Date | string | null
 }, "id" | "idempotencyKey">
 
 export type ClaimOrderByWithAggregationInput = {
@@ -298,6 +318,8 @@ export type ClaimOrderByWithAggregationInput = {
   apiKeyId?: Prisma.SortOrderInput | Prisma.SortOrder
   idempotencyKey?: Prisma.SortOrderInput | Prisma.SortOrder
   ef?: Prisma.SortOrderInput | Prisma.SortOrder
+  remittance?: Prisma.SortOrderInput | Prisma.SortOrder
+  deliveredAt?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.ClaimCountOrderByAggregateInput
   _avg?: Prisma.ClaimAvgOrderByAggregateInput
   _max?: Prisma.ClaimMaxOrderByAggregateInput
@@ -319,6 +341,8 @@ export type ClaimScalarWhereWithAggregatesInput = {
   apiKeyId?: Prisma.StringNullableWithAggregatesFilter<"Claim"> | string | null
   idempotencyKey?: Prisma.StringNullableWithAggregatesFilter<"Claim"> | string | null
   ef?: Prisma.StringNullableWithAggregatesFilter<"Claim"> | string | null
+  remittance?: Prisma.StringNullableWithAggregatesFilter<"Claim"> | string | null
+  deliveredAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Claim"> | Date | string | null
 }
 
 export type ClaimCreateInput = {
@@ -332,6 +356,8 @@ export type ClaimCreateInput = {
   apiKeyId?: string | null
   idempotencyKey?: string | null
   ef?: string | null
+  remittance?: string | null
+  deliveredAt?: Date | string | null
 }
 
 export type ClaimUncheckedCreateInput = {
@@ -345,6 +371,8 @@ export type ClaimUncheckedCreateInput = {
   apiKeyId?: string | null
   idempotencyKey?: string | null
   ef?: string | null
+  remittance?: string | null
+  deliveredAt?: Date | string | null
 }
 
 export type ClaimUpdateInput = {
@@ -358,6 +386,8 @@ export type ClaimUpdateInput = {
   apiKeyId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  remittance?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type ClaimUncheckedUpdateInput = {
@@ -371,6 +401,8 @@ export type ClaimUncheckedUpdateInput = {
   apiKeyId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  remittance?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type ClaimCreateManyInput = {
@@ -384,6 +416,8 @@ export type ClaimCreateManyInput = {
   apiKeyId?: string | null
   idempotencyKey?: string | null
   ef?: string | null
+  remittance?: string | null
+  deliveredAt?: Date | string | null
 }
 
 export type ClaimUpdateManyMutationInput = {
@@ -397,6 +431,8 @@ export type ClaimUpdateManyMutationInput = {
   apiKeyId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  remittance?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type ClaimUncheckedUpdateManyInput = {
@@ -410,6 +446,8 @@ export type ClaimUncheckedUpdateManyInput = {
   apiKeyId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   ef?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  remittance?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveredAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type ClaimCountOrderByAggregateInput = {
@@ -423,6 +461,8 @@ export type ClaimCountOrderByAggregateInput = {
   apiKeyId?: Prisma.SortOrder
   idempotencyKey?: Prisma.SortOrder
   ef?: Prisma.SortOrder
+  remittance?: Prisma.SortOrder
+  deliveredAt?: Prisma.SortOrder
 }
 
 export type ClaimAvgOrderByAggregateInput = {
@@ -440,6 +480,8 @@ export type ClaimMaxOrderByAggregateInput = {
   apiKeyId?: Prisma.SortOrder
   idempotencyKey?: Prisma.SortOrder
   ef?: Prisma.SortOrder
+  remittance?: Prisma.SortOrder
+  deliveredAt?: Prisma.SortOrder
 }
 
 export type ClaimMinOrderByAggregateInput = {
@@ -453,6 +495,8 @@ export type ClaimMinOrderByAggregateInput = {
   apiKeyId?: Prisma.SortOrder
   idempotencyKey?: Prisma.SortOrder
   ef?: Prisma.SortOrder
+  remittance?: Prisma.SortOrder
+  deliveredAt?: Prisma.SortOrder
 }
 
 export type ClaimSumOrderByAggregateInput = {
@@ -479,6 +523,10 @@ export type NullableStringFieldUpdateOperationsInput = {
   set?: string | null
 }
 
+export type NullableDateTimeFieldUpdateOperationsInput = {
+  set?: Date | string | null
+}
+
 
 
 export type ClaimSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -492,6 +540,8 @@ export type ClaimSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   apiKeyId?: boolean
   idempotencyKey?: boolean
   ef?: boolean
+  remittance?: boolean
+  deliveredAt?: boolean
 }, ExtArgs["result"]["claim"]>
 
 export type ClaimSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -505,6 +555,8 @@ export type ClaimSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   apiKeyId?: boolean
   idempotencyKey?: boolean
   ef?: boolean
+  remittance?: boolean
+  deliveredAt?: boolean
 }, ExtArgs["result"]["claim"]>
 
 export type ClaimSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -518,6 +570,8 @@ export type ClaimSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   apiKeyId?: boolean
   idempotencyKey?: boolean
   ef?: boolean
+  remittance?: boolean
+  deliveredAt?: boolean
 }, ExtArgs["result"]["claim"]>
 
 export type ClaimSelectScalar = {
@@ -531,9 +585,11 @@ export type ClaimSelectScalar = {
   apiKeyId?: boolean
   idempotencyKey?: boolean
   ef?: boolean
+  remittance?: boolean
+  deliveredAt?: boolean
 }
 
-export type ClaimOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "createdAt" | "recipient" | "amountSats" | "txid" | "status" | "ipHash" | "apiKeyId" | "idempotencyKey" | "ef", ExtArgs["result"]["claim"]>
+export type ClaimOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "createdAt" | "recipient" | "amountSats" | "txid" | "status" | "ipHash" | "apiKeyId" | "idempotencyKey" | "ef" | "remittance" | "deliveredAt", ExtArgs["result"]["claim"]>
 
 export type $ClaimPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Claim"
@@ -549,6 +605,15 @@ export type $ClaimPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     apiKeyId: string | null
     idempotencyKey: string | null
     ef: string | null
+    /**
+     * Mobile-wallet claims only: JSON { derivationPrefix, derivationSuffix, senderIdentityKey,
+     * outputIndex } so a payout the phone didn't accept can be redelivered on its next connect.
+     */
+    remittance: string | null
+    /**
+     * When the phone confirmed internalizeAction (mobile-wallet claims only).
+     */
+    deliveredAt: Date | null
   }, ExtArgs["result"]["claim"]>
   composites: {}
 }
@@ -982,6 +1047,8 @@ export interface ClaimFieldRefs {
   readonly apiKeyId: Prisma.FieldRef<"Claim", 'String'>
   readonly idempotencyKey: Prisma.FieldRef<"Claim", 'String'>
   readonly ef: Prisma.FieldRef<"Claim", 'String'>
+  readonly remittance: Prisma.FieldRef<"Claim", 'String'>
+  readonly deliveredAt: Prisma.FieldRef<"Claim", 'DateTime'>
 }
     
 

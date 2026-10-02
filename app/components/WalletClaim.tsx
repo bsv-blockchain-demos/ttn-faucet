@@ -1,36 +1,32 @@
 'use client'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { WalletClient, Utils } from '@bsv/sdk'
 import {
-  clearSession,
-  createPairingSession,
-  endPairingSession,
-  getPairingStatus,
-  loadSession,
-  type NewPairingSession,
-  type PairingSession,
-} from '@/lib/relay-client'
-import { RelayWallet, type FaucetWallet } from '@/lib/relay-wallet'
+  clearPendingClaim,
+  loadPendingClaim,
+  MobileClaimError,
+  pollMobileClaim,
+  startMobileClaim,
+  type MobileClaimView,
+  type NewMobileClaim,
+} from '@/lib/mobile-claim-client'
 // TODO: re-enable Turnstile — temporarily disabled.
 // import { TurnstileWidget } from './TurnstileWidget'
 import { ArrowRightIcon, CheckIcon, WarningIcon } from './icons'
 
-type Phase = 'detecting' | 'unavailable' | 'pairing' | 'pair-expired' | 'idle' | 'claiming' | 'success' | 'error'
+type Phase = 'detecting' | 'unavailable' | 'mobile' | 'idle' | 'claiming' | 'success' | 'error'
 type StepState = 'done' | 'active' | 'todo' | 'error'
 
 const fmt = (n: number) => n.toLocaleString()
 const tbsv = (n: number) => (n / 1e8).toLocaleString(undefined, { maximumFractionDigits: 8 })
 
-/** Pairing status poll: fast while waiting for the scan, slow once paired (to notice a drop). */
-const PAIRING_POLL_MS = 2000
-const PAIRED_POLL_MS = 10_000
+/** How often the page asks the server how a mobile claim is going. */
+const MOBILE_POLL_MS = 2000
 
 const STEP_LABELS = ['Connect', 'Authorize', 'Fund', 'Spendable'] as const
-const STEP_MAP: Record<Phase, StepState[]> = {
+const STEP_MAP: Record<Exclude<Phase, 'mobile'>, StepState[]> = {
   detecting: ['active', 'todo', 'todo', 'todo'],
   unavailable: ['error', 'todo', 'todo', 'todo'],
-  pairing: ['active', 'todo', 'todo', 'todo'],
-  'pair-expired': ['error', 'todo', 'todo', 'todo'],
   idle: ['done', 'active', 'todo', 'todo'],
   claiming: ['done', 'done', 'active', 'todo'],
   success: ['done', 'done', 'done', 'done'],
@@ -52,8 +48,7 @@ function StepCircle({ state, n }: { state: StepState; n: number }) {
   return <span className={`${base} border-hairline bg-transparent text-muted-foreground`}>{n}</span>
 }
 
-function Stepper({ phase }: { phase: Phase }) {
-  const states = STEP_MAP[phase]
+function Stepper({ states }: { states: StepState[] }) {
   return (
     <div className="relative mb-[22px] flex justify-between px-2">
       <div className="absolute left-10 right-10 top-[15px] h-0.5 bg-hairline" />
@@ -89,6 +84,275 @@ function DownloadHint() {
   )
 }
 
+function InfoBand({ children, pulse = 'ping' }: { children: React.ReactNode; pulse?: 'ping' | 'dot' }) {
+  return (
+    <div className="flex w-full items-center gap-2.5 rounded-input border border-primary/20 bg-primary/10 p-3 text-[13px] leading-snug text-foreground">
+      {pulse === 'ping' ? (
+        <span className="relative flex h-2 w-2 flex-none">
+          <span className="ping-ring absolute inline-flex h-full w-full rounded-full bg-primary" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+        </span>
+      ) : (
+        <span className="dotpulse h-2 w-2 flex-none rounded-full bg-primary" />
+      )}
+      <span>{children}</span>
+    </div>
+  )
+}
+
+function ErrorBand({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex w-full items-start gap-2.5 rounded-input border border-neg bg-neg-bg p-3">
+      <WarningIcon size={16} className="mt-[1px] flex-none text-neg" />
+      <span className="text-[13px] font-medium leading-snug text-foreground">{children}</span>
+    </div>
+  )
+}
+
+function Success({ amount, note, onTrack }: { amount: number; note?: string; onTrack: () => void }) {
+  return (
+    <div className="rounded-[14px] border border-pos bg-pos-bg p-[18px] text-center">
+      <div className="mx-auto mb-3 flex h-[46px] w-[46px] items-center justify-center rounded-full bg-pos">
+        <CheckIcon size={24} className="text-primary-foreground" />
+      </div>
+      <div className="mb-1 font-display text-lg font-semibold text-foreground">Funds in your wallet</div>
+      <div className="mb-[14px] text-[13.5px] leading-relaxed text-muted-foreground">
+        {fmt(amount)} sats are now spendable. No confirmation needed.{note ? ` ${note}` : ''}
+      </div>
+      <button type="button" onClick={onTrack} className={`${SECONDARY_CTA} hover:bg-band`}>
+        Track transaction
+      </button>
+    </div>
+  )
+}
+
+type MobileView = MobileClaimView | { state: 'starting' }
+
+const COARSE_POINTER = '(pointer: coarse)'
+/** True on touch-first devices (phones/tablets), where the deep link is the primary action. */
+function useOnPhone(): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      const mq = window.matchMedia(COARSE_POINTER)
+      mq.addEventListener('change', onChange)
+      return () => mq.removeEventListener('change', onChange)
+    },
+    () => window.matchMedia(COARSE_POINTER).matches,
+    () => false,
+  )
+}
+
+const MOBILE_STEPS: Record<MobileView['state'], StepState[]> = {
+  starting: ['active', 'todo', 'todo', 'todo'],
+  waiting: ['active', 'todo', 'todo', 'todo'],
+  claiming: ['done', 'done', 'active', 'todo'],
+  done: ['done', 'done', 'done', 'done'],
+  error: ['done', 'done', 'error', 'todo'],
+  expired: ['error', 'todo', 'todo', 'todo'],
+}
+
+/**
+ * Claim with BSV Wallet on a phone, paired over @bsv/wallet-relay. Approving the pairing in the
+ * wallet IS the claim: the faucet server pays and delivers while the wallet is still open (on one
+ * phone the browser is frozen meanwhile), and this panel just shows the outcome.
+ */
+function MobileClaim({
+  payoutSats,
+  onUnavailable,
+  onUsePaste,
+  onTrack,
+}: {
+  payoutSats: number
+  onUnavailable: () => void
+  onUsePaste: () => void
+  onTrack: (txid: string) => void
+}) {
+  // Resume a claim started earlier in this tab: the page may have reloaded while the user was in
+  // BSV Wallet. (This panel only renders client-side, after wallet detection.)
+  const [resumed] = useState(loadPendingClaim)
+  const [claim, setClaim] = useState<NewMobileClaim | null>(resumed)
+  const [view, setView] = useState<MobileView>({ state: resumed ? 'waiting' : 'starting' })
+  const onPhone = useOnPhone()
+  const mounted = useRef(true)
+
+  /** Create a claim and show its QR. Only sets state after the request, so it's effect-safe. */
+  const begin = useCallback(async (alive: () => boolean = () => mounted.current) => {
+    try {
+      const created = await startMobileClaim()
+      if (!alive()) return
+      setClaim(created)
+      setView({ state: 'waiting' })
+    } catch (err) {
+      if (!alive()) return
+      // Disabled/unreachable relay → the plain "no wallet detected" panel.
+      if (!(err instanceof MobileClaimError) || err.status >= 500) return onUnavailable()
+      setView({ state: 'error', code: 'failed', error: err.message })
+    }
+  }, [onUnavailable])
+
+  const start = useCallback(() => {
+    setClaim(null)
+    setView({ state: 'starting' })
+    void begin()
+  }, [begin])
+
+  // On mount, start a claim unless one was resumed (the view is already 'starting'). begin() only
+  // sets state once its request settles; the async wrapper makes that visible to the React compiler.
+  useEffect(() => {
+    let cancelled = false
+    mounted.current = true
+    if (!resumed) void (async () => begin(() => !cancelled))()
+    return () => {
+      cancelled = true
+      mounted.current = false
+    }
+  }, [resumed, begin])
+
+  // Ask the server how the claim is going, every few seconds and as soon as the tab is shown
+  // again (mobile browsers pause timers while the user is in the wallet app).
+  const sessionId = claim?.sessionId
+  const live = view.state === 'waiting' || view.state === 'claiming'
+  useEffect(() => {
+    if (!sessionId || !live) return
+    let cancelled = false
+    const poll = async () => {
+      const next = await pollMobileClaim(sessionId).catch(() => undefined)
+      if (cancelled || next === undefined) return
+      if (next === null) {
+        // The server no longer knows this claim (e.g. it restarted): start over.
+        clearPendingClaim()
+        return start()
+      }
+      if (next.state !== 'waiting' && next.state !== 'claiming') clearPendingClaim()
+      setView(next)
+    }
+    void poll()
+    const timer = setInterval(poll, MOBILE_POLL_MS)
+    const onVisible = () => document.visibilityState === 'visible' && void poll()
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
+    }
+  }, [sessionId, live, start])
+
+  const openWallet = claim && (
+    <a href={claim.pairingUri} className={`${PRIMARY_CTA} shine-loop`}>
+      Claim {fmt(payoutSats)} sats with BSV Wallet
+      <ArrowRightIcon size={18} />
+    </a>
+  )
+  const qr = claim && (
+    <div className="flex flex-col items-center gap-2">
+      {/* eslint-disable-next-line @next/next/no-img-element -- data: URL from the relay */}
+      <img
+        src={claim.qrDataUrl}
+        alt="QR code to claim with BSV Wallet"
+        width={220}
+        height={220}
+        className="rounded-input border border-hairline bg-white p-2"
+      />
+      <span className="text-xs text-muted-foreground">
+        {onPhone ? 'Or scan from another phone with BSV Wallet' : 'Scan with BSV Wallet on your phone'}
+      </span>
+    </div>
+  )
+  const pasteLink = (
+    <button type="button" onClick={onUsePaste} className="text-[13px] font-medium text-link">
+      Paste an address instead
+    </button>
+  )
+
+  return (
+    <div>
+      <Stepper states={MOBILE_STEPS[view.state]} />
+
+      {view.state === 'starting' && (
+        <div className="flex flex-col gap-3">
+          <InfoBand>No browser wallet found. Preparing a claim for BSV Wallet…</InfoBand>
+          <DownloadHint />
+        </div>
+      )}
+
+      {view.state === 'waiting' && claim && (
+        <div className="flex flex-col items-center gap-4">
+          <InfoBand>
+            No browser wallet found. Claim with BSV Wallet: approve the connection and the coins arrive
+            straight away.
+          </InfoBand>
+          {onPhone ? (
+            <>
+              {openWallet}
+              {qr}
+            </>
+          ) : (
+            <>
+              {qr}
+              <a href={claim.pairingUri} className={`${SECONDARY_CTA} hover:bg-band`}>
+                On your phone? Open BSV Wallet
+              </a>
+            </>
+          )}
+          <p className="w-full text-center text-xs leading-relaxed text-muted-foreground">
+            Make sure BSV Wallet is on Teratestnet, and stay in it for a couple of seconds after
+            approving while the coins arrive.
+          </p>
+          <DownloadHint />
+          {pasteLink}
+        </div>
+      )}
+
+      {view.state === 'claiming' && (
+        <div className="flex flex-col gap-4">
+          <InfoBand pulse="dot">BSV Wallet connected. Sending {fmt(payoutSats)} sats to it…</InfoBand>
+          <p className="text-center text-xs text-muted-foreground">Keep BSV Wallet open until it shows the coins.</p>
+        </div>
+      )}
+
+      {view.state === 'done' && (
+        <Success
+          amount={view.amount ?? payoutSats}
+          note={view.redelivered ? 'This was your earlier payout, now delivered.' : undefined}
+          onTrack={() => view.txid && onTrack(view.txid)}
+        />
+      )}
+
+      {view.state === 'error' && (
+        <div className="flex flex-col items-start gap-4">
+          <ErrorBand>
+            {view.error ?? 'Something went wrong.'}
+            {view.txid && (
+              <>
+                {' '}
+                <button type="button" onClick={() => onTrack(view.txid!)} className="font-medium text-link">
+                  Track transaction
+                </button>
+              </>
+            )}
+          </ErrorBand>
+          <button type="button" onClick={start} className={`${SECONDARY_CTA} hover:bg-band`}>
+            Try again
+          </button>
+          {pasteLink}
+        </div>
+      )}
+
+      {view.state === 'expired' && (
+        <div className="flex flex-col items-start gap-4">
+          <ErrorBand>The claim code expired before BSV Wallet connected.</ErrorBand>
+          <button type="button" onClick={start} className={`${SECONDARY_CTA} hover:bg-band`}>
+            Show a new code
+          </button>
+          {pasteLink}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /** Wallet tab of the faucet card — one-click BRC-100 claim, internalized as Atomic BEEF. */
 export function WalletPanel({
   siteKey,
@@ -101,63 +365,30 @@ export function WalletPanel({
   onUsePaste: () => void
   onTrack: (txid: string) => void
 }) {
-  const wallet = useRef<FaucetWallet | null>(null)
-  const mounted = useRef(false)
+  const wallet = useRef<WalletClient | null>(null)
   const [phase, setPhase] = useState<Phase>('detecting')
   const [token, setToken] = useState('')
   const [error, setError] = useState('')
   const [result, setResult] = useState<{ txid: string; amount: number } | null>(null)
   const [networkWarning, setNetworkWarning] = useState('')
   const [networkOk, setNetworkOk] = useState(false)
-  // Mobile wallet pairing (@bsv/wallet-relay): the QR being shown, and the paired session.
-  const [pairing, setPairing] = useState<NewPairingSession | null>(null)
-  const [mobile, setMobile] = useState<PairingSession | null>(null)
 
-  const connectMobile = useCallback((session: PairingSession) => {
-    wallet.current = new RelayWallet(session)
-    setMobile(session)
-    setPairing(null)
-    setPhase('idle')
-  }, [])
+  const onMobileUnavailable = useCallback(() => setPhase('unavailable'), [])
 
-  // Fallback when no local wallet answers: show a QR for a mobile wallet to scan.
-  // If the relay isn't enabled/reachable, stay on the plain "no wallet detected" panel.
-  const startPairing = useCallback(async () => {
-    setPairing(null)
-    setPhase('detecting')
-    try {
-      const session = await createPairingSession()
-      if (!mounted.current) return
-      setPairing(session)
-      setPhase('pairing')
-    } catch {
-      if (mounted.current) setPhase('unavailable')
-    }
-  }, [])
-
-  // On load: resume a phone paired earlier in this tab, else detect a local BRC-100 wallet,
-  // else fall back to mobile pairing. WalletClient('auto') is lazy (safe to construct), but its
+  // On load: resume a mobile claim from earlier in this tab, else detect a local BRC-100 wallet,
+  // else claim with a mobile wallet. WalletClient('auto') is lazy (safe to construct), but its
   // first call has no built-in connect timeout — so probe getVersion() inside a Promise.race.
   useEffect(() => {
     let cancelled = false
-    mounted.current = true
+    const w = new WalletClient('auto')
     ;(async () => {
-      const saved = loadSession()
-      if (saved) {
-        const status = await getPairingStatus(saved.sessionId).catch(() => 'expired' as const)
-        if (cancelled) return
-        if (status === 'connected') return connectMobile(saved)
-        clearSession() // pending (QR not kept) or dead — start fresh below
-      }
-
-      const w = new WalletClient('auto')
+      if (loadPendingClaim()) return setPhase('mobile')
       const detected = await Promise.race([
         w.getVersion().then(() => true),
         new Promise<boolean>((r) => setTimeout(() => r(false), 1500)),
       ]).catch(() => false)
       if (cancelled) return
-      if (!detected) return void startPairing()
-
+      if (!detected) return setPhase('mobile')
       wallet.current = w
       setPhase('idle')
       // A teratestnet wallet reports 'testnet'; only 'mainnet' is a real mismatch worth flagging.
@@ -174,47 +405,8 @@ export function WalletPanel({
     })()
     return () => {
       cancelled = true
-      mounted.current = false
     }
-  }, [connectMobile, startPairing])
-
-  // Poll the pairing session: waiting for the scan, or watching a paired phone for a drop.
-  const pollId = phase === 'pairing' ? pairing?.sessionId : phase === 'idle' || phase === 'error' ? mobile?.sessionId : undefined
-  useEffect(() => {
-    if (!pollId) return
-    let cancelled = false
-    let timer: ReturnType<typeof setTimeout>
-    const waitingForScan = phase === 'pairing'
-    const tick = async () => {
-      const status = await getPairingStatus(pollId).catch(() => null)
-      if (cancelled) return
-      if (waitingForScan && status === 'connected' && pairing) return connectMobile(pairing)
-      if (waitingForScan && (status === 'expired' || status === 'disconnected')) {
-        clearSession()
-        return setPhase('pair-expired')
-      }
-      if (!waitingForScan && (status === 'expired' || status === 'disconnected')) {
-        // The paired phone went away — forget it and offer a fresh QR.
-        clearSession()
-        wallet.current = null
-        setMobile(null)
-        return void startPairing()
-      }
-      timer = setTimeout(tick, waitingForScan ? PAIRING_POLL_MS : PAIRED_POLL_MS)
-    }
-    timer = setTimeout(tick, waitingForScan ? PAIRING_POLL_MS : PAIRED_POLL_MS)
-    return () => {
-      cancelled = true
-      clearTimeout(timer)
-    }
-  }, [pollId, phase, pairing, connectMobile, startPairing])
-
-  async function disconnectMobile() {
-    if (mobile) await endPairingSession(mobile)
-    wallet.current = null
-    setMobile(null)
-    await startPairing()
-  }
+  }, [])
 
   async function claim() {
     const w = wallet.current
@@ -256,33 +448,33 @@ export function WalletPanel({
     }
   }
 
+  if (phase === 'mobile') {
+    return (
+      <MobileClaim
+        payoutSats={payoutSats}
+        onUnavailable={onMobileUnavailable}
+        onUsePaste={onUsePaste}
+        onTrack={onTrack}
+      />
+    )
+  }
+
   const busy = phase === 'claiming'
 
   return (
     <div>
-      <Stepper phase={phase} />
+      <Stepper states={STEP_MAP[phase]} />
 
       {phase === 'detecting' && (
         <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-2.5 rounded-input border border-primary/20 bg-primary/10 p-3 text-[13px] leading-snug text-foreground">
-            <span className="relative flex h-2 w-2 flex-none">
-              <span className="ping-ring absolute inline-flex h-full w-full rounded-full bg-primary" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
-            </span>
-            Looking for a BRC-100 wallet…
-          </div>
+          <InfoBand>Looking for a BRC-100 wallet…</InfoBand>
           <DownloadHint />
         </div>
       )}
 
       {phase === 'unavailable' && (
         <div className="flex flex-col items-start gap-4">
-          <div className="flex w-full items-start gap-2.5 rounded-input border border-neg bg-neg-bg p-3">
-            <WarningIcon size={16} className="mt-[1px] flex-none text-neg" />
-            <span className="text-[13px] font-medium leading-snug text-foreground">
-              No BRC-100 wallet detected.
-            </span>
-          </div>
+          <ErrorBand>No BRC-100 wallet detected.</ErrorBand>
           <DownloadHint />
           <button type="button" onClick={onUsePaste} className={`${SECONDARY_CTA} hover:bg-band`}>
             Paste an address instead
@@ -290,65 +482,8 @@ export function WalletPanel({
         </div>
       )}
 
-      {phase === 'pairing' && pairing && (
-        <div className="flex flex-col items-center gap-4">
-          <div className="flex w-full items-center gap-2.5 rounded-input border border-primary/20 bg-primary/10 p-3 text-[13px] leading-snug text-foreground">
-            <span className="relative flex h-2 w-2 flex-none">
-              <span className="ping-ring absolute inline-flex h-full w-full rounded-full bg-primary" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
-            </span>
-            No browser wallet found. Scan with BSV Wallet on your phone to connect.
-          </div>
-          {/* eslint-disable-next-line @next/next/no-img-element -- data: URL from the relay */}
-          <img
-            src={pairing.qrDataUrl}
-            alt="Pairing QR code for BSV Wallet"
-            width={220}
-            height={220}
-            className="rounded-input border border-hairline bg-white p-2"
-          />
-          <a href={pairing.pairingUri} className={`${SECONDARY_CTA} hover:bg-band`}>
-            On your phone? Open in BSV Wallet
-          </a>
-          <p className="w-full text-center text-xs text-muted-foreground">Waiting for your phone…</p>
-          <DownloadHint />
-          <button type="button" onClick={onUsePaste} className="text-[13px] font-medium text-link">
-            Paste an address instead
-          </button>
-        </div>
-      )}
-
-      {phase === 'pair-expired' && (
-        <div className="flex flex-col items-start gap-4">
-          <div className="flex w-full items-start gap-2.5 rounded-input border border-neg bg-neg-bg p-3">
-            <WarningIcon size={16} className="mt-[1px] flex-none text-neg" />
-            <span className="text-[13px] font-medium leading-snug text-foreground">
-              The pairing code expired. Generate a new one to connect your phone.
-            </span>
-          </div>
-          <button type="button" onClick={() => void startPairing()} className={`${SECONDARY_CTA} hover:bg-band`}>
-            Generate new QR
-          </button>
-          <button type="button" onClick={onUsePaste} className="text-[13px] font-medium text-link">
-            Paste an address instead
-          </button>
-        </div>
-      )}
-
       {(phase === 'idle' || phase === 'claiming' || phase === 'error') && (
         <div className="flex flex-col gap-4">
-          {phase === 'idle' && mobile && (
-            <div className="flex items-start gap-2.5 rounded-input border border-pos bg-pos-bg p-3">
-              <CheckIcon size={16} className="mt-[1px] flex-none text-pos" />
-              <span className="flex-1 text-[13px] leading-snug text-foreground">
-                Your mobile wallet is paired. Make sure it&apos;s set to Teratestnet.
-              </span>
-              <button type="button" onClick={() => void disconnectMobile()} className="text-[13px] font-medium text-link">
-                Disconnect
-              </button>
-            </div>
-          )}
-
           {phase === 'idle' && networkOk && (
             <div className="flex items-start gap-2.5 rounded-input border border-pos bg-pos-bg p-3">
               <CheckIcon size={16} className="mt-[1px] flex-none text-pos" />
@@ -368,32 +503,20 @@ export function WalletPanel({
             </div>
           )}
 
-          {phase === 'claiming' && (
-            <div className="flex items-center gap-2.5 rounded-input border border-primary/20 bg-primary/10 p-3">
-              <span className="dotpulse h-2 w-2 flex-none rounded-full bg-primary" />
-              <span className="text-[13px] leading-snug text-foreground">
-                {mobile ? 'Sending the payment to your phone…' : 'Approve the request in your wallet…'}
-              </span>
-            </div>
-          )}
+          {phase === 'claiming' && <InfoBand pulse="dot">Approve the request in your wallet…</InfoBand>}
 
           {phase === 'error' && (
-            <div className="flex w-full items-start gap-2.5 rounded-input border border-neg bg-neg-bg p-3">
-              <WarningIcon size={16} className="mt-[1px] flex-none text-neg" />
-              <span className="text-[13px] font-medium leading-snug text-foreground">
-                {result
-                  ? `The payout was sent, but your wallet didn't accept it: ${error}`
-                  : error}
-                {result && (
-                  <>
-                    {' '}
-                    <button type="button" onClick={() => onTrack(result.txid)} className="font-medium text-link">
-                      Track transaction
-                    </button>
-                  </>
-                )}
-              </span>
-            </div>
+            <ErrorBand>
+              {result ? `The payout was sent, but your wallet didn't accept it: ${error}` : error}
+              {result && (
+                <>
+                  {' '}
+                  <button type="button" onClick={() => onTrack(result.txid)} className="font-medium text-link">
+                    Track transaction
+                  </button>
+                </>
+              )}
+            </ErrorBand>
           )}
 
           <p className="text-sm leading-relaxed text-muted-foreground">
@@ -420,20 +543,7 @@ export function WalletPanel({
         </div>
       )}
 
-      {phase === 'success' && result && (
-        <div className="rounded-[14px] border border-pos bg-pos-bg p-[18px] text-center">
-          <div className="mx-auto mb-3 flex h-[46px] w-[46px] items-center justify-center rounded-full bg-pos">
-            <CheckIcon size={24} className="text-primary-foreground" />
-          </div>
-          <div className="mb-1 font-display text-lg font-semibold text-foreground">Funds in your wallet</div>
-          <div className="mb-[14px] text-[13.5px] leading-relaxed text-muted-foreground">
-            {fmt(result.amount)} sats are now spendable. No confirmation needed.
-          </div>
-          <button type="button" onClick={() => onTrack(result.txid)} className={`${SECONDARY_CTA} hover:bg-band`}>
-            Track transaction
-          </button>
-        </div>
-      )}
+      {phase === 'success' && result && <Success amount={result.amount} onTrack={() => onTrack(result.txid)} />}
     </div>
   )
 }

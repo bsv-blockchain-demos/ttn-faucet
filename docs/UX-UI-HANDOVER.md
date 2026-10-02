@@ -134,14 +134,17 @@ interaction happens.
 ## 7. User pathways & every UI state
 
 ### 7.1 Wallet 1-click flow (`WalletClaim.tsx` → `WalletPanel`)
-A state machine. **Phases:** `detecting → pairing | unavailable | idle → claiming → success | error`
-(`pairing → idle | pair-expired`).
+A state machine. **Phases:** `detecting → mobile | unavailable | idle → claiming → success | error`.
+`mobile` is its own sub-flow (`MobileClaim`): `starting → waiting → claiming → done | error | expired`.
 
 | Phase | What renders |
 |---|---|
 | `detecting` | Pulsing brand dot + "Looking for a BRC-100 wallet…" (resumes a phone paired earlier in this tab, else probes `WalletClient('auto').getVersion()` with a 1.5s timeout) |
-| `pairing` | **Default when no local wallet answers.** "No browser wallet found. Scan with BSV Wallet…" + pairing QR (`@bsv/wallet-relay`) + "On your phone? Open in BSV Wallet" deep link + "Waiting for your phone…" + download hint + "Paste an address instead" link. Polls `/api/session/:id` every 2s |
-| `pair-expired` | "The pairing code expired…" + **"Generate new QR"** + paste-address link |
+| `mobile` → `waiting` | **Default when no local wallet answers.** "No browser wallet found. Claim with BSV Wallet…" + claim QR (`@bsv/wallet-relay`). On touch devices the primary CTA is the deep link **"Claim {N} sats with BSV Wallet →"** above the QR; on desktop the QR comes first with a secondary "On your phone? Open BSV Wallet". Then "stay in BSV Wallet for a couple of seconds…", download hint, paste-address link. Approving in the wallet *is* the claim: the server pays and delivers while the wallet is open. Polls `/api/claim/mobile/:id` every 2s and whenever the tab becomes visible |
+| `mobile` → `claiming` | "BSV Wallet connected. Sending {N} sats to it…" + "Keep BSV Wallet open…" |
+| `mobile` → `done` | Same success card as `success` (adds "This was your earlier payout, now delivered." for a redelivery) |
+| `mobile` → `error` | Error band (e.g. "The coins were sent, but BSV Wallet closed before accepting them… you'll receive this same payout") + Track transaction when a payout exists + **"Try again"** + paste-address link |
+| `mobile` → `expired` | "The claim code expired before BSV Wallet connected." + **"Show a new code"** |
 | `unavailable` | Only when mobile pairing is unavailable (relay disabled/unreachable): "No BRC-100 wallet detected…" + **"Paste an address instead →"** button (switches to Tab B) |
 | `idle` | Explainer copy → optional **network-mismatch warning** (amber, if wallet reports `mainnet`) → Turnstile → primary CTA **"Connect wallet & claim {N} sats →"** (disabled until captcha token) → microcopy |
 | `claiming` | Same CTA, label flips to "Connecting…", disabled |
@@ -150,9 +153,9 @@ A state machine. **Phases:** `detecting → pairing | unavailable | idle → cla
 
 Mechanics (preserve): on claim it reads `getPublicKey({identityKey:true})`, POSTs to `/api/claim/wallet`,
 then **client-side** calls `wallet.internalizeAction(...)` with the returned Atomic BEEF + remittance.
-With a paired phone the same calls go through `RelayWallet` (`lib/relay-wallet.ts`); `idle` then shows
-"Your mobile wallet is paired. Make sure it's set to Teratestnet." + **Disconnect** (the relay can't
-report the phone's network), and a dropped phone (checked every 10s) returns to a fresh QR.
+The mobile sub-flow does not run these calls in the browser: the faucet server runs them over the
+relay as soon as the phone connects (see README → Mobile wallet pairing), because on one phone the
+browser is frozen while the wallet is open.
 
 ### 7.2 Paste-address flow (`ClaimForm.tsx` → `AddressPanel`)
 | Element | Behavior |

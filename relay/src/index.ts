@@ -3,6 +3,7 @@ import { PrivateKey, ProtoWallet } from '@bsv/sdk'
 import { WalletRelayService } from '@bsv/wallet-relay'
 import { parseConfig } from './config.js'
 import { createRequestHandler } from './server.js'
+import { notifyConnected } from './notify.js'
 
 const cfg = parseConfig(process.env)
 
@@ -16,7 +17,14 @@ const relay = new WalletRelayService({
   relayUrl: cfg.RELAY_WS_URL,
   allowedOrigins: [cfg.FAUCET_PUBLIC_URL],
   schema: cfg.QR_SCHEMA,
-  onSessionConnected: (sessionId) => console.log(`[relay] mobile wallet paired session=${sessionId}`),
+  onSessionConnected: (sessionId) => {
+    console.log(`[relay] mobile wallet paired session=${sessionId}`)
+    if (cfg.FAUCET_INTERNAL_URL) {
+      void notifyConnected(cfg.FAUCET_INTERNAL_URL, sessionId).then((ok) => {
+        if (!ok) console.log(`[relay] could not notify the faucet of session=${sessionId}`)
+      })
+    }
+  },
   onSessionDisconnected: (sessionId) => console.log(`[relay] mobile wallet disconnected session=${sessionId}`),
   // Who closed each socket and how: cause client|heartbeat|server, code 1006 = abnormal drop.
   onSocketClosed: (info) =>

@@ -78,6 +78,8 @@ export interface WalletClaimRequest {
   amountSats?: number
   ipHash: string
   apiKeyId?: string
+  /** Store the remittance so an undelivered payout can be redelivered (mobile-wallet claims). */
+  recordRemittance?: boolean
   // test overrides (default to config in production)
   maxSats?: number
   defaultSats?: number
@@ -128,11 +130,63 @@ export async function claimToWallet(req: WalletClaimRequest, deps: WalletFaucetD
     const payment = await deps.payWallet(req.identityKey, amountSats)
     await prisma.claim.update({
       where: { id: claim.id },
-      data: { txid: payment.txid, ef: payment.atomicBEEF, status: 'broadcast' },
+      data: {
+        txid: payment.txid,
+        ef: payment.atomicBEEF,
+        status: 'broadcast',
+        remittance: req.recordRemittance ? JSON.stringify(remittanceOf(payment)) : null,
+      },
     })
     return { ...payment, amountSats }
   } catch (e) {
     await prisma.claim.update({ where: { id: claim.id }, data: { status: 'failed' } })
     throw e
   }
+}
+
+type Remittance = Pick<WalletPayment, 'derivationPrefix' | 'derivationSuffix' | 'senderIdentityKey' | 'outputIndex'>
+
+function remittanceOf(p: WalletPayment): Remittance {
+  return {
+    derivationPrefix: p.derivationPrefix,
+    derivationSuffix: p.derivationSuffix,
+    senderIdentityKey: p.senderIdentityKey,
+    outputIndex: p.outputIndex,
+  }
+}
+
+/** How far back an undelivered mobile payout is still redelivered instead of paying again. */
+const REDELIVERY_WINDOW_MS = 24 * 60 * 60 * 1000
+
+/**
+ * The most recent mobile-wallet payout to `identityKey` that was broadcast but never confirmed as
+ * accepted by the phone (e.g. the wallet app was backgrounded mid-delivery). Redelivering it is
+ * safe: the wallet's internalizeAction tolerates a repeat.
+ */
+export async function findUndeliveredPayout(identityKey: string): Promise<WalletClaimResult | null> {
+  const row = await prisma.claim.findFirst({
+    where: {
+      recipient: identityKey,
+      status: 'broadcast',
+      remittance: { not: null },
+      deliveredAt: null,
+      createdAt: { gte: new Date(Date.now() - REDELIVERY_WINDOW_MS) },
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+  if (!row?.txid || !row.ef || !row.remittance) return null
+  return { txid: row.txid, atomicBEEF: row.ef, amountSats: row.amountSats, ...(JSON.parse(row.remittance) as Remittance) }
+}
+
+/** Record that the phone accepted the payout. */
+export async function markDelivered(txid: string): Promise<void> {
+  await prisma.claim.updateMany({ where: { txid, deliveredAt: null }, data: { deliveredAt: new Date() } })
+}
+
+/** True if a payout to `identityKey` started recently and hasn't finished — don't start a second. */
+export async function hasPayoutInFlight(identityKey: string, withinMs = 60_000): Promise<boolean> {
+  const n = await prisma.claim.count({
+    where: { recipient: identityKey, status: 'pending', createdAt: { gte: new Date(Date.now() - withinMs) } },
+  })
+  return n > 0
 }

@@ -29,10 +29,12 @@ type StepState = 'done' | 'active' | 'todo' | 'error'
 type Phase =
   | 'detecting'
   | 'unavailable'
-  | 'pairing'
-  | 'pair-expired'
+  | 'mobile'
+  | 'mobile-phone'
+  | 'mobile-claiming'
+  | 'mobile-error'
+  | 'mobile-expired'
   | 'idle'
-  | 'idlemobile'
   | 'idlewarn'
   | 'claiming'
   | 'success'
@@ -41,10 +43,12 @@ const STEP_LABELS = ['Connect', 'Authorize', 'Fund', 'Spendable'] as const
 const STEP_MAP: Record<Phase, StepState[]> = {
   detecting: ['active', 'todo', 'todo', 'todo'],
   unavailable: ['error', 'todo', 'todo', 'todo'],
-  pairing: ['active', 'todo', 'todo', 'todo'],
-  'pair-expired': ['error', 'todo', 'todo', 'todo'],
+  mobile: ['active', 'todo', 'todo', 'todo'],
+  'mobile-phone': ['active', 'todo', 'todo', 'todo'],
+  'mobile-claiming': ['done', 'done', 'active', 'todo'],
+  'mobile-error': ['done', 'done', 'error', 'todo'],
+  'mobile-expired': ['error', 'todo', 'todo', 'todo'],
   idle: ['done', 'active', 'todo', 'todo'],
-  idlemobile: ['done', 'active', 'todo', 'todo'],
   idlewarn: ['done', 'active', 'todo', 'todo'],
   claiming: ['done', 'done', 'active', 'todo'],
   success: ['done', 'done', 'done', 'done'],
@@ -173,47 +177,68 @@ function WalletBody({ phase }: { phase: Phase }) {
           <span className={SECONDARY_CTA}>Paste an address instead</span>
         </div>
       )}
-      {phase === 'pairing' && (
+      {(phase === 'mobile' || phase === 'mobile-phone') && (
         <div className="flex flex-col items-center gap-4">
           <div className="flex w-full items-center gap-2.5 rounded-input border border-primary/20 bg-primary/10 p-3 text-[13px] leading-snug text-foreground">
             <span className="relative flex h-2 w-2 flex-none">
               <span className="ping-ring absolute inline-flex h-full w-full rounded-full bg-primary" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
             </span>
-            No browser wallet found. Scan with BSV Wallet on your phone to connect.
+            No browser wallet found. Claim with BSV Wallet: approve the connection and the coins arrive straight away.
           </div>
-          <div className="flex h-[220px] w-[220px] items-center justify-center rounded-input border border-hairline bg-white p-2 text-xs text-neutral-500">
-            Pairing QR
+          {phase === 'mobile-phone' && (
+            <span className={PRIMARY_CTA}>
+              Claim {fmt(PAYOUT)} sats with BSV Wallet
+              <ArrowRightIcon size={18} />
+            </span>
+          )}
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex h-[220px] w-[220px] items-center justify-center rounded-input border border-hairline bg-white p-2 text-xs text-neutral-500">
+              Claim QR
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {phase === 'mobile-phone' ? 'Or scan from another phone with BSV Wallet' : 'Scan with BSV Wallet on your phone'}
+            </span>
           </div>
-          <span className={SECONDARY_CTA}>On your phone? Open in BSV Wallet</span>
-          <p className="w-full text-center text-xs text-muted-foreground">Waiting for your phone…</p>
+          {phase === 'mobile' && <span className={SECONDARY_CTA}>On your phone? Open BSV Wallet</span>}
+          <p className="w-full text-center text-xs leading-relaxed text-muted-foreground">
+            Make sure BSV Wallet is on Teratestnet, and stay in it for a couple of seconds after approving while the coins arrive.
+          </p>
           <DownloadHint />
           <span className="text-[13px] font-medium text-link">Paste an address instead</span>
         </div>
       )}
-      {phase === 'pair-expired' && (
+      {phase === 'mobile-claiming' && (
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2.5 rounded-input border border-primary/20 bg-primary/10 p-3">
+            <span className="dotpulse h-2 w-2 flex-none rounded-full bg-primary" />
+            <span className="text-[13px] leading-snug text-foreground">BSV Wallet connected. Sending {fmt(PAYOUT)} sats to it…</span>
+          </div>
+          <p className="text-center text-xs text-muted-foreground">Keep BSV Wallet open until it shows the coins.</p>
+        </div>
+      )}
+      {(phase === 'mobile-error' || phase === 'mobile-expired') && (
         <div className="flex flex-col items-start gap-4">
           <div className="flex w-full items-start gap-2.5 rounded-input border border-neg bg-neg-bg p-3">
             <WarningIcon size={16} className="mt-[1px] flex-none text-neg" />
             <span className="text-[13px] font-medium leading-snug text-foreground">
-              The pairing code expired. Generate a new one to connect your phone.
+              {phase === 'mobile-error' ? (
+                <>
+                  The coins were sent, but BSV Wallet closed before accepting them. Try again and approve in BSV
+                  Wallet: you&apos;ll receive this same payout, not a new one.{' '}
+                  <span className="font-medium text-link">Track transaction</span>
+                </>
+              ) : (
+                'The claim code expired before BSV Wallet connected.'
+              )}
             </span>
           </div>
-          <span className={SECONDARY_CTA}>Generate new QR</span>
+          <span className={SECONDARY_CTA}>{phase === 'mobile-error' ? 'Try again' : 'Show a new code'}</span>
           <span className="text-[13px] font-medium text-link">Paste an address instead</span>
         </div>
       )}
-      {(phase === 'idle' || phase === 'idlemobile' || phase === 'idlewarn' || phase === 'claiming' || phase === 'error') && (
+      {(phase === 'idle' || phase === 'idlewarn' || phase === 'claiming' || phase === 'error') && (
         <div className="flex flex-col gap-4">
-          {phase === 'idlemobile' && (
-            <div className="flex items-start gap-2.5 rounded-input border border-pos bg-pos-bg p-3">
-              <CheckIcon size={16} className="mt-[1px] flex-none text-pos" />
-              <span className="flex-1 text-[13px] leading-snug text-foreground">
-                Your mobile wallet is paired. Make sure it&apos;s set to Teratestnet.
-              </span>
-              <span className="text-[13px] font-medium text-link">Disconnect</span>
-            </div>
-          )}
           {phase === 'idle' && (
             <div className="flex items-start gap-2.5 rounded-input border border-pos bg-pos-bg p-3">
               <CheckIcon size={16} className="mt-[1px] flex-none text-pos" />
@@ -444,10 +469,12 @@ export default function StatesGallery() {
       <Section id="wallet" title="Faucet card · BRC-100 Wallet tab">
         <Tile title="detecting"><CardShell tab="wallet"><WalletBody phase="detecting" /></CardShell></Tile>
         <Tile title="unavailable (relay disabled)"><CardShell tab="wallet"><WalletBody phase="unavailable" /></CardShell></Tile>
-        <Tile title="mobile pairing (QR)"><CardShell tab="wallet"><WalletBody phase="pairing" /></CardShell></Tile>
-        <Tile title="pairing expired"><CardShell tab="wallet"><WalletBody phase="pair-expired" /></CardShell></Tile>
+        <Tile title="mobile claim (desktop: QR)"><CardShell tab="wallet"><WalletBody phase="mobile" /></CardShell></Tile>
+        <Tile title="mobile claim (on a phone)"><CardShell tab="wallet"><WalletBody phase="mobile-phone" /></CardShell></Tile>
+        <Tile title="mobile claim: sending"><CardShell tab="wallet"><WalletBody phase="mobile-claiming" /></CardShell></Tile>
+        <Tile title="mobile claim: not accepted"><CardShell tab="wallet"><WalletBody phase="mobile-error" /></CardShell></Tile>
+        <Tile title="mobile claim: code expired"><CardShell tab="wallet"><WalletBody phase="mobile-expired" /></CardShell></Tile>
         <Tile title="idle"><CardShell tab="wallet"><WalletBody phase="idle" /></CardShell></Tile>
-        <Tile title="idle (mobile paired)"><CardShell tab="wallet"><WalletBody phase="idlemobile" /></CardShell></Tile>
         <Tile title="idle + mainnet warning"><CardShell tab="wallet"><WalletBody phase="idlewarn" /></CardShell></Tile>
         <Tile title="claiming"><CardShell tab="wallet"><WalletBody phase="claiming" /></CardShell></Tile>
         <Tile title="error"><CardShell tab="wallet"><WalletBody phase="error" /></CardShell></Tile>

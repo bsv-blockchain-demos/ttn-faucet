@@ -1,19 +1,18 @@
 import { NextResponse } from 'next/server'
 
 /**
- * Proxy to the mobile-wallet relay sidecar (relay/). Keeps the browser same-origin and lets the
- * phone resolve `${FAUCET_PUBLIC_URL}/api/session/:id` against the faucet's own domain.
+ * Proxy to the mobile-wallet relay sidecar (relay/), so the phone resolves
+ * `${FAUCET_PUBLIC_URL}/api/session/:id` against the faucet's own domain.
  * Opt-in: with RELAY_INTERNAL_URL unset every call answers 503 and the UI falls back to the
  * plain "no wallet detected" panel.
  */
 
-// Just above the relay's own 30s wallet-request timeout, so its 504 reaches the browser.
-const TIMEOUT_MS = 35_000
+const TIMEOUT_MS = 10_000
 
 /** Headers worth forwarding upstream; nothing else (cookies, Origin, etc.) leaves the faucet. */
-const FORWARD_HEADERS = ['content-type', 'x-desktop-token'] as const
+const FORWARD_HEADERS = ['content-type'] as const
 
-function relayBaseUrl(): string | null {
+export function relayBaseUrl(): string | null {
   const raw = process.env.RELAY_INTERNAL_URL
   if (!raw) return null
   try {

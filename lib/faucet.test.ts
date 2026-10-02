@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vitest'
 import { prisma } from './prisma'
-import { claimToAddress, claimToWallet } from './faucet'
+import { claimToAddress, claimToWallet, findUndeliveredPayout, hasPayoutInFlight, markDelivered } from './faucet'
 import { PrivateKey } from '@bsv/sdk'
 
 const addr = PrivateKey.fromRandom().toPublicKey().toAddress('testnet')
@@ -105,5 +105,44 @@ describe('claimToWallet', () => {
     ).rejects.toThrow('broadcast boom')
     const row = await prisma.claim.findFirst({ where: { recipient: identityKey } })
     expect(row?.status).toBe('failed')
+  })
+})
+
+describe('mobile payout delivery tracking', () => {
+  beforeAll(() => { process.env.DATABASE_URL = 'file:./prisma/dev.db' })
+  afterEach(async () => {
+    await prisma.claim.deleteMany({ where: { recipient: identityKey } })
+  })
+
+  const pay = (txid: string) => vi.fn(async () => ({ ...fakePayment, txid }))
+
+  it('finds an undelivered mobile payout until it is marked delivered', async () => {
+    await claimToWallet({ identityKey, ipHash: 'h', maxSats: 500, defaultSats: 100, recordRemittance: true }, { payWallet: pay('m1') })
+    expect(await findUndeliveredPayout(identityKey)).toEqual({ ...fakePayment, txid: 'm1', amountSats: 100 })
+    await markDelivered('m1')
+    expect(await findUndeliveredPayout(identityKey)).toBeNull()
+  })
+
+  it('ignores payouts made without recordRemittance (browser-wallet claims)', async () => {
+    await claimToWallet({ identityKey, ipHash: 'h', maxSats: 500, defaultSats: 100 }, { payWallet: pay('b1') })
+    expect(await findUndeliveredPayout(identityKey)).toBeNull()
+  })
+
+  it('returns the most recent undelivered payout', async () => {
+    await claimToWallet({ identityKey, ipHash: 'h', maxSats: 500, defaultSats: 100, recordRemittance: true }, { payWallet: pay('old') })
+    await claimToWallet({ identityKey, ipHash: 'h', maxSats: 500, defaultSats: 100, recordRemittance: true }, { payWallet: pay('new') })
+    expect((await findUndeliveredPayout(identityKey))?.txid).toBe('new')
+  })
+
+  it('reports a payout in flight while a claim row is pending', async () => {
+    expect(await hasPayoutInFlight(identityKey)).toBe(false)
+    let release!: () => void
+    const payWallet = vi.fn(() => new Promise<typeof fakePayment>((r) => { release = () => r({ ...fakePayment, txid: 'slow' }) }))
+    const p = claimToWallet({ identityKey, ipHash: 'h', maxSats: 500, defaultSats: 100 }, { payWallet })
+    await vi.waitFor(() => expect(payWallet).toHaveBeenCalled())
+    expect(await hasPayoutInFlight(identityKey)).toBe(true)
+    release()
+    await p
+    expect(await hasPayoutInFlight(identityKey)).toBe(false)
   })
 })
