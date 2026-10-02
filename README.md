@@ -9,6 +9,10 @@ A faucet for the BSV **teratestnet** network with two ways to claim:
   Metanet Desktop) and click once: the faucet pays a BRC-29 output to your wallet's identity key
   and hands back **Atomic BEEF**, which the wallet accepts via `internalizeAction`. No key or
   address to type, with the funded ancestors' proofs included in the BEEF. The recipient wallet must accept the transaction before it can use the funds.
+  **No browser wallet?** The page shows a QR code instead: scan it with the
+  [BSV Wallet](https://github.com/bsv-blockchain/bsv-wallet) mobile app to pair over
+  [`@bsv/wallet-relay`](https://www.npmjs.com/package/@bsv/wallet-relay), and the same claim runs
+  against the phone (see [Mobile wallet pairing](#mobile-wallet-pairing)).
 
 Built on a [`@bsv/wallet-toolbox`](https://github.com/bsv-blockchain/wallet-toolbox)
 server wallet, seeded once from a flat treasury key.
@@ -54,6 +58,7 @@ Set the same absolute `DATABASE_URL` in `.env` for the running app. The Prisma C
 | `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS` | Max claims per window per subject. |
 | `RATE_LIMIT_DISABLED` | Set to the literal `false` to enable rate limiting. Unset or any other value disables it. |
 | `BOOTSTRAP_SPLIT_COUNT` | How many parallel-spendable UTXOs the bootstrap splits the treasury into. |
+| `RELAY_INTERNAL_URL` | Optional. Base URL of the mobile-wallet relay service, e.g. `http://faucet-relay:8787`. Unset disables mobile pairing. |
 
 ## Treasury bootstrap (one-time)
 
@@ -125,6 +130,62 @@ Proxies arcade → `{ txid, status, blockHeight }` (404 if unknown).
 ### `GET /api/health`
 `{ ok, network, arcadeReachable, chaintracksReachable }` (200 healthy / 503 degraded).
 
+## Mobile wallet pairing
+
+When no BRC-100 wallet answers in the browser, the wallet tab shows a QR code by default. Scanning it
+with BSV Wallet pairs the phone over [`@bsv/wallet-relay`](https://www.npmjs.com/package/@bsv/wallet-relay)
+(the same pattern as [whoiam](https://github.com/bsv-blockchain/whoiam)); the claim then calls
+`getPublicKey` and `internalizeAction` on the phone through the relay.
+
+`@bsv/wallet-relay` needs `@bsv/sdk` 2.x while the faucet's wallet stack is on 1.x, so the relay runs
+as a small separate service in [`relay/`](relay/) (own `package.json`/lockfile, image
+`ttn-faucet-relay`). The faucet proxies its REST API, so the browser stays same-origin and the QR's
+origin is the faucet itself:
+
+```
+browser ─ /api/session, /api/request/:id ─┐
+                                           ├─▶ faucet (Next proxy) ─▶ relay :8787  (RELAY_INTERNAL_URL)
+phone   ─ GET {FAUCET_PUBLIC_URL}/api/session/:id ─┘
+phone   ─ wss://{RELAY_WS_URL}/ws ───────────────────────────────────▶ relay :8787  (public)
+```
+
+| Endpoint (faucet) | Purpose |
+|---|---|
+| `GET /api/session` | New pairing session → `{ sessionId, status, qrDataUrl, pairingUri, desktopToken }` |
+| `GET /api/session/:id` | `{ sessionId, status, relay }`, also how the phone discovers the relay socket |
+| `POST /api/request/:id` | `{ method, params }` + `X-Desktop-Token` → wallet call on the phone |
+| `DELETE /api/session/:id` | End the session (`X-Desktop-Token`) |
+
+All four return 503 `relay_disabled` when `RELAY_INTERNAL_URL` is unset (the UI then falls back to
+"No BRC-100 wallet detected"), and 502 when the relay is unreachable.
+
+**Relay environment** (`relay/.env.example`):
+
+| Var | Purpose |
+|---|---|
+| `RELAY_PRIVATE_KEY` | 32-byte hex relay identity key. **Keep it stable**: its public key is in every QR and is the phone's ECDH counterparty. Use a dedicated key, not the treasury. |
+| `FAUCET_PUBLIC_URL` | Public `https://` origin of the faucet (QR pairing origin). Must be the exact canonical origin users load: the phone fetches `/api/session/:id` from it with redirects disallowed, so an edge redirect (www, trailing slash) breaks pairing. |
+| `RELAY_WS_URL` | Public `wss://` origin of the relay socket, with no path (the phone appends `/ws`). |
+| `QR_SCHEMA` | Deep-link scheme, default `bsv-wallet`. |
+| `PORT` | Default `8787`. |
+
+**Deploying:** run the relay as a **single replica** (sessions live in memory). Route a public `wss://`
+host to it with WebSocket upgrades and long read timeouts, and point the faucet's
+`RELAY_INTERNAL_URL` at its in-cluster Service. bsv-wallet only accepts an HTTPS pairing origin and a
+`wss://` relay on a public (non-loopback, non-private) host.
+
+**Local development:** the phone has to reach both services over public TLS, so tunnel them, e.g.
+with ngrok (`ngrok http 3000` and `ngrok http 8787`):
+
+```bash
+cd relay && pnpm install --ignore-workspace
+RELAY_PRIVATE_KEY=<hex> FAUCET_PUBLIC_URL=https://<faucet-tunnel> \
+  RELAY_WS_URL=wss://<relay-tunnel> pnpm dev            # or put these in relay/.env
+RELAY_INTERNAL_URL=http://localhost:8787 pnpm dev       # faucet, from the repo root
+```
+
+Open the faucet through its tunnel URL so the QR's origin matches. Relay tests: `cd relay && pnpm test`.
+
 ## Tests
 
 The database-backed tests write fixture records. Use a separate test database:
@@ -155,6 +216,10 @@ funded treasury:
 - A claim that **fails** while carrying an `Idempotency-Key` keeps the key, so retrying with
   the same key returns 503 (unique-constraint) instead of cleanly retrying. Check the wallet and broadcast state before attempting another payout: a failure after broadcasting can leave the database without the transaction result.
 - The generated Prisma client is committed (Prisma 7 + driver-adapter, custom output dir).
+- Mobile pairing creates a relay session whenever the wallet tab opens without a local wallet. A
+  pending QR isn't resumed on reload (only a paired session is), each QR is valid for 2 minutes,
+  and the relay caps creation at 120 sessions/minute overall. Past that cap, visitors see the plain
+  "No BRC-100 wallet detected" panel until it clears.
 - Background proof completion (the toolbox `Monitor`) is not enabled; pure-change payouts
   use already proven funding ancestors, but long-running deployments need a separate proof-completion strategy.
 

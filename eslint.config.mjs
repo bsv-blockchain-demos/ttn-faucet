@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Separate relay service (own deps/lockfile, @bsv/sdk 2.x).
+    "relay/**",
   ]),
 ]);
 
