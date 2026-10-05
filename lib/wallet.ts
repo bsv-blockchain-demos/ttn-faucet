@@ -20,13 +20,14 @@ import { deriveBrc29, newDerivationValues } from './brc29'
 import { broadcastRawTx } from './arcade'
 import { ArcadeChaintracks } from './arcade-chaintracks'
 import { makeArcadePostBeefResult } from './postbeef-result'
-import { arcadeMerklePath, startProofCompletion } from './proofs'
+import { arcadeMerklePath, repairReorgedProofs, startProofCompletion } from './proofs'
 
 let walletPromise: Promise<{
   wallet: Wallet
   identityKey: string
   services: Services
   storage: WalletStorageManager
+  chaintracks: ArcadeChaintracks
 }> | null = null
 
 export function getWallet() {
@@ -100,7 +101,7 @@ async function buildWallet() {
   const wallet = new Wallet({ chain: CHAIN, keyDeriver, storage, services })
   // Record merkle proofs as blocks arrive, so payout BEEFs stay small (see lib/proofs.ts).
   startProofCompletion(async () => ({ chain: CHAIN, storage, services, chaintracks }))
-  return { wallet, identityKey, services, storage }
+  return { wallet, identityKey, services, storage, chaintracks }
 }
 
 /**
@@ -111,6 +112,26 @@ async function buildWallet() {
  * Pure-change payout -> no live chaintracks needed.
  */
 async function signAndBroadcast(
+  lockingScriptHex: string,
+  satoshis: number,
+  description: string,
+): Promise<{ txid: string; atomicBEEF: number[] }> {
+  try {
+    return await signAndBroadcastOnce(lockingScriptHex, satoshis, description)
+  } catch (e) {
+    // The toolbox verifies the payout's BEEF before broadcasting. If a block it holds a proof for
+    // was re-orged away, that check fails until the proof is updated: repair now and retry once,
+    // rather than failing payouts until the next background pass.
+    if (!(e instanceof Error) || !/merged Beef failed validation/i.test(e.message)) throw e
+    const { storage, chaintracks } = await getWallet()
+    const r = await repairReorgedProofs({ storage, chaintracks })
+    console.log(`[proofs] payout hit a stale proof: ${r.orphanedBlocks} orphaned block(s), ${r.updated} proof(s) updated`)
+    if (r.updated === 0) throw e
+    return await signAndBroadcastOnce(lockingScriptHex, satoshis, description)
+  }
+}
+
+async function signAndBroadcastOnce(
   lockingScriptHex: string,
   satoshis: number,
   description: string,

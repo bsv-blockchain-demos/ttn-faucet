@@ -39,6 +39,15 @@ export async function arcadeMerklePath(
 const AWAITING_PROOF = ['callback', 'unmined', 'sending', 'unknown', 'unconfirmed'] as const
 const CHUNK = 50
 
+/**
+ * Only accept proofs this many blocks below the tip. Teratestnet does re-org: a proof taken one
+ * block below the tip later pointed at an orphaned block and broke every payout spending from it.
+ */
+export const CONFIRMATIONS = 3
+
+/** How far back (by when a proof was recorded or updated) to look for proofs a re-org orphaned. */
+const REORG_LOOKBACK_MS = 24 * 60 * 60 * 1000
+
 export interface ProofDeps {
   chain: 'main' | 'test'
   storage: WalletStorageManager
@@ -70,11 +79,41 @@ export async function completeProofs(deps: ProofDeps): Promise<{ checked: number
   })
   let proven = 0
   for (let i = 0; i < reqs.length; i += CHUNK) {
-    // tip - 1: skip proofs from the newest block, the one most likely to be re-orged.
-    const r = await getProofs(task, reqs.slice(i, i + CHUNK), 0, false, false, tip - 1)
+    const r = await getProofs(task, reqs.slice(i, i + CHUNK), 0, false, false, tip - CONFIRMATIONS)
     proven += r.proven.length
   }
   return { checked: reqs.length, proven }
+}
+
+/**
+ * Re-org repair: re-prove recently recorded proofs whose block is no longer the chain's block at
+ * that height. A stale proof makes every payout BEEF that includes it fail the toolbox's
+ * `beef.verify` ("merged Beef failed validation"). The toolbox's own repair (reproveHeader)
+ * normally runs on chaintracks re-org events, which arcade's chaintracks doesn't provide.
+ */
+export async function repairReorgedProofs(
+  deps: Pick<ProofDeps, 'storage' | 'chaintracks'>,
+  lookbackMs = REORG_LOOKBACK_MS,
+): Promise<{ checked: number; orphanedBlocks: number; updated: number; unavailable: number }> {
+  const recent = await deps.storage.runAsStorageProvider((sp) =>
+    sp.findProvenTxs({ partial: {}, since: new Date(Date.now() - lookbackMs) }),
+  )
+  const chainHash = new Map<number, string | undefined>()
+  const orphaned = new Set<string>()
+  for (const p of recent) {
+    if (!chainHash.has(p.height)) chainHash.set(p.height, (await deps.chaintracks.findHeaderForHeight(p.height))?.hash)
+    const hash = chainHash.get(p.height)
+    // An unknown header (chaintracks hiccup) is not evidence of a re-org; check again next pass.
+    if (hash && hash !== p.blockHash) orphaned.add(p.blockHash)
+  }
+  let updated = 0
+  let unavailable = 0
+  for (const hash of orphaned) {
+    const r = await deps.storage.reproveHeader(hash)
+    updated += r.updated.length
+    unavailable += r.unavailable.length
+  }
+  return { checked: recent.length, orphanedBlocks: orphaned.size, updated, unavailable }
 }
 
 const PROOF_INTERVAL_MS = 60_000
@@ -82,7 +121,7 @@ const PROOF_INTERVAL_MS = 60_000
 // One job per server process, however many route bundles load lib/wallet.ts.
 const g = globalThis as unknown as { __faucetProofJob?: boolean }
 
-/** Run completeProofs now and then every minute (skipping a tick if a pass is still running). */
+/** Run a repair + proof pass now and then every minute (skipping a tick if one is still running). */
 export function startProofCompletion(getDeps: () => Promise<ProofDeps>, log: (msg: string) => void = console.log) {
   if (g.__faucetProofJob) return
   g.__faucetProofJob = true
@@ -91,7 +130,14 @@ export function startProofCompletion(getDeps: () => Promise<ProofDeps>, log: (ms
     if (running) return
     running = true
     try {
-      const { checked, proven } = await completeProofs(await getDeps())
+      const deps = await getDeps()
+      const repair = await repairReorgedProofs(deps)
+      if (repair.orphanedBlocks > 0) {
+        log(
+          `[proofs] re-org: ${repair.orphanedBlocks} orphaned block(s), ${repair.updated} proof(s) updated, ${repair.unavailable} not yet re-mined`,
+        )
+      }
+      const { checked, proven } = await completeProofs(deps)
       if (proven > 0) log(`[proofs] recorded ${proven} of ${checked} pending proofs`)
     } catch (e) {
       log(`[proofs] pass failed: ${e instanceof Error ? e.message : String(e)}`)
