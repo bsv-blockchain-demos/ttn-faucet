@@ -257,7 +257,10 @@ funded treasury:
   minute, from arcade. It doesn't count as a proof attempt, so a transaction arcade can't find is
   never given up on. Without proofs, payout BEEFs carried every earlier payout as an unconfirmed
   ancestor (125 KB, 530 transactions); with them a payout's BEEF is its parents since the last
-  block plus one merkle path each.
+  block plus one merkle path each. Proofs are taken 3 blocks below the tip, and each pass also
+  re-proves recent proofs whose block a re-org replaced (teratestnet does re-org; a stale proof
+  makes every payout spending from it fail with "merged Beef failed validation"). A payout that
+  hits a stale proof triggers that repair immediately and retries once.
 
 ## Licence
 
