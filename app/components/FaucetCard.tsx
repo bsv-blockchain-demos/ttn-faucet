@@ -11,7 +11,7 @@ type Tab = 'wallet' | 'address'
 
 /**
  * The faucet card: pick a network, then claim with a BRC-100 wallet (default) or to an address.
- * The whole card carries data-network, so network-coloured accents follow the pick.
+ * The whole card carries data-network + .net-theme, so its colours follow the pick.
  */
 export function FaucetCard({ siteKey, payoutSats }: { siteKey: string; payoutSats: number }) {
   const { network } = useNetwork()
@@ -22,11 +22,14 @@ export function FaucetCard({ siteKey, payoutSats }: { siteKey: string; payoutSat
 
   const tabCls = (active: boolean) =>
     `flex h-9 flex-1 items-center justify-center rounded-pill px-2 text-center text-[12.5px] font-semibold leading-tight transition disabled:cursor-not-allowed ${
-      active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+      active ? 'bg-primary text-primary-foreground shadow-primary' : 'text-muted-foreground hover:text-foreground'
     }`
 
   return (
-    <div data-network={network} className="overflow-hidden rounded-card border border-hairline bg-card shadow-card">
+    <div
+      data-network={network}
+      className="net-theme overflow-hidden rounded-card border border-net-bd bg-card shadow-card transition-colors"
+    >
       {/* Network stripe: the first thing the eye lands on is which network pays out. */}
       <div className="h-1.5 bg-net transition-colors" aria-hidden />
 

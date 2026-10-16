@@ -10,8 +10,9 @@ import { NETWORKS } from '@/lib/networks'
 const fmt = (n: number) => n.toLocaleString()
 const tbsv = (n: number) => (n / 1e8).toLocaleString(undefined, { maximumFractionDigits: 8 })
 
+/** The claim button wears the selected network's colour (see [data-network] in globals.css). */
 const PRIMARY_CTA =
-  'shine flex min-h-[56px] w-full items-center justify-center gap-2 rounded-pill bg-primary text-[15px] font-semibold text-primary-foreground shadow-primary disabled:cursor-not-allowed disabled:opacity-60'
+  'shine flex min-h-[56px] w-full items-center justify-center gap-2 rounded-pill bg-net px-4 text-[15px] font-semibold text-net-fg shadow-net transition-colors disabled:cursor-not-allowed disabled:opacity-60'
 
 /** A labelled, single-line copyable field (truncates; full value copied on click). */
 function CopyRow({
@@ -171,11 +172,7 @@ export function AddressPanel({
           <>
             <span className="flex flex-col items-center py-1.5 leading-tight">
               <span>Send {fmt(payoutSats)} sats</span>
-              <span className="mt-0.5 inline-flex items-center gap-1.5 text-[12.5px] font-medium opacity-90">
-                on
-                <span className="h-2 w-2 rounded-full bg-net ring-[1.5px] ring-white/80" aria-hidden />
-                {networkName}
-              </span>
+              <span className="mt-0.5 text-[12.5px] font-medium opacity-90">on {networkName}</span>
             </span>
             <ArrowRightIcon size={18} />
           </>

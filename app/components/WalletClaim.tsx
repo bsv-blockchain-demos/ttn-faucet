@@ -26,8 +26,9 @@ const MOBILE_POLL_MS = 2000
 /** How long to wait for a local BRC-100 wallet to answer getNetwork before offering downloads. */
 const DETECT_TIMEOUT_MS = 1500
 
+/** The claim button wears the selected network's colour (see [data-network] in globals.css). */
 const PRIMARY_CTA =
-  'shine flex min-h-[56px] w-full items-center justify-center gap-2 rounded-pill bg-primary px-4 text-[15px] font-semibold text-primary-foreground shadow-primary disabled:cursor-not-allowed disabled:opacity-60'
+  'shine flex min-h-[56px] w-full items-center justify-center gap-2 rounded-pill bg-net px-4 text-[15px] font-semibold text-net-fg shadow-net transition-colors disabled:cursor-not-allowed disabled:opacity-60'
 const SECONDARY_CTA =
   'inline-flex h-11 w-full items-center justify-center rounded-pill border-[1.5px] border-[color:var(--btn2-bd)] bg-transparent px-[22px] text-sm font-semibold text-[color:var(--btn2-fg)] transition min-[620px]:w-auto'
 
@@ -42,11 +43,7 @@ function ClaimLabel({ payoutSats, networkName }: { payoutSats: number; networkNa
     <>
       <span className="flex flex-col items-center py-1.5 leading-tight">
         <span>Claim {fmt(payoutSats)} sats</span>
-        <span className="mt-0.5 inline-flex items-center gap-1.5 text-[12.5px] font-medium opacity-90">
-          on
-          <span className="h-2 w-2 rounded-full bg-net ring-[1.5px] ring-white/80" aria-hidden />
-          {networkName}
-        </span>
+        <span className="mt-0.5 text-[12.5px] font-medium opacity-90">on {networkName}</span>
       </span>
       <ArrowRightIcon size={18} />
     </>

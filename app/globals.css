@@ -104,24 +104,49 @@
 }
 
 /* ---- Tailwind v4 token mapping: utilities resolve to the tokens above ---- */
-/* Network identity — every surface that names the payout network (picker, card band, CTA) wears
-   that network's colour, so a wrong pick is hard to miss. Set data-network on a container. */
+/* Network identity — every surface that names the payout network (picker, card stripe, claim
+   button) wears that network's colour, so a wrong pick is hard to miss. Set data-network on a
+   container. --net-fg is the text colour on a solid --net fill (AA ≥ 4.5:1 in both themes): white
+   on the deeper light-theme hues, near-black ink on the brighter dark-theme ones. */
 :root {
-  --net-testnet: #b45309;
-  --net-ttn: #0e7490;
-  --net-tstn: #7c3aed;
+  --net-testnet: #b45309; /* amber */
+  --net-ttn: #0e7490; /* cyan */
+  --net-tstn: #6d28d9; /* violet */
+  --net-ink: #ffffff;
 }
 .dark {
   --net-testnet: #f5a524;
   --net-ttn: #22d3ee;
   --net-tstn: #a78bfa;
+  --net-ink: #14151a;
 }
 [data-network="testnet"] { --net: var(--net-testnet); }
 [data-network="ttn"] { --net: var(--net-ttn); }
 [data-network="tstn"] { --net: var(--net-tstn); }
 [data-network] {
+  --net-fg: var(--net-ink);
   --net-bg: color-mix(in srgb, var(--net) 12%, transparent);
   --net-bd: color-mix(in srgb, var(--net) 45%, transparent);
+  --net-shadow: 0 10px 24px -8px color-mix(in srgb, var(--net) 60%, transparent);
+}
+
+/* .net-theme re-points the brand tokens at the network colour, so everything inside the faucet
+   card (CTA, tabs, links, bands, inputs, the status modal) follows the selected network without
+   per-component colour logic. Text uses --net directly: ≥ 5:1 on the card in both themes. */
+.net-theme {
+  --primary: var(--net);
+  --primary-fg: var(--net-fg);
+  --pshadow: var(--net-shadow);
+  --accent: color-mix(in srgb, var(--net) 14%, var(--card));
+  --accent-fg: var(--net);
+  --link: var(--net);
+  --hl: var(--net);
+  --btn2-fg: var(--net);
+  --btn2-bd: var(--net);
+  --input-border: color-mix(in srgb, var(--net) 30%, var(--card));
+  --muted: color-mix(in srgb, var(--net) 7%, var(--card));
+  --hairline: color-mix(in srgb, var(--net) 18%, var(--card));
+  --ring: color-mix(in srgb, var(--net) 55%, transparent);
 }
 
 @theme inline {
@@ -149,6 +174,7 @@
   --color-code-link: var(--code-link);
   --color-code-pos: var(--code-pos);
   --color-net: var(--net);
+  --color-net-fg: var(--net-fg);
   --color-net-bg: var(--net-bg);
   --color-net-bd: var(--net-bd);
 
@@ -159,6 +185,7 @@
 
   --shadow-card: var(--shadow);
   --shadow-primary: var(--pshadow);
+  --shadow-net: var(--net-shadow);
 
   --font-display: "Chillax", var(--font-noto-sans), sans-serif;
   --font-sans: var(--font-noto-sans), ui-sans-serif, system-ui, sans-serif;

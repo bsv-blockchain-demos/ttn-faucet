@@ -97,7 +97,7 @@ export function TxStatusModal({ txid, network, onClose }: { txid: string; networ
         aria-modal="true"
         aria-label="Transaction status"
         data-network={network}
-        className="w-[440px] max-w-[90%] overflow-hidden rounded-card border border-hairline bg-card shadow-card"
+        className="net-theme w-[440px] max-w-[90%] overflow-hidden rounded-card border border-hairline bg-card shadow-card"
       >
         <div className="flex items-center justify-between border-b border-hairline px-[22px] py-[18px]">
           <span className="flex items-center gap-2.5">
