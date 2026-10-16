@@ -1,10 +1,10 @@
-import Image from 'next/image'
 import { FaucetCard } from './components/FaucetCard'
 import { StatsGrid } from './components/StatsGrid'
 import { ApiTerminal } from './components/ApiTerminal'
 import { ThemeToggle } from './components/ThemeProvider'
 import { NetworkProvider } from './components/NetworkProvider'
 import { NetworkPanel } from './components/NetworkPanel'
+import { BrandMark } from './components/BrandMark'
 import { NETWORK_IDS } from '@/lib/networks'
 
 const GITHUB = 'https://github.com/bsv-blockchain-demos/ttn-faucet'
@@ -63,9 +63,10 @@ export default function Home() {
         {/* Header + hero share one network-coloured field: the network is the biggest thing on screen. */}
         <NetworkPanel className="on-net transition-colors">
           <header className={`${WRAP} flex h-16 items-center justify-between`}>
-            <div className="flex items-center gap-3">
-              <Image src="/brand/bsv-mark.png" alt="BSV" width={32} height={32} className="rounded-[4px]" />
-              <span className="font-display text-[17px] font-semibold tracking-[-0.02em]">BSV Faucet</span>
+            <div className="flex items-center gap-4">
+              <BrandMark height={30} />
+              <span className="h-6 w-px bg-current opacity-40" aria-hidden />
+              <span className="font-display text-[17px] font-semibold tracking-[-0.02em]">Faucet</span>
             </div>
             <div className="flex items-center gap-6">
               <nav className="hidden items-center gap-6 min-[620px]:flex">
