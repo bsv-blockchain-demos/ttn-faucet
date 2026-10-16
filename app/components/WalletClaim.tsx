@@ -415,28 +415,46 @@ export function WalletPanel({
     if (phase === 'success' || phase === 'error') setPhase('idle')
   }
 
-  // On load: resume a mobile claim from earlier in this tab, else ask a local BRC-100 wallet which
-  // network it's on, else go to the no-wallet panel. WalletClient('auto') is lazy (safe to
-  // construct), but its first call has no built-in connect timeout — so race it.
+  /** Ask a local BRC-100 wallet which network it's on; null when no wallet answers in time. */
+  const probe = useCallback(async (): Promise<{ w: WalletClient; net: 'mainnet' | 'testnet' } | null> => {
+    // WalletClient('auto') is lazy (safe to construct), but its first call has no built-in
+    // connect timeout — so race it.
+    const w = new WalletClient('auto')
+    const net = await Promise.race([
+      w.getNetwork({}).then(({ network }) => network),
+      new Promise<null>((r) => setTimeout(() => r(null), DETECT_TIMEOUT_MS)),
+    ]).catch(() => null)
+    return net ? { w, net } : null
+  }, [])
+
+  // On load: resume a mobile claim from earlier in this tab, else detect a local wallet, else go to
+  // the no-wallet panel.
   useEffect(() => {
     let cancelled = false
-    const w = new WalletClient('auto')
     ;(async () => {
       if (loadPendingClaim()) return setPhase('mobile')
-      const detected = await Promise.race([
-        w.getNetwork({}).then(({ network }) => network),
-        new Promise<null>((r) => setTimeout(() => r(null), DETECT_TIMEOUT_MS)),
-      ]).catch(() => null)
+      const found = await probe()
       if (cancelled) return
-      if (!detected) return setPhase('mobile')
-      wallet.current = w
-      setWalletNetwork(detected)
+      if (!found) return setPhase('mobile')
+      wallet.current = found.w
+      setWalletNetwork(found.net)
       setPhase('idle')
     })()
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [probe])
+
+  /** After the visitor switches their wallet off mainnet: ask it again. */
+  const [rechecking, setRechecking] = useState(false)
+  async function recheck() {
+    setRechecking(true)
+    const found = await probe()
+    setRechecking(false)
+    if (!found) return
+    wallet.current = found.w
+    setWalletNetwork(found.net)
+  }
 
   async function claim() {
     const w = wallet.current
@@ -524,8 +542,11 @@ export function WalletPanel({
     <div className="flex flex-col gap-3.5">
       {phase === 'idle' && onMainnet && (
         <WarnBand>
-          Your wallet is on <span className="font-semibold">mainnet</span>. Switch it to {networkName}, then reload
-          this page to claim.
+          Your wallet is on <span className="font-semibold">mainnet</span>. Switch it to {networkName}, then{' '}
+          <button type="button" onClick={recheck} disabled={rechecking} className="font-semibold text-link">
+            {rechecking ? 'checking…' : 'check again'}
+          </button>
+          .
         </WarnBand>
       )}
 

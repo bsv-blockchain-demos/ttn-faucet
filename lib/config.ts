@@ -17,6 +17,8 @@ const schema = z
       .optional()
       .transform((v) => v !== 'false'),
     BOOTSTRAP_SPLIT_COUNT: z.coerce.number().int().positive(),
+    /** Where API calls without a `network` go. Unset: testnet if enabled, else the first enabled. */
+    FAUCET_DEFAULT_NETWORK: z.preprocess((v) => (v === '' ? undefined : v), z.enum(NETWORK_IDS).optional()),
   })
   .refine((c) => c.FAUCET_PAYOUT_SATS <= c.FAUCET_MAX_SATS, {
     message: 'FAUCET_PAYOUT_SATS must be <= FAUCET_MAX_SATS',
@@ -91,6 +93,9 @@ export function parseConfig(env: Record<string, string | undefined>): Config {
   if (Object.keys(networks).length === 0) {
     throw new Error('No network configured: set TESTNET_ARCADE_URL, TTN_ARCADE_URL or TSTN_ARCADE_URL (and its siblings)')
   }
+  if (shared.FAUCET_DEFAULT_NETWORK && !networks[shared.FAUCET_DEFAULT_NETWORK]) {
+    throw new Error(`FAUCET_DEFAULT_NETWORK=${shared.FAUCET_DEFAULT_NETWORK} is not a configured network`)
+  }
   return { ...shared, networks }
 }
 
@@ -114,8 +119,13 @@ export function enabledNetworks(cfg: Config = getConfig()): NetworkId[] {
   return NETWORK_IDS.filter((id) => cfg.networks[id])
 }
 
-/** Where a request without a `network` goes: the default network if enabled, else the first enabled. */
+/**
+ * Where a request without a `network` goes: FAUCET_DEFAULT_NETWORK, else testnet if enabled, else
+ * the first enabled. Pin FAUCET_DEFAULT_NETWORK when adding a network to a live deployment, so
+ * existing API clients that send no `network` keep getting the same one.
+ */
 export function defaultNetwork(cfg: Config = getConfig()): NetworkId {
+  if (cfg.FAUCET_DEFAULT_NETWORK) return cfg.FAUCET_DEFAULT_NETWORK
   return cfg.networks[DEFAULT_NETWORK] ? DEFAULT_NETWORK : enabledNetworks(cfg)[0]
 }
 

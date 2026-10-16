@@ -1,6 +1,6 @@
 'use client'
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import { DEFAULT_NETWORK, isNetworkId, NETWORK_IDS, type NetworkId } from '@/lib/networks'
+import { DEFAULT_NETWORK, isNetworkId, type NetworkId } from '@/lib/networks'
 
 /**
  * The network the visitor is claiming on. Wallets can't tell us which test network they're on
@@ -45,12 +45,14 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
     ;(async () => {
       if (stored) setNetworkState(stored)
       const res = await fetch('/api/networks').catch(() => null)
-      const json = await res?.json().catch(() => null)
-      if (!alive) return
-      const served: NetworkId[] = Array.isArray(json?.networks) ? json.networks.filter(isNetworkId) : [...NETWORK_IDS]
+      const json = res?.ok ? await res.json().catch(() => null) : null
+      // Unknown (fetch failed): leave `available` unset rather than claim every network is offered;
+      // a claim on an unserved network is still refused server-side.
+      if (!alive || !Array.isArray(json?.networks)) return
+      const served: NetworkId[] = json.networks.filter(isNetworkId)
       setAvailable(served)
-      const fallback = isNetworkId(json?.default) ? json.default : served[0] ?? DEFAULT_NETWORK
-      setNetworkState((cur) => (served.includes(cur) ? cur : fallback))
+      const fallback = isNetworkId(json.default) && served.includes(json.default) ? json.default : served[0]
+      if (fallback) setNetworkState((cur) => (served.includes(cur) ? cur : fallback))
     })()
     return () => {
       alive = false

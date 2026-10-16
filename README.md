@@ -67,18 +67,25 @@ Set the same absolute `DATABASE_URL` in `.env` for the running app. The Prisma C
 | `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS` | Max claims per window per subject. |
 | `RATE_LIMIT_DISABLED` | Set to the literal `false` to enable rate limiting. Unset or any other value disables it. |
 | `BOOTSTRAP_SPLIT_COUNT` | How many parallel-spendable UTXOs the bootstrap splits the treasury into. |
+| `FAUCET_DEFAULT_NETWORK` | Optional. `testnet` \| `ttn` \| `tstn`: where API calls without a `network` go. Must be a configured network. |
 | `RELAY_INTERNAL_URL` | Optional. Base URL of the mobile-wallet relay service, e.g. `http://faucet-relay:8787`. Unset disables mobile pairing. |
 
 ### Networks
 
 `{PREFIX}` is `TESTNET`, `TTN` or `TSTN` (`lib/networks.ts`). A network is offered when its
-`{PREFIX}_ARCADE_URL` is set; the picker greys out the rest. Requests without a `network` go to
-Testnet when it is enabled, else to the first enabled network. Deployments configured before
+`{PREFIX}_ARCADE_URL` is set; the picker greys out the rest. The page always starts on Testnet
+(or the visitor's last pick). API requests without a `network` go to `FAUCET_DEFAULT_NETWORK` if
+set, else Testnet when it is enabled, else the first enabled network — **pin
+`FAUCET_DEFAULT_NETWORK` before adding a network to a live deployment**, or existing API clients that
+send no `network` will start receiving coins on the new one. Deployments configured before
 multi-network support keep working: unprefixed `ARCADE_URL`, `ARCADE_CHAINTRACKS_URL`,
 `WALLET_STORAGE_PATH` and `TREASURY_WIF` configure Teratestnet when no `TTN_*` vars are set.
 
-The Teratestnet wallet now runs as toolbox chain `ttn` (it was `test` before toolbox 2.x, which
-added `ttn`); existing payout rows are migrated to `network = 'ttn'`.
+The Teratestnet wallet now runs as toolbox chain `ttn` (it ran as `test` before toolbox 2.x added
+`ttn`). The chain recorded in an existing wallet storage file is metadata only in toolbox 2.14.9
+(nothing compares it), and `ttn` also stops the toolbox wiring public-testnet WhatsOnChain/Bitails
+into the Teratestnet wallet. Still, check payouts on staging against a copy of the live storage
+file before deploying. Existing payout rows are migrated to `network = 'ttn'`.
 
 ## Treasury bootstrap (one-time)
 

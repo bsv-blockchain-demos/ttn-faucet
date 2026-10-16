@@ -82,6 +82,13 @@ describe('resolveNetwork', () => {
     expect(resolveNetwork('ttn', cfg)).toEqual({ ok: true, network: 'ttn' })
   })
 
+  it('honours FAUCET_DEFAULT_NETWORK, which must be a configured network', () => {
+    const pinned = parseConfig({ ...TEST_ENV, FAUCET_DEFAULT_NETWORK: 'ttn' })
+    expect(resolveNetwork(undefined, pinned)).toEqual({ ok: true, network: 'ttn' })
+    expect(() => parseConfig({ ...TEST_ENV, FAUCET_DEFAULT_NETWORK: 'tstn' })).toThrow(/not a configured network/)
+    expect(defaultNetwork(parseConfig({ ...TEST_ENV, FAUCET_DEFAULT_NETWORK: '' }))).toBe('testnet') // as in .env.example
+  })
+
   it('rejects unknown and unconfigured networks', () => {
     expect(resolveNetwork('mainnet', cfg)).toMatchObject({ ok: false, code: 'bad_request' })
     expect(resolveNetwork('tstn', cfg)).toMatchObject({ ok: false, code: 'network_unavailable' })
