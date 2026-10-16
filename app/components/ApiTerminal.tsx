@@ -1,26 +1,35 @@
 'use client'
 import { useState } from 'react'
 import { CopyIcon } from './icons'
+import { useNetwork } from './NetworkProvider'
+import { NETWORK_IDS, type NetworkId } from '@/lib/networks'
 
-const CURL = `# claim test coins to an address
-curl -X POST https://faucet-ttn.bsvblockchain.tech/api/claim \\
+const ORIGIN = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://faucet-ttn.bsvblockchain.tech'
+
+/** The example call, for whichever network is selected in the card. */
+const curl = (network: NetworkId) => `# claim test coins to an address on ${network}
+# (network: ${NETWORK_IDS.join(' | ')}; omit for the faucet's default)
+curl -X POST ${ORIGIN}/api/claim \\
   -H 'content-type: application/json' \\
-  -d '{"address":"<your-teratestnet-address>","captchaToken":"<turnstile>"}'
+  -d '{"address":"<your-testnet-address>","network":"${network}"}'
 
 # -> 200
 {
   "txid": "a1b2…",
   "ef": "0200…",
-  "network": "teratestnet"
+  "network": "${network}"
 }`
 
 const ENDPOINTS = [
   { method: 'POST', path: '/api/claim' },
   { method: 'POST', path: '/api/claim/wallet' },
-  { method: 'GET', path: '/api/status/:txid' },
+  { method: 'GET', path: '/api/status/:txid?network=' },
+  { method: 'GET', path: '/api/networks' },
 ]
 
 export function ApiTerminal() {
+  const { network } = useNetwork()
+  const CURL = curl(network)
   const [copied, setCopied] = useState(false)
 
   function copy() {

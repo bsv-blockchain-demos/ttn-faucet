@@ -1,15 +1,17 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 // TODO: re-enable Turnstile — temporarily disabled.
 // import { TurnstileWidget } from './TurnstileWidget'
 import { generateTestnetKey } from '@/lib/keygen'
 import { ArrowRightIcon, CheckIcon, CopyIcon, WarningIcon } from './icons'
+import { useNetwork } from './NetworkProvider'
+import { NETWORKS } from '@/lib/networks'
 
 const fmt = (n: number) => n.toLocaleString()
 const tbsv = (n: number) => (n / 1e8).toLocaleString(undefined, { maximumFractionDigits: 8 })
 
 const PRIMARY_CTA =
-  'shine flex h-[52px] w-full items-center justify-center gap-2 rounded-pill bg-primary text-[15px] font-semibold text-primary-foreground shadow-primary disabled:cursor-not-allowed disabled:opacity-60'
+  'shine flex min-h-[56px] w-full items-center justify-center gap-2 rounded-pill bg-primary text-[15px] font-semibold text-primary-foreground shadow-primary disabled:cursor-not-allowed disabled:opacity-60'
 
 /** A labelled, single-line copyable field (truncates; full value copied on click). */
 function CopyRow({
@@ -48,16 +50,24 @@ function CopyRow({
   )
 }
 
-/** Paste-address tab of the faucet card — claim to any Teratestnet address, returns the EF. */
+/**
+ * Paste-address tab of the faucet card — claim to a testnet address on the selected network,
+ * returns the EF. Every test network shares the address format, so the network comes from the
+ * picker, not the address.
+ */
 export function AddressPanel({
   siteKey,
   payoutSats,
   onTrack,
+  onBusy,
 }: {
   siteKey: string
   payoutSats: number
   onTrack: (txid: string) => void
+  onBusy: (busy: boolean) => void
 }) {
+  const { network } = useNetwork()
+  const networkName = NETWORKS[network].name
   const [address, setAddress] = useState('')
   const [token, setToken] = useState('')
   const [busy, setBusy] = useState(false)
@@ -65,6 +75,15 @@ export function AddressPanel({
   const [error, setError] = useState('')
   const [generated, setGenerated] = useState<{ wif: string; address: string } | null>(null)
   const [copied, setCopied] = useState<'addr' | 'wif' | 'ef' | ''>('')
+
+  useEffect(() => onBusy(busy), [busy, onBusy])
+  // A result belongs to the network it was claimed on; clear it when the network changes.
+  const [resultNetwork, setResultNetwork] = useState(network)
+  if (resultNetwork !== network) {
+    setResultNetwork(network)
+    setResult(null)
+    setError('')
+  }
 
   function generate() {
     const g = generateTestnetKey()
@@ -87,7 +106,7 @@ export function AddressPanel({
       const res = await fetch('/api/claim', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ address, captchaToken: token }),
+        body: JSON.stringify({ address, network, captchaToken: token }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Request failed')
@@ -103,7 +122,7 @@ export function AddressPanel({
     <form onSubmit={submit} className="flex flex-col gap-4">
       <div>
         <div className="mb-2 flex items-baseline justify-between">
-          <span className="text-[13.5px] font-medium text-foreground">Your Teratestnet address</span>
+          <span className="text-[13.5px] font-medium text-foreground">Your {networkName} address</span>
           <button type="button" onClick={generate} className="text-[13px] font-semibold text-link">
             Generate a test key
           </button>
@@ -146,7 +165,21 @@ export function AddressPanel({
       {/* <TurnstileWidget siteKey={siteKey} onToken={setToken} /> */}
 
       <button type="submit" disabled={busy || !address} className={PRIMARY_CTA}>
-        {busy ? 'Sending…' : `Claim ${fmt(payoutSats)} sats`}
+        {busy ? (
+          'Sending…'
+        ) : (
+          <>
+            <span className="flex flex-col items-center py-1.5 leading-tight">
+              <span>Send {fmt(payoutSats)} sats</span>
+              <span className="mt-0.5 inline-flex items-center gap-1.5 text-[12.5px] font-medium opacity-90">
+                on
+                <span className="h-2 w-2 rounded-full bg-net ring-[1.5px] ring-white/80" aria-hidden />
+                {networkName}
+              </span>
+            </span>
+            <ArrowRightIcon size={18} />
+          </>
+        )}
       </button>
 
       {error && <p className="text-center text-sm font-medium text-neg">{error}</p>}
@@ -157,7 +190,7 @@ export function AddressPanel({
             <span className="flex h-[26px] w-[26px] items-center justify-center rounded-full bg-pos">
               <CheckIcon size={15} className="text-primary-foreground" />
             </span>
-            <span className="font-display text-[15px] font-semibold text-foreground">Funds sent</span>
+            <span className="font-display text-[15px] font-semibold text-foreground">Sent on {networkName}</span>
             <button
               type="button"
               onClick={() => onTrack(result.txid)}

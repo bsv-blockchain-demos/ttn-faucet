@@ -1,6 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useFaucetBalanceSats } from './FaucetBalance'
+import { useNetwork } from './NetworkProvider'
+import { NETWORKS } from '@/lib/networks'
 
 type Stats = { payoutCount: number; totalSatsDisbursed: number }
 
@@ -53,11 +55,12 @@ function StatCard({
 }
 
 /**
- * Sats dispensed + Total payouts are live from /api/stats (broadcast Claim rows). Treasury
- * balance is live from /api/balance. Network throughput is an intentionally static marketing figure.
+ * Sats dispensed + Total payouts are live from /api/stats (broadcast Claim rows, all networks).
+ * Treasury balance is live from /api/balance for the selected network.
  */
-export function StatsGrid() {
-  const sats = useFaucetBalanceSats()
+export function StatsGrid({ payoutSats }: { payoutSats: number }) {
+  const { network } = useNetwork()
+  const sats = useFaucetBalanceSats(network)
   const stats = useFaucetStats()
 
   const treasuryBsv =
@@ -79,17 +82,21 @@ export function StatsGrid() {
       <StatCard
         label="Total payouts"
         value={payouts}
-        sub={<span className="text-muted-foreground">across all subjects</span>}
+        sub={<span className="text-muted-foreground">across all networks</span>}
       />
       <StatCard
         label="Treasury balance"
         value={treasuryBsv}
-        sub={<span className="text-muted-foreground">BSV · refilled nightly</span>}
+        sub={
+          <span data-network={network} className="text-muted-foreground">
+            BSV on <span className="font-semibold text-net">{NETWORKS[network].name}</span>
+          </span>
+        }
       />
       <StatCard
-        label="Network throughput"
-        value="1.04M tps"
-        sub={<span className="text-muted-foreground">peak on Teranode testnet</span>}
+        label="Per claim"
+        value={payoutSats.toLocaleString()}
+        sub={<span className="text-muted-foreground">sats, spendable instantly</span>}
       />
     </div>
   )

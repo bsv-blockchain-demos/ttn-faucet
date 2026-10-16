@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ============================================================================
-   Teranode Faucet — design tokens (single source of truth).
+   BSV Faucet — design tokens (single source of truth).
    Light is :root, dark is .dark on <html>. Every visual value below is a
    named token; components reference the mapped Tailwind utility or var(--…),
    never a raw literal. See docs handoff TOKEN_STYLE_GUIDE.md.
@@ -104,6 +104,26 @@
 }
 
 /* ---- Tailwind v4 token mapping: utilities resolve to the tokens above ---- */
+/* Network identity — every surface that names the payout network (picker, card band, CTA) wears
+   that network's colour, so a wrong pick is hard to miss. Set data-network on a container. */
+:root {
+  --net-testnet: #b45309;
+  --net-ttn: #0e7490;
+  --net-tstn: #7c3aed;
+}
+.dark {
+  --net-testnet: #f5a524;
+  --net-ttn: #22d3ee;
+  --net-tstn: #a78bfa;
+}
+[data-network="testnet"] { --net: var(--net-testnet); }
+[data-network="ttn"] { --net: var(--net-ttn); }
+[data-network="tstn"] { --net: var(--net-tstn); }
+[data-network] {
+  --net-bg: color-mix(in srgb, var(--net) 12%, transparent);
+  --net-bd: color-mix(in srgb, var(--net) 45%, transparent);
+}
+
 @theme inline {
   --color-page: var(--page);
   --color-card: var(--card);
@@ -128,6 +148,9 @@
   --color-code-dim: var(--code-dim);
   --color-code-link: var(--code-link);
   --color-code-pos: var(--code-pos);
+  --color-net: var(--net);
+  --color-net-bg: var(--net-bg);
+  --color-net-bd: var(--net-bd);
 
   --radius-input: var(--r-input);
   --radius-panel: var(--r-panel);
