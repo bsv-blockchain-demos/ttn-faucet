@@ -4,7 +4,7 @@ import { CopyIcon } from './icons'
 import { useNetwork } from './NetworkProvider'
 import { NETWORK_IDS, type NetworkId } from '@/lib/networks'
 
-const ORIGIN = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://faucet-ttn.bsvblockchain.tech'
+const ORIGIN = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://faucet.bsvblockchain.tech'
 
 /** The example call, for whichever network is selected in the card. */
 const curl = (network: NetworkId) => `# claim test coins to an address on ${network}

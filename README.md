@@ -26,7 +26,7 @@ Browser download links) and to block claims from a mainnet wallet.
 Built on a [`@bsv/wallet-toolbox`](https://github.com/bsv-blockchain/wallet-toolbox)
 server wallet, seeded once from a flat treasury key.
 
-[Hosted faucet](https://faucet-ttn.bsvblockchain.tech/).
+[Hosted faucet](https://faucet.bsvblockchain.tech/) (also served at faucet-ttn.bsvblockchain.tech).
 
 **Current claim controls:** captcha verification is commented out in `lib/guard.ts`, and rate limiting defaults to disabled. Set `RATE_LIMIT_DISABLED=false` to enable per-subject limits. Turnstile keys alone do not enable captcha verification. Valid API keys receive tier-based limits when rate limiting is enabled.
 
@@ -163,8 +163,9 @@ Proxies that network's arcade → `{ txid, status, blockHeight, network }` (404 
 Faucet wallet balance on a network; lifetime payout stats for one network or all.
 
 ### `GET /api/health`
-`{ ok, networks: [{ network, ok, arcadeReachable, chaintracksReachable }] }` (200 when every
-configured network is healthy / 503 degraded).
+`{ ok, degraded, networks: [{ network, ok, arcadeReachable, chaintracksReachable }] }`. 200 while
+at least one configured network can pay out (`degraded: true` if any is down), 503 only when none
+can — so one network's outage doesn't fail the readiness probe for the others.
 
 ## Mobile wallet pairing
 
