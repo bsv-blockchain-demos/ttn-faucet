@@ -46,7 +46,7 @@ beforeEach(async () => {
   }
   phone()
   claims = new MobileClaims(deps as unknown as MobileClaimDeps)
-  await claims.create('1.2.3.4')
+  await claims.create('1.2.3.4', 'ttn')
 })
 
 async function connectAndSettle() {
@@ -57,7 +57,7 @@ async function connectAndSettle() {
 
 describe('MobileClaims', () => {
   it('creates a waiting claim without exposing the desktop token', async () => {
-    const created = await claims.create('1.2.3.4')
+    const created = await claims.create('1.2.3.4', 'ttn')
     expect(created).toEqual({ sessionId: 's1', qrDataUrl: 'data:qr', pairingUri: 'bsv-wallet://pair?topic=s1' })
     expect(claims.view('s1')).toEqual({ state: 'waiting' })
   })
@@ -74,7 +74,7 @@ describe('MobileClaims', () => {
     expect(deps.call.mock.calls.map((c) => c[1])).toEqual(['getPublicKey', 'internalizeAction'])
     expect(deps.call.mock.invocationCallOrder[0]).toBeLessThan(deps.guard.mock.invocationCallOrder[0])
     expect(deps.guard).toHaveBeenCalledWith('1.2.3.4')
-    expect(deps.pay).toHaveBeenCalledWith(IDENTITY, '1.2.3.4')
+    expect(deps.pay).toHaveBeenCalledWith('ttn', IDENTITY, '1.2.3.4')
     const internalize = deps.call.mock.calls[1][2] as { tx: number[]; outputs: Array<{ paymentRemittance: unknown }> }
     expect(internalize.tx).toEqual([1, 1, 1, 1, 0])
     expect(internalize.outputs[0].paymentRemittance).toEqual({
@@ -96,7 +96,7 @@ describe('MobileClaims', () => {
     deps.findUndelivered.mockResolvedValue({ ...payment, txid: 'old' })
     deps.refreshBeef.mockResolvedValue('0102')
     await connectAndSettle()
-    expect(deps.refreshBeef).toHaveBeenCalledWith('old')
+    expect(deps.refreshBeef).toHaveBeenCalledWith('ttn', 'old')
     // The rebuilt (smaller) BEEF is what the wallet receives.
     expect((deps.call.mock.calls[1][2] as { tx: number[] }).tx).toEqual([1, 2])
     expect(deps.pay).not.toHaveBeenCalled()
@@ -194,7 +194,7 @@ describe('MobileClaims', () => {
     let n = 0
     deps.createSession.mockImplementation(async () => ({ ...session, sessionId: `s${++n}` }))
     const fresh = new MobileClaims(deps as unknown as MobileClaimDeps)
-    for (let i = 0; i < MAX_WAITING; i++) await fresh.create('1.2.3.4')
-    await expect(fresh.create('1.2.3.4')).rejects.toMatchObject({ code: 429 })
+    for (let i = 0; i < MAX_WAITING; i++) await fresh.create('1.2.3.4', 'ttn')
+    await expect(fresh.create('1.2.3.4', 'ttn')).rejects.toMatchObject({ code: 429 })
   })
 })

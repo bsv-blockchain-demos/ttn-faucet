@@ -1,8 +1,10 @@
 import { prisma } from './prisma'
 import { assertTestnetP2PKH, assertIdentityKey } from './address'
 import { getConfig } from './config'
+import type { NetworkId } from './networks'
 
 export interface ClaimRequest {
+  network: NetworkId
   address: string
   amountSats?: number
   ipHash: string
@@ -53,6 +55,7 @@ export async function claimToAddress(req: ClaimRequest, deps: FaucetDeps): Promi
   // 4. Create a pending claim row (captures idempotency key uniqueness).
   const claim = await prisma.claim.create({
     data: {
+      network: req.network,
       recipient: req.address,
       amountSats,
       ipHash: req.ipHash,
@@ -74,6 +77,7 @@ export async function claimToAddress(req: ClaimRequest, deps: FaucetDeps): Promi
 }
 
 export interface WalletClaimRequest {
+  network: NetworkId
   identityKey: string
   amountSats?: number
   ipHash: string
@@ -117,6 +121,7 @@ export async function claimToWallet(req: WalletClaimRequest, deps: WalletFaucetD
   // 3. Create a pending claim row.
   const claim = await prisma.claim.create({
     data: {
+      network: req.network,
       recipient: req.identityKey,
       amountSats,
       ipHash: req.ipHash,
@@ -159,13 +164,14 @@ function remittanceOf(p: WalletPayment): Remittance {
 const REDELIVERY_WINDOW_MS = 24 * 60 * 60 * 1000
 
 /**
- * The most recent mobile-wallet payout to `identityKey` that was broadcast but never confirmed as
+ * The most recent mobile-wallet payout on `network` to `identityKey` that was broadcast but never confirmed as
  * accepted by the phone (e.g. the wallet app was backgrounded mid-delivery). Redelivering it is
  * safe: the wallet's internalizeAction tolerates a repeat.
  */
-export async function findUndeliveredPayout(identityKey: string): Promise<WalletClaimResult | null> {
+export async function findUndeliveredPayout(network: NetworkId, identityKey: string): Promise<WalletClaimResult | null> {
   const row = await prisma.claim.findFirst({
     where: {
+      network,
       recipient: identityKey,
       status: 'broadcast',
       remittance: { not: null },

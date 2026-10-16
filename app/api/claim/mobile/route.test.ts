@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const claims = { create: vi.fn(), view: vi.fn(), check: vi.fn() }
 vi.mock('@/lib/mobile-claim-runtime', () => ({ mobileClaims: () => claims }))
+vi.mock('@/lib/config', async (orig) => (await import('@/lib/test-config')).mockConfigModule(await orig()))
 
 import { POST as start } from './route'
 import { GET as poll, POST as notify } from './[id]/route'
@@ -28,12 +29,25 @@ describe('POST /api/claim/mobile', () => {
     const res = await start(new Request('http://x', { method: 'POST', headers: { 'x-forwarded-for': '9.9.9.9, 10.0.0.1' } }))
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ sessionId: 's1', qrDataUrl: 'data:qr', pairingUri: 'bsv-wallet://pair' })
-    expect(claims.create).toHaveBeenCalledWith('9.9.9.9')
+    expect(claims.create).toHaveBeenCalledWith('9.9.9.9', 'testnet')
   })
 
   it('passes a relay rate limit through as 429', async () => {
     claims.create.mockRejectedValue(new RelayError('Too many sessions', 429))
     expect((await start(new Request('http://x', { method: 'POST' }))).status).toBe(429)
+  })
+
+  it('creates the claim on the requested network', async () => {
+    claims.create.mockResolvedValue({ sessionId: 's1', qrDataUrl: 'data:qr', pairingUri: 'bsv-wallet://pair' })
+    const body = JSON.stringify({ network: 'ttn' })
+    expect((await start(new Request('http://x', { method: 'POST', body }))).status).toBe(200)
+    expect(claims.create).toHaveBeenCalledWith('unknown', 'ttn')
+  })
+
+  it('400 for a network this faucet does not serve', async () => {
+    const body = JSON.stringify({ network: 'tstn' })
+    expect((await start(new Request('http://x', { method: 'POST', body }))).status).toBe(400)
+    expect(claims.create).not.toHaveBeenCalled()
   })
 })
 

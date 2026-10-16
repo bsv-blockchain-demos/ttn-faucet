@@ -37,6 +37,7 @@ export type ClaimSumAggregateOutputType = {
 export type ClaimMinAggregateOutputType = {
   id: string | null
   createdAt: Date | null
+  network: string | null
   recipient: string | null
   amountSats: number | null
   txid: string | null
@@ -52,6 +53,7 @@ export type ClaimMinAggregateOutputType = {
 export type ClaimMaxAggregateOutputType = {
   id: string | null
   createdAt: Date | null
+  network: string | null
   recipient: string | null
   amountSats: number | null
   txid: string | null
@@ -67,6 +69,7 @@ export type ClaimMaxAggregateOutputType = {
 export type ClaimCountAggregateOutputType = {
   id: number
   createdAt: number
+  network: number
   recipient: number
   amountSats: number
   txid: number
@@ -92,6 +95,7 @@ export type ClaimSumAggregateInputType = {
 export type ClaimMinAggregateInputType = {
   id?: true
   createdAt?: true
+  network?: true
   recipient?: true
   amountSats?: true
   txid?: true
@@ -107,6 +111,7 @@ export type ClaimMinAggregateInputType = {
 export type ClaimMaxAggregateInputType = {
   id?: true
   createdAt?: true
+  network?: true
   recipient?: true
   amountSats?: true
   txid?: true
@@ -122,6 +127,7 @@ export type ClaimMaxAggregateInputType = {
 export type ClaimCountAggregateInputType = {
   id?: true
   createdAt?: true
+  network?: true
   recipient?: true
   amountSats?: true
   txid?: true
@@ -224,6 +230,7 @@ export type ClaimGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalAr
 export type ClaimGroupByOutputType = {
   id: string
   createdAt: Date
+  network: string
   recipient: string
   amountSats: number
   txid: string | null
@@ -262,6 +269,7 @@ export type ClaimWhereInput = {
   NOT?: Prisma.ClaimWhereInput | Prisma.ClaimWhereInput[]
   id?: Prisma.StringFilter<"Claim"> | string
   createdAt?: Prisma.DateTimeFilter<"Claim"> | Date | string
+  network?: Prisma.StringFilter<"Claim"> | string
   recipient?: Prisma.StringFilter<"Claim"> | string
   amountSats?: Prisma.IntFilter<"Claim"> | number
   txid?: Prisma.StringNullableFilter<"Claim"> | string | null
@@ -277,6 +285,7 @@ export type ClaimWhereInput = {
 export type ClaimOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  network?: Prisma.SortOrder
   recipient?: Prisma.SortOrder
   amountSats?: Prisma.SortOrder
   txid?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -296,6 +305,7 @@ export type ClaimWhereUniqueInput = Prisma.AtLeast<{
   OR?: Prisma.ClaimWhereInput[]
   NOT?: Prisma.ClaimWhereInput | Prisma.ClaimWhereInput[]
   createdAt?: Prisma.DateTimeFilter<"Claim"> | Date | string
+  network?: Prisma.StringFilter<"Claim"> | string
   recipient?: Prisma.StringFilter<"Claim"> | string
   amountSats?: Prisma.IntFilter<"Claim"> | number
   txid?: Prisma.StringNullableFilter<"Claim"> | string | null
@@ -310,6 +320,7 @@ export type ClaimWhereUniqueInput = Prisma.AtLeast<{
 export type ClaimOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  network?: Prisma.SortOrder
   recipient?: Prisma.SortOrder
   amountSats?: Prisma.SortOrder
   txid?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -333,6 +344,7 @@ export type ClaimScalarWhereWithAggregatesInput = {
   NOT?: Prisma.ClaimScalarWhereWithAggregatesInput | Prisma.ClaimScalarWhereWithAggregatesInput[]
   id?: Prisma.StringWithAggregatesFilter<"Claim"> | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Claim"> | Date | string
+  network?: Prisma.StringWithAggregatesFilter<"Claim"> | string
   recipient?: Prisma.StringWithAggregatesFilter<"Claim"> | string
   amountSats?: Prisma.IntWithAggregatesFilter<"Claim"> | number
   txid?: Prisma.StringNullableWithAggregatesFilter<"Claim"> | string | null
@@ -348,6 +360,7 @@ export type ClaimScalarWhereWithAggregatesInput = {
 export type ClaimCreateInput = {
   id?: string
   createdAt?: Date | string
+  network?: string
   recipient: string
   amountSats: number
   txid?: string | null
@@ -363,6 +376,7 @@ export type ClaimCreateInput = {
 export type ClaimUncheckedCreateInput = {
   id?: string
   createdAt?: Date | string
+  network?: string
   recipient: string
   amountSats: number
   txid?: string | null
@@ -378,6 +392,7 @@ export type ClaimUncheckedCreateInput = {
 export type ClaimUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  network?: Prisma.StringFieldUpdateOperationsInput | string
   recipient?: Prisma.StringFieldUpdateOperationsInput | string
   amountSats?: Prisma.IntFieldUpdateOperationsInput | number
   txid?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -393,6 +408,7 @@ export type ClaimUpdateInput = {
 export type ClaimUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  network?: Prisma.StringFieldUpdateOperationsInput | string
   recipient?: Prisma.StringFieldUpdateOperationsInput | string
   amountSats?: Prisma.IntFieldUpdateOperationsInput | number
   txid?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -408,6 +424,7 @@ export type ClaimUncheckedUpdateInput = {
 export type ClaimCreateManyInput = {
   id?: string
   createdAt?: Date | string
+  network?: string
   recipient: string
   amountSats: number
   txid?: string | null
@@ -423,6 +440,7 @@ export type ClaimCreateManyInput = {
 export type ClaimUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  network?: Prisma.StringFieldUpdateOperationsInput | string
   recipient?: Prisma.StringFieldUpdateOperationsInput | string
   amountSats?: Prisma.IntFieldUpdateOperationsInput | number
   txid?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -438,6 +456,7 @@ export type ClaimUpdateManyMutationInput = {
 export type ClaimUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  network?: Prisma.StringFieldUpdateOperationsInput | string
   recipient?: Prisma.StringFieldUpdateOperationsInput | string
   amountSats?: Prisma.IntFieldUpdateOperationsInput | number
   txid?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -453,6 +472,7 @@ export type ClaimUncheckedUpdateManyInput = {
 export type ClaimCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  network?: Prisma.SortOrder
   recipient?: Prisma.SortOrder
   amountSats?: Prisma.SortOrder
   txid?: Prisma.SortOrder
@@ -472,6 +492,7 @@ export type ClaimAvgOrderByAggregateInput = {
 export type ClaimMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  network?: Prisma.SortOrder
   recipient?: Prisma.SortOrder
   amountSats?: Prisma.SortOrder
   txid?: Prisma.SortOrder
@@ -487,6 +508,7 @@ export type ClaimMaxOrderByAggregateInput = {
 export type ClaimMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  network?: Prisma.SortOrder
   recipient?: Prisma.SortOrder
   amountSats?: Prisma.SortOrder
   txid?: Prisma.SortOrder
@@ -532,6 +554,7 @@ export type NullableDateTimeFieldUpdateOperationsInput = {
 export type ClaimSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   createdAt?: boolean
+  network?: boolean
   recipient?: boolean
   amountSats?: boolean
   txid?: boolean
@@ -547,6 +570,7 @@ export type ClaimSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
 export type ClaimSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   createdAt?: boolean
+  network?: boolean
   recipient?: boolean
   amountSats?: boolean
   txid?: boolean
@@ -562,6 +586,7 @@ export type ClaimSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensi
 export type ClaimSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   createdAt?: boolean
+  network?: boolean
   recipient?: boolean
   amountSats?: boolean
   txid?: boolean
@@ -577,6 +602,7 @@ export type ClaimSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
 export type ClaimSelectScalar = {
   id?: boolean
   createdAt?: boolean
+  network?: boolean
   recipient?: boolean
   amountSats?: boolean
   txid?: boolean
@@ -589,7 +615,7 @@ export type ClaimSelectScalar = {
   deliveredAt?: boolean
 }
 
-export type ClaimOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "createdAt" | "recipient" | "amountSats" | "txid" | "status" | "ipHash" | "apiKeyId" | "idempotencyKey" | "ef" | "remittance" | "deliveredAt", ExtArgs["result"]["claim"]>
+export type ClaimOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "createdAt" | "network" | "recipient" | "amountSats" | "txid" | "status" | "ipHash" | "apiKeyId" | "idempotencyKey" | "ef" | "remittance" | "deliveredAt", ExtArgs["result"]["claim"]>
 
 export type $ClaimPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Claim"
@@ -597,6 +623,10 @@ export type $ClaimPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     createdAt: Date
+    /**
+     * Network the payout was made on (lib/networks.ts). Rows from before multi-network are 'ttn'.
+     */
+    network: string
     recipient: string
     amountSats: number
     txid: string | null
@@ -1039,6 +1069,7 @@ export interface Prisma__ClaimClient<T, Null = never, ExtArgs extends runtime.Ty
 export interface ClaimFieldRefs {
   readonly id: Prisma.FieldRef<"Claim", 'String'>
   readonly createdAt: Prisma.FieldRef<"Claim", 'DateTime'>
+  readonly network: Prisma.FieldRef<"Claim", 'String'>
   readonly recipient: Prisma.FieldRef<"Claim", 'String'>
   readonly amountSats: Prisma.FieldRef<"Claim", 'Int'>
   readonly txid: Prisma.FieldRef<"Claim", 'String'>

@@ -10,6 +10,8 @@ datasource db {
 model Claim {
   id             String   @id @default(cuid())
   createdAt      DateTime @default(now())
+  /// Network the payout was made on (lib/networks.ts). Rows from before multi-network are 'ttn'.
+  network        String   @default("ttn")
   recipient      String
   amountSats     Int
   txid           String?
@@ -26,6 +28,7 @@ model Claim {
 
   @@index([ipHash, createdAt])
   @@index([recipient, createdAt])
+  @@index([network, status])
 }
 
 model RateEvent {

@@ -1,8 +1,10 @@
-# Teratestnet Faucet
+# BSV Faucet
 
-A faucet for the BSV **teratestnet** network with two ways to claim:
+A faucet for the BSV test networks — **Testnet**, **Teratestnet** (`ttn`) and **Teranode STN**
+(`tstn`) — with two ways to claim. Each network runs its own server wallet; a deployment pays out
+on whichever networks it configures (see [Networks](#networks)).
 
-- **Dev API** — `POST` a teratestnet address and the service builds, signs, and **broadcasts**
+- **Dev API** — `POST` a testnet address and a `network` and the service builds, signs, and **broadcasts**
   a funding transaction through [arcade](https://github.com/bsv-blockchain/arcade), then returns
   the transaction in **extended format (EF)**. The returned transaction ID can be used to check its broadcast and mining status.
 - **BRC-100 wallet onboarding** — load the page with a BRC-100 wallet (BSV Browser / BSV Desktop /
@@ -14,6 +16,12 @@ A faucet for the BSV **teratestnet** network with two ways to claim:
   the button on the phone itself) and approve, and the coins arrive in the wallet over
   [`@bsv/wallet-relay`](https://www.npmjs.com/package/@bsv/wallet-relay) (see
   [Mobile wallet pairing](#mobile-wallet-pairing)).
+
+**Picking the network.** BRC-100 `getNetwork` only reports `mainnet` or `testnet` — every test
+network answers `testnet` — so a wallet can't tell the faucet which one it is on. The page has a
+network picker instead (default Testnet, remembered in `localStorage`), restates the network on the
+claim button, and uses `getNetwork` to detect the wallet at all (no answer → BSV Desktop / BSV
+Browser download links) and to block claims from a mainnet wallet.
 
 Built on a [`@bsv/wallet-toolbox`](https://github.com/bsv-blockchain/wallet-toolbox)
 server wallet, seeded once from a flat treasury key.
@@ -48,11 +56,11 @@ Set the same absolute `DATABASE_URL` in `.env` for the running app. The Prisma C
 
 | Var | Purpose |
 |---|---|
-| `TREASURY_WIF` | Flat key holding teratestnet coins — used **only** by the one-time bootstrap. |
-| `WALLET_ROOT_KEY_HEX` | 32-byte hex root key for the toolbox server-wallet identity. Generate once, keep secret. |
-| `ARCADE_URL` | arcade broadcast + status base URL (serves `POST /tx`, `GET /tx/{txid}`). |
-| `ARCADE_CHAINTRACKS_URL` | arcade chaintracks v2 base URL (headers), e.g. `…:8083/chaintracks/v2`. |
-| `WALLET_STORAGE_PATH` | Toolbox wallet SQLite file (e.g. `./data/wallet.sqlite`). |
+| `WALLET_ROOT_KEY_HEX` | 32-byte hex root key for the toolbox server-wallet identity, shared by every network unless `{PREFIX}_WALLET_ROOT_KEY_HEX` overrides it. Generate once, keep secret. |
+| `{PREFIX}_ARCADE_URL` | arcade broadcast + status base URL for a network (serves `POST /tx`, `GET /tx/{txid}`). **Setting it enables the network.** |
+| `{PREFIX}_ARCADE_CHAINTRACKS_URL` | That network's arcade chaintracks v2 base URL (headers), e.g. `…/chaintracks/v2`. |
+| `{PREFIX}_WALLET_STORAGE_PATH` | That network's toolbox wallet SQLite file (e.g. `./data/wallet-testnet.sqlite`). One file per network. |
+| `{PREFIX}_TREASURY_WIF` | Flat key holding that network's coins — used **only** by the bootstrap scripts. |
 | `DATABASE_URL` | Prisma policy DB, e.g. `file:./prisma/dev.db`. |
 | `TURNSTILE_SECRET_KEY` / `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Cloudflare Turnstile keys. |
 | `FAUCET_PAYOUT_SATS` / `FAUCET_MAX_SATS` | Default payout and per-request cap (satoshis). |
@@ -60,6 +68,17 @@ Set the same absolute `DATABASE_URL` in `.env` for the running app. The Prisma C
 | `RATE_LIMIT_DISABLED` | Set to the literal `false` to enable rate limiting. Unset or any other value disables it. |
 | `BOOTSTRAP_SPLIT_COUNT` | How many parallel-spendable UTXOs the bootstrap splits the treasury into. |
 | `RELAY_INTERNAL_URL` | Optional. Base URL of the mobile-wallet relay service, e.g. `http://faucet-relay:8787`. Unset disables mobile pairing. |
+
+### Networks
+
+`{PREFIX}` is `TESTNET`, `TTN` or `TSTN` (`lib/networks.ts`). A network is offered when its
+`{PREFIX}_ARCADE_URL` is set; the picker greys out the rest. Requests without a `network` go to
+Testnet when it is enabled, else to the first enabled network. Deployments configured before
+multi-network support keep working: unprefixed `ARCADE_URL`, `ARCADE_CHAINTRACKS_URL`,
+`WALLET_STORAGE_PATH` and `TREASURY_WIF` configure Teratestnet when no `TTN_*` vars are set.
+
+The Teratestnet wallet now runs as toolbox chain `ttn` (it was `test` before toolbox 2.x, which
+added `ttn`); existing payout rows are migrated to `network = 'ttn'`.
 
 ## Treasury bootstrap (one-time)
 
@@ -74,12 +93,13 @@ management once. Provide the treasury's unspent outputs in `treasury-utxos.json`
 Then:
 
 ```bash
-pnpm bootstrap      # sweeps the WIF UTXOs into BRC-29 outputs, broadcasts via arcade,
-                    # waits for the merkle proof, and internalizes them into the wallet
+FAUCET_NETWORK=testnet pnpm bootstrap   # sweeps the WIF UTXOs into BRC-29 outputs, broadcasts via
+                                        # arcade, waits for the merkle proof, and internalizes them
 ```
 
-The script polls arcade until the sweep is `MINED` and a `merklePath` is available, so it
-needs a reachable arcade pointed at teratestnet. After it completes, the wallet tracks the
+Run it once per network (`FAUCET_NETWORK` = `testnet` | `ttn` | `tstn`; default: the default
+network). The script polls arcade until the sweep is `MINED` and a `merklePath` is available, so it
+needs a reachable arcade for that network. After it completes, the wallet tracks the
 funds as spendable change and the API can pay out.
 
 ## Run
@@ -93,43 +113,51 @@ pnpm build && pnpm start
 
 ### `POST /api/claim`
 ```
-Body:    { "address": "n…", "amount"?: <sats>, "captchaToken"?: "…" }
+Body:    { "address": "n…", "network"?: "testnet" | "ttn" | "tstn", "amount"?: <sats>, "captchaToken"?: "…" }
 Headers: Authorization: Bearer <api-key>   (optional; tier-based limits when enabled)
          Idempotency-Key: <uuid>           (optional → replays the prior result)
-200:     { "txid", "ef", "outputs": [{ "vout", "satoshis", "address" }], "network": "teratestnet" }
-Errors:  400 bad input · 401 bad key · 429 rate-limited when enabled (+Retry-After) · 503 faucet error
+200:     { "txid", "ef", "outputs": [{ "vout", "satoshis", "address" }], "network": "<network>" }
+Errors:  400 bad input / unknown network · 400 network_unavailable (not configured here) · 401 bad key
+         · 429 rate-limited when enabled (+Retry-After) · 503 faucet error
 ```
 ```bash
 curl -X POST http://localhost:3000/api/claim \
   -H 'content-type: application/json' \
-  -d '{"address":"<your-teratestnet-address>","captchaToken":"<turnstile-token>"}'
+  -d '{"address":"<your-testnet-address>","network":"testnet"}'
 ```
 
 ### `POST /api/claim/wallet`
 BRC-100 onboarding. The browser supplies its wallet identity key; the faucet returns Atomic BEEF +
 the remittance the wallet needs to `internalizeAction`.
 ```
-Body:    { "identityKey": "02…", "amount"?: <sats>, "captchaToken"?: "…" }
+Body:    { "identityKey": "02…", "network"?: "testnet" | "ttn" | "tstn", "amount"?: <sats>, "captchaToken"?: "…" }
 Headers: Authorization: Bearer <api-key>   (optional; tier-based limits when enabled)
 200:     { "txid", "atomicBEEF": "<hex>", "derivationPrefix", "derivationSuffix",
-           "senderIdentityKey": "02…", "outputIndex", "amount", "network": "teratestnet" }
-Errors:  400 bad input · 401 bad key · 429 rate-limited when enabled (+Retry-After) · 503 faucet error
+           "senderIdentityKey": "02…", "outputIndex", "amount", "network": "<network>" }
+Errors:  as /api/claim
 ```
 The client completes the handoff (BEEF hex → bytes via `Utils.toArray(hex, 'hex')`):
 ```ts
 await wallet.internalizeAction({
   tx: beefBytes,
-  description: 'Teratestnet faucet payout',
+  description: 'Testnet faucet payout',
   outputs: [{ outputIndex, protocol: 'wallet payment',
     paymentRemittance: { derivationPrefix, derivationSuffix, senderIdentityKey } }],
 })
 ```
 
-### `GET /api/status/[txid]`
-Proxies arcade → `{ txid, status, blockHeight }` (404 if unknown).
+### `GET /api/networks`
+`{ networks: ["testnet", "ttn"], default: "testnet" }` — the networks this deployment pays out on.
+
+### `GET /api/status/[txid]?network=<network>`
+Proxies that network's arcade → `{ txid, status, blockHeight, network }` (404 if unknown).
+
+### `GET /api/balance?network=<network>` · `GET /api/stats[?network=<network>]`
+Faucet wallet balance on a network; lifetime payout stats for one network or all.
 
 ### `GET /api/health`
-`{ ok, network, arcadeReachable, chaintracksReachable }` (200 healthy / 503 degraded).
+`{ ok, networks: [{ network, ok, arcadeReachable, chaintracksReachable }] }` (200 when every
+configured network is healthy / 503 degraded).
 
 ## Mobile wallet pairing
 
@@ -168,7 +196,7 @@ relay   ─ POST {FAUCET_INTERNAL_URL}/api/claim/mobile/:id ─▶ faucet       
 
 | Endpoint (faucet) | Purpose |
 |---|---|
-| `POST /api/claim/mobile` | Start a claim → `{ sessionId, qrDataUrl, pairingUri }` |
+| `POST /api/claim/mobile` | Start a claim (body `{ network? }`) → `{ sessionId, qrDataUrl, pairingUri }` |
 | `GET /api/claim/mobile/:id` | Outcome: `{ state: waiting \| claiming \| done \| error \| expired, txid?, amount?, redelivered?, code?, error? }` |
 | `POST /api/claim/mobile/:id` | Relay's connect notification. It only prompts a check; the claim runs only if the relay reports the session connected |
 | `GET /api/session/:id` | Proxied to the relay: how the phone finds the relay socket after scanning |

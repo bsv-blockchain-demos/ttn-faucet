@@ -10,14 +10,14 @@ beforeEach(() => vi.clearAllMocks())
 describe('GET /api/stats', () => {
   it('returns lifetime payout count and sats disbursed', async () => {
     ;(getFaucetStats as any).mockResolvedValue({ payoutCount: 42, totalSatsDisbursed: 4_200_000 })
-    const res = await GET()
+    const res = await GET(new Request('http://x/api/stats'))
     expect(res.status).toBe(200)
     expect(await res.json()).toMatchObject({ payoutCount: 42, totalSatsDisbursed: 4_200_000 })
   })
 
   it('503 with null stats when the database is unavailable', async () => {
     ;(getFaucetStats as any).mockRejectedValue(new Error('db down'))
-    const res = await GET()
+    const res = await GET(new Request('http://x/api/stats'))
     expect(res.status).toBe(503)
     expect((await res.json()).payoutCount).toBeNull()
   })

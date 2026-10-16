@@ -57,7 +57,7 @@ export const CONFIRMATIONS = 3
 const REORG_LOOKBACK_MS = 24 * 60 * 60 * 1000
 
 export interface ProofDeps {
-  chain: 'main' | 'test'
+  chain: ArcadeChaintracks['chain']
   storage: WalletStorageManager
   services: Services
   chaintracks: ArcadeChaintracks
@@ -127,12 +127,20 @@ export async function repairReorgedProofs(
 const PROOF_INTERVAL_MS = 60_000
 
 // One job per server process, however many route bundles load lib/wallet.ts.
-const g = globalThis as unknown as { __faucetProofJob?: boolean }
+const g = globalThis as unknown as { __faucetProofJobs?: Set<string> }
 
-/** Run a repair + proof pass now and then every minute (skipping a tick if one is still running). */
-export function startProofCompletion(getDeps: () => Promise<ProofDeps>, log: (msg: string) => void = console.log) {
-  if (g.__faucetProofJob) return
-  g.__faucetProofJob = true
+/**
+ * Run a repair + proof pass now and then every minute (skipping a tick if one is still running).
+ * One job per `key` (the network), however often it's called.
+ */
+export function startProofCompletion(
+  key: string,
+  getDeps: () => Promise<ProofDeps>,
+  log: (msg: string) => void = console.log,
+) {
+  g.__faucetProofJobs ??= new Set()
+  if (g.__faucetProofJobs.has(key)) return
+  g.__faucetProofJobs.add(key)
   let running = false
   const tick = async () => {
     if (running) return
@@ -146,9 +154,9 @@ export function startProofCompletion(getDeps: () => Promise<ProofDeps>, log: (ms
         )
       }
       const { checked, proven } = await completeProofs(deps)
-      if (proven > 0) log(`[proofs] recorded ${proven} of ${checked} pending proofs`)
+      if (proven > 0) log(`[proofs:${key}] recorded ${proven} of ${checked} pending proofs`)
     } catch (e) {
-      log(`[proofs] pass failed: ${e instanceof Error ? e.message : String(e)}`)
+      log(`[proofs:${key}] pass failed: ${e instanceof Error ? e.message : String(e)}`)
     } finally {
       running = false
     }

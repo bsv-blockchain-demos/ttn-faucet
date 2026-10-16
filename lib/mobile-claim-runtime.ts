@@ -20,8 +20,11 @@ export function mobileClaims(): MobileClaims {
       getStatus: getRelayStatus,
       call: relayCall,
       guard: (ip) => guard({ ip }),
-      pay: (identityKey, ip) =>
-        claimToWallet({ identityKey, ipHash: hashIp(ip), recordRemittance: true }, { payWallet: payToWallet }),
+      pay: (network, identityKey, ip) =>
+        claimToWallet(
+          { network, identityKey, ipHash: hashIp(ip), recordRemittance: true },
+          { payWallet: (key, sats) => payToWallet(network, key, sats) },
+        ),
       findUndelivered: findUndeliveredPayout,
       refreshBeef: freshAtomicBeef,
       markDelivered,
