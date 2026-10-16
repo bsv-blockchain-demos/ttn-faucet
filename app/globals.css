@@ -121,13 +121,13 @@
    container. --net-fg is the text colour on a solid --net fill (AA ≥ 4.5:1 in both themes): white
    on the deeper light-theme hues, near-black ink on the brighter dark-theme ones. */
 :root {
-  --net-testnet: #b45309; /* amber */
+  --net-testnet: #c2410c; /* orange */
   --net-ttn: #0e7490; /* cyan */
   --net-tstn: #6d28d9; /* violet */
   --net-ink: #ffffff;
 }
 .dark {
-  --net-testnet: #f5a524;
+  --net-testnet: #fb923c;
   --net-ttn: #22d3ee;
   --net-tstn: #a78bfa;
   --net-ink: #14151a;
