@@ -226,9 +226,11 @@
   --shadow-primary: var(--pshadow);
   --shadow-net: var(--net-shadow);
 
-  --font-display: var(--font-rysana-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-sans: var(--font-rysana-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-rysana-mono), ui-monospace, monospace;
+  /* Helvetica from the system (it can't be licensed as a web font): Helvetica Neue / Helvetica on
+     Apple platforms, Arial elsewhere. Mono is the platform's UI monospace. */
+  --font-display: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   --color-rule: var(--rule);
 }
 

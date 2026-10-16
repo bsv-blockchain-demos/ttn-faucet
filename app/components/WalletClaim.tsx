@@ -15,7 +15,7 @@ import { NETWORKS, type NetworkId } from '@/lib/networks'
 // import { TurnstileWidget } from './TurnstileWidget'
 import { ArrowRightIcon, CheckIcon, MonitorIcon, PhoneIcon, WarningIcon } from './icons'
 import { useNetwork } from './NetworkProvider'
-import { ClaimLabel } from './ClaimLabel'
+import { BusyLabel, ClaimLabel } from './ClaimLabel'
 
 type Phase = 'detecting' | 'unavailable' | 'mobile' | 'idle' | 'claiming' | 'success' | 'error'
 
@@ -27,9 +27,12 @@ const MOBILE_POLL_MS = 2000
 /** How long to wait for a local BRC-100 wallet to answer getNetwork before offering downloads. */
 const DETECT_TIMEOUT_MS = 1500
 
-/** The claim button wears the selected network's colour (see [data-network] in globals.css). */
+/**
+ * The claim button is solid ink, the highest contrast on both the card and the network-coloured
+ * field; its arrow block carries the network colour (see ClaimLabel).
+ */
 const PRIMARY_CTA =
-  'shine flex min-h-[56px] w-full items-center justify-between gap-3 rounded-panel bg-net px-5 text-left text-[15px] font-semibold tracking-[-0.01em] text-net-fg shadow-net transition-colors disabled:cursor-not-allowed disabled:opacity-60'
+  'group shine flex min-h-[64px] w-full items-stretch overflow-hidden rounded-panel bg-[color:var(--card-fg)] text-left text-[17px] font-semibold tracking-[-0.01em] text-[color:var(--card)] transition-colors disabled:cursor-not-allowed disabled:opacity-50'
 const SECONDARY_CTA =
   'inline-flex h-11 w-full items-center justify-center rounded-pill border-[1.5px] border-[color:var(--btn2-bd)] bg-transparent px-[22px] text-sm font-semibold text-[color:var(--btn2-fg)] transition min-[620px]:w-auto'
 
@@ -564,7 +567,7 @@ export function WalletPanel({
       {/* {(phase === 'idle' || phase === 'error') && <TurnstileWidget siteKey={siteKey} onToken={setToken} />} */}
 
       <button type="button" onClick={claim} disabled={busy || onMainnet} className={`${PRIMARY_CTA} shine-loop`}>
-        {busy ? 'Claiming…' : <ClaimLabel payoutSats={payoutSats} networkName={networkName} />}
+        {busy ? <BusyLabel>Claiming…</BusyLabel> : <ClaimLabel payoutSats={payoutSats} networkName={networkName} />}
       </button>
 
       <p className="label">Atomic BEEF · Spendable on receipt · Nothing to paste</p>

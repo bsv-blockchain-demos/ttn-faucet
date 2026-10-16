@@ -5,15 +5,18 @@ import { useEffect, useState } from 'react'
 import { generateTestnetKey } from '@/lib/keygen'
 import { ArrowRightIcon, CheckIcon, CopyIcon, WarningIcon } from './icons'
 import { useNetwork } from './NetworkProvider'
-import { ClaimLabel } from './ClaimLabel'
+import { BusyLabel, ClaimLabel } from './ClaimLabel'
 import { NETWORKS } from '@/lib/networks'
 
 const fmt = (n: number) => n.toLocaleString()
 const tbsv = (n: number) => (n / 1e8).toLocaleString(undefined, { maximumFractionDigits: 8 })
 
-/** The claim button wears the selected network's colour (see [data-network] in globals.css). */
+/**
+ * The claim button is solid ink, the highest contrast on both the card and the network-coloured
+ * field; its arrow block carries the network colour (see ClaimLabel).
+ */
 const PRIMARY_CTA =
-  'shine flex min-h-[56px] w-full items-center justify-between gap-3 rounded-panel bg-net px-5 text-left text-[15px] font-semibold tracking-[-0.01em] text-net-fg shadow-net transition-colors disabled:cursor-not-allowed disabled:opacity-60'
+  'group shine flex min-h-[64px] w-full items-stretch overflow-hidden rounded-panel bg-[color:var(--card-fg)] text-left text-[17px] font-semibold tracking-[-0.01em] text-[color:var(--card)] transition-colors disabled:cursor-not-allowed disabled:opacity-50'
 
 /** A labelled, single-line copyable field (truncates; full value copied on click). */
 function CopyRow({
@@ -167,7 +170,7 @@ export function AddressPanel({
       {/* <TurnstileWidget siteKey={siteKey} onToken={setToken} /> */}
 
       <button type="submit" disabled={busy || !address} className={PRIMARY_CTA}>
-        {busy ? 'Sending…' : <ClaimLabel verb="Send" payoutSats={payoutSats} networkName={networkName} />}
+        {busy ? <BusyLabel>Sending…</BusyLabel> : <ClaimLabel verb="Send" payoutSats={payoutSats} networkName={networkName} />}
       </button>
 
       {error && <p className="text-center text-sm font-medium text-neg">{error}</p>}
