@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { guard, hashIp } from '@/lib/guard'
+import { resolveNetwork } from '@/lib/config'
 import { claimToAddress } from '@/lib/faucet'
 import { payToAddress } from '@/lib/wallet'
 
@@ -13,6 +14,8 @@ const CORS = {
 const BodySchema = z.object({
   address: z.string().min(26).max(64),
   amount: z.number().int().positive().optional(),
+  /** lib/networks.ts id; omitted = the faucet's default network. */
+  network: z.string().optional(),
   // Turnstile temporarily disabled (see lib/guard.ts); token is unused server-side, so accept "" too.
   captchaToken: z.string().optional(),
 })
@@ -30,6 +33,9 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid request body', code: 'bad_request' }, { status: 400, headers: CORS })
   }
+  const net = resolveNetwork(parsed.data.network)
+  if (!net.ok) return NextResponse.json({ error: net.error, code: net.code }, { status: net.status, headers: CORS })
+  const { network } = net
   const ip = clientIp(req)
   const apiKey = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || undefined
   const idempotencyKey = req.headers.get('idempotency-key') || undefined
@@ -44,20 +50,21 @@ export async function POST(req: Request) {
   try {
     const result = await claimToAddress(
       {
+        network,
         address: parsed.data.address,
         amountSats: parsed.data.amount,
         ipHash: g.apiKeyId ? `apikey:${g.apiKeyId}` : hashIp(ip),
         apiKeyId: g.apiKeyId,
         idempotencyKey,
       },
-      { pay: payToAddress },
+      { pay: (address, sats) => payToAddress(network, address, sats) },
     )
     return NextResponse.json(
       {
         txid: result.txid,
         ef: result.ef,
         outputs: [{ vout: 0, satoshis: result.amountSats, address: parsed.data.address }],
-        network: 'teratestnet',
+        network,
       },
       { status: 200, headers: CORS },
     )

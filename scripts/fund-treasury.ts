@@ -1,7 +1,8 @@
 import 'dotenv/config'
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
 import { PrivateKey, P2PKH, Transaction, MerklePath, SatoshisPerKilobyte, LockingScript } from '@bsv/sdk'
-import { getConfig } from '../lib/config'
+import { getConfig, networkConfig, resolveNetwork } from '../lib/config'
+import { NETWORKS } from '../lib/networks'
 import { deriveBrc29, newDerivationValues } from '../lib/brc29'
 import { broadcastRawTx, getTxStatus } from '../lib/arcade'
 import { getWallet } from '../lib/wallet'
@@ -9,9 +10,18 @@ import { getWallet } from '../lib/wallet'
 // Resumable treasury funding: persists a receipt BEFORE broadcasting so the broadcast and
 // the internalize are decoupled and recoverable. Re-run to resume (re-broadcast is idempotent,
 // internalized outputs are skipped).
-const RECEIPT = process.env.FUND_RECEIPT_FILE ?? './data/fund-receipt.json'
+const receiptPath = (network: string) => process.env.FUND_RECEIPT_FILE ?? `./data/fund-receipt.${network}.json`
 const POLL_TIMEOUT_MS = Number(process.env.FUND_POLL_TIMEOUT_MS ?? String(40 * 60_000))
 const FEE_RATE = Number(process.env.FUND_FEE_RATE ?? '1000') // sat/kB (~1 sat/byte) — negligible vs 50 BSV
+/** The network to fund: FAUCET_NETWORK (a lib/networks.ts id), else the faucet's default network. */
+function scriptNetwork() {
+  const net = resolveNetwork(process.env.FAUCET_NETWORK)
+  if (!net.ok) throw new Error(net.error)
+  const n = networkConfig(net.network)
+  if (!n.treasuryWif) throw new Error(`Set ${NETWORKS[n.network].envPrefix}_TREASURY_WIF for ${n.network}`)
+  return { ...n, treasuryWif: n.treasuryWif }
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 interface OutRec {
@@ -31,8 +41,12 @@ interface Receipt {
   outputs: OutRec[]
 }
 
-async function buildSweep(cfg: any, walletIdentityKey: string): Promise<Receipt> {
-  const flatKey = PrivateKey.fromWif(cfg.TREASURY_WIF)
+async function buildSweep(
+  cfg: ReturnType<typeof getConfig>,
+  treasuryWif: string,
+  walletIdentityKey: string,
+): Promise<Receipt> {
+  const flatKey = PrivateKey.fromWif(treasuryWif)
   const senderIdentityKey = flatKey.toPublicKey().toString()
   const seed: any[] = JSON.parse(readFileSync(process.env.TREASURY_UTXOS_FILE ?? './treasury-utxos.json', 'utf8'))
   const totalIn = seed.reduce((s: number, u: any) => s + u.satoshis, 0)
@@ -78,7 +92,10 @@ async function buildSweep(cfg: any, walletIdentityKey: string): Promise<Receipt>
 
 async function main() {
   const cfg = getConfig()
-  const { wallet, identityKey } = await getWallet()
+  const net = scriptNetwork()
+  const RECEIPT = receiptPath(net.network)
+  console.log(`Funding the ${net.network} faucet wallet`)
+  const { wallet, identityKey } = await getWallet(net.network)
   mkdirSync('./data', { recursive: true })
 
   let receipt: Receipt
@@ -89,16 +106,16 @@ async function main() {
     }
     console.log('Resuming from receipt; sweep txid', receipt.sweepTxid)
   } else {
-    receipt = await buildSweep(cfg, identityKey)
+    receipt = await buildSweep(cfg, net.treasuryWif, identityKey)
     writeFileSync(RECEIPT, JSON.stringify(receipt, null, 2))
     console.log('Receipt saved BEFORE broadcast at', RECEIPT)
     console.log('Sweep txid:', receipt.sweepTxid, '| outputs:', receipt.outputs.length, '| per-output sats:', receipt.outputs[0]?.satoshis)
   }
 
   // Broadcast (idempotent: arcade returns "already submitted" if it already has it)
-  let st = await getTxStatus(cfg.ARCADE_URL, receipt.sweepTxid)
+  let st = await getTxStatus(net.arcadeUrl, receipt.sweepTxid)
   if (!st || st.txStatus !== 'MINED') {
-    const b = await broadcastRawTx(cfg.ARCADE_URL, receipt.sweepEfHex)
+    const b = await broadcastRawTx(net.arcadeUrl, receipt.sweepEfHex)
     console.log('Broadcast response:', JSON.stringify(b.raw))
     if (!b.ok && !b.alreadyKnown) throw new Error('Broadcast rejected: ' + JSON.stringify(b.raw))
     console.log('Broadcast accepted.')
@@ -108,7 +125,7 @@ async function main() {
   const start = Date.now()
   let merklePathHex: string | undefined
   for (;;) {
-    st = await getTxStatus(cfg.ARCADE_URL, receipt.sweepTxid)
+    st = await getTxStatus(net.arcadeUrl, receipt.sweepTxid)
     if (st?.txStatus === 'MINED' && st.merklePath) {
       merklePathHex = st.merklePath
       break

@@ -28,16 +28,18 @@ afterEach(() => vi.unstubAllGlobals())
 describe('startMobileClaim', () => {
   it('POSTs, returns the QR and remembers the pending claim', async () => {
     fetchMock.mockResolvedValue(jsonRes(claim))
-    expect(await startMobileClaim()).toEqual(claim)
+    expect(await startMobileClaim('ttn')).toEqual(claim)
     expect(fetchMock.mock.calls[0]).toEqual(['/api/claim/mobile', expect.objectContaining({ method: 'POST' })])
     expect(loadPendingClaim()).toEqual(claim)
+    expect(loadPendingClaim('ttn')).toEqual(claim)
+    expect(loadPendingClaim('testnet')).toBeNull() // started for another network: not resumed
     clearPendingClaim()
     expect(loadPendingClaim()).toBeNull()
   })
 
   it('throws with the status when mobile pairing is disabled', async () => {
     fetchMock.mockResolvedValue(jsonRes({ error: 'off' }, 503))
-    const err = (await startMobileClaim().catch((e) => e)) as MobileClaimError
+    const err = (await startMobileClaim('ttn').catch((e) => e)) as MobileClaimError
     expect(err).toBeInstanceOf(MobileClaimError)
     expect(err.status).toBe(503)
     expect(loadPendingClaim()).toBeNull()

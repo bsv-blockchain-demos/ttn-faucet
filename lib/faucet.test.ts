@@ -21,7 +21,7 @@ describe('claimToAddress', () => {
   it('rejects an invalid address before paying', async () => {
     const pay = vi.fn()
     await expect(
-      claimToAddress({ address: 'bad', amountSats: 100, ipHash: 'h' }, { pay }),
+      claimToAddress({ network: 'ttn', address: 'bad', amountSats: 100, ipHash: 'h' }, { pay }),
     ).rejects.toThrow(/address/i)
     expect(pay).not.toHaveBeenCalled()
   })
@@ -29,7 +29,7 @@ describe('claimToAddress', () => {
   it('caps the amount, pays, and records a Claim', async () => {
     const pay = vi.fn(async () => ({ txid: 'tx123', ef: '00ef' }))
     const r = await claimToAddress(
-      { address: addr, amountSats: 999_999_999, ipHash: 'h', maxSats: 500, defaultSats: 100 },
+      { network: 'ttn', address: addr, amountSats: 999_999_999, ipHash: 'h', maxSats: 500, defaultSats: 100 },
       { pay },
     )
     expect(r.txid).toBe('tx123')
@@ -50,7 +50,7 @@ describe('claimToAddress', () => {
     })
     const pay = vi.fn()
     const r = await claimToAddress(
-      { address: addr, ipHash: 'h', idempotencyKey: 'idem-replay-1', maxSats: 500, defaultSats: 100 },
+      { network: 'ttn', address: addr, ipHash: 'h', idempotencyKey: 'idem-replay-1', maxSats: 500, defaultSats: 100 },
       { pay },
     )
     expect(r).toEqual({ txid: 'priortx', ef: 'aaef', amountSats: 100 })
@@ -61,7 +61,7 @@ describe('claimToAddress', () => {
     const pay = vi.fn(async () => { throw new Error('broadcast boom') })
     await expect(
       claimToAddress(
-        { address: addr, ipHash: 'h', idempotencyKey: 'fail-status-1', maxSats: 500, defaultSats: 100 },
+        { network: 'ttn', address: addr, ipHash: 'h', idempotencyKey: 'fail-status-1', maxSats: 500, defaultSats: 100 },
         { pay },
       ),
     ).rejects.toThrow('broadcast boom')
@@ -79,7 +79,7 @@ describe('claimToWallet', () => {
   it('rejects an invalid identity key before paying', async () => {
     const payWallet = vi.fn()
     await expect(
-      claimToWallet({ identityKey: 'not-a-key', ipHash: 'h' }, { payWallet }),
+      claimToWallet({ network: 'ttn', identityKey: 'not-a-key', ipHash: 'h' }, { payWallet }),
     ).rejects.toThrow(/identity key/i)
     expect(payWallet).not.toHaveBeenCalled()
   })
@@ -87,7 +87,7 @@ describe('claimToWallet', () => {
   it('caps the amount, pays, and records a Claim keyed on the identity key', async () => {
     const payWallet = vi.fn(async () => fakePayment)
     const r = await claimToWallet(
-      { identityKey, amountSats: 999_999_999, ipHash: 'h', maxSats: 500, defaultSats: 100 },
+      { network: 'ttn', identityKey, amountSats: 999_999_999, ipHash: 'h', maxSats: 500, defaultSats: 100 },
       { payWallet },
     )
     expect(payWallet).toHaveBeenCalledWith(identityKey, 500) // capped
@@ -101,7 +101,7 @@ describe('claimToWallet', () => {
   it('marks the claim failed and rethrows when payWallet throws', async () => {
     const payWallet = vi.fn(async () => { throw new Error('broadcast boom') })
     await expect(
-      claimToWallet({ identityKey, ipHash: 'h', maxSats: 500, defaultSats: 100 }, { payWallet }),
+      claimToWallet({ network: 'ttn', identityKey, ipHash: 'h', maxSats: 500, defaultSats: 100 }, { payWallet }),
     ).rejects.toThrow('broadcast boom')
     const row = await prisma.claim.findFirst({ where: { recipient: identityKey } })
     expect(row?.status).toBe('failed')
@@ -117,28 +117,28 @@ describe('mobile payout delivery tracking', () => {
   const pay = (txid: string) => vi.fn(async () => ({ ...fakePayment, txid }))
 
   it('finds an undelivered mobile payout until it is marked delivered', async () => {
-    await claimToWallet({ identityKey, ipHash: 'h', maxSats: 500, defaultSats: 100, recordRemittance: true }, { payWallet: pay('m1') })
-    expect(await findUndeliveredPayout(identityKey)).toEqual({ ...fakePayment, txid: 'm1', amountSats: 100 })
+    await claimToWallet({ network: 'ttn', identityKey, ipHash: 'h', maxSats: 500, defaultSats: 100, recordRemittance: true }, { payWallet: pay('m1') })
+    expect(await findUndeliveredPayout('ttn', identityKey)).toEqual({ ...fakePayment, txid: 'm1', amountSats: 100 })
     await markDelivered('m1')
-    expect(await findUndeliveredPayout(identityKey)).toBeNull()
+    expect(await findUndeliveredPayout('ttn', identityKey)).toBeNull()
   })
 
   it('ignores payouts made without recordRemittance (browser-wallet claims)', async () => {
-    await claimToWallet({ identityKey, ipHash: 'h', maxSats: 500, defaultSats: 100 }, { payWallet: pay('b1') })
-    expect(await findUndeliveredPayout(identityKey)).toBeNull()
+    await claimToWallet({ network: 'ttn', identityKey, ipHash: 'h', maxSats: 500, defaultSats: 100 }, { payWallet: pay('b1') })
+    expect(await findUndeliveredPayout('ttn', identityKey)).toBeNull()
   })
 
   it('returns the most recent undelivered payout', async () => {
-    await claimToWallet({ identityKey, ipHash: 'h', maxSats: 500, defaultSats: 100, recordRemittance: true }, { payWallet: pay('old') })
-    await claimToWallet({ identityKey, ipHash: 'h', maxSats: 500, defaultSats: 100, recordRemittance: true }, { payWallet: pay('new') })
-    expect((await findUndeliveredPayout(identityKey))?.txid).toBe('new')
+    await claimToWallet({ network: 'ttn', identityKey, ipHash: 'h', maxSats: 500, defaultSats: 100, recordRemittance: true }, { payWallet: pay('old') })
+    await claimToWallet({ network: 'ttn', identityKey, ipHash: 'h', maxSats: 500, defaultSats: 100, recordRemittance: true }, { payWallet: pay('new') })
+    expect((await findUndeliveredPayout('ttn', identityKey))?.txid).toBe('new')
   })
 
   it('reports a payout in flight while a claim row is pending', async () => {
     expect(await hasPayoutInFlight(identityKey)).toBe(false)
     let release!: () => void
     const payWallet = vi.fn(() => new Promise<typeof fakePayment>((r) => { release = () => r({ ...fakePayment, txid: 'slow' }) }))
-    const p = claimToWallet({ identityKey, ipHash: 'h', maxSats: 500, defaultSats: 100 }, { payWallet })
+    const p = claimToWallet({ network: 'ttn', identityKey, ipHash: 'h', maxSats: 500, defaultSats: 100 }, { payWallet })
     await vi.waitFor(() => expect(payWallet).toHaveBeenCalled())
     expect(await hasPayoutInFlight(identityKey)).toBe(true)
     release()

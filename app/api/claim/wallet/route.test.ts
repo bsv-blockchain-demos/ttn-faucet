@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 vi.mock('@/lib/guard', () => ({ guard: vi.fn(), hashIp: (ip: string) => `hash:${ip}` }))
 vi.mock('@/lib/faucet', () => ({ claimToWallet: vi.fn() }))
 vi.mock('@/lib/wallet', () => ({ payToWallet: vi.fn() }))
+vi.mock('@/lib/config', async (orig) => (await import('@/lib/test-config')).mockConfigModule(await orig()))
 
 import { POST } from './route'
 import { guard } from '@/lib/guard'
@@ -57,6 +58,6 @@ describe('POST /api/claim/wallet', () => {
     const res = await POST(req({ identityKey: IDENTITY_KEY, captchaToken: 't' }))
     expect(res.status).toBe(200)
     const json = await res.json()
-    expect(json).toMatchObject({ txid: 'tx1', atomicBEEF: '00beef', network: 'teratestnet' })
+    expect(json).toMatchObject({ txid: 'tx1', atomicBEEF: '00beef', network: 'testnet' })
   })
 })

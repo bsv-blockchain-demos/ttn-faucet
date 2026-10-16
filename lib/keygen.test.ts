@@ -4,7 +4,7 @@ import { generateTestnetKey } from './keygen'
 import { isValidTestnetAddress } from './address'
 
 describe('generateTestnetKey', () => {
-  it('produces a valid teratestnet address', () => {
+  it('produces a valid testnet address', () => {
     const { address } = generateTestnetKey()
     expect(isValidTestnetAddress(address)).toBe(true)
   })

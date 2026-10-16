@@ -1,15 +1,22 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 // TODO: re-enable Turnstile — temporarily disabled.
 // import { TurnstileWidget } from './TurnstileWidget'
 import { generateTestnetKey } from '@/lib/keygen'
 import { ArrowRightIcon, CheckIcon, CopyIcon, WarningIcon } from './icons'
+import { useNetwork } from './NetworkProvider'
+import { BusyLabel, ClaimLabel } from './ClaimLabel'
+import { NETWORKS } from '@/lib/networks'
 
 const fmt = (n: number) => n.toLocaleString()
 const tbsv = (n: number) => (n / 1e8).toLocaleString(undefined, { maximumFractionDigits: 8 })
 
+/**
+ * The claim button is solid ink, the highest contrast on both the card and the network-coloured
+ * field; its arrow block carries the network colour (see ClaimLabel).
+ */
 const PRIMARY_CTA =
-  'shine flex h-[52px] w-full items-center justify-center gap-2 rounded-pill bg-primary text-[15px] font-semibold text-primary-foreground shadow-primary disabled:cursor-not-allowed disabled:opacity-60'
+  'group shine flex min-h-[64px] w-full items-stretch overflow-hidden rounded-panel bg-[color:var(--card-fg)] text-left text-[17px] font-semibold tracking-[-0.01em] text-[color:var(--card)] transition-colors disabled:cursor-not-allowed disabled:opacity-50'
 
 /** A labelled, single-line copyable field (truncates; full value copied on click). */
 function CopyRow({
@@ -30,7 +37,7 @@ function CopyRow({
         type="button"
         onClick={onCopy}
         title={`Copy ${label}`}
-        className="flex w-full items-center gap-2 rounded-lg border border-hairline bg-card px-3 py-2 text-left transition hover:border-[color:var(--btn2-bd)]"
+        className="flex w-full items-center gap-2 rounded-input border border-hairline bg-card px-3 py-2 text-left transition hover:border-[color:var(--btn2-bd)]"
       >
         <span className="min-w-0 flex-1 truncate font-mono text-xs text-foreground">{value}</span>
         <span className="ml-auto flex flex-none items-center gap-1">
@@ -48,16 +55,24 @@ function CopyRow({
   )
 }
 
-/** Paste-address tab of the faucet card — claim to any Teratestnet address, returns the EF. */
+/**
+ * Paste-address tab of the faucet card — claim to a testnet address on the selected network,
+ * returns the EF. Every test network shares the address format, so the network comes from the
+ * picker, not the address.
+ */
 export function AddressPanel({
   siteKey,
   payoutSats,
   onTrack,
+  onBusy,
 }: {
   siteKey: string
   payoutSats: number
   onTrack: (txid: string) => void
+  onBusy: (busy: boolean) => void
 }) {
+  const { network } = useNetwork()
+  const networkName = NETWORKS[network].name
   const [address, setAddress] = useState('')
   const [token, setToken] = useState('')
   const [busy, setBusy] = useState(false)
@@ -65,6 +80,15 @@ export function AddressPanel({
   const [error, setError] = useState('')
   const [generated, setGenerated] = useState<{ wif: string; address: string } | null>(null)
   const [copied, setCopied] = useState<'addr' | 'wif' | 'ef' | ''>('')
+
+  useEffect(() => onBusy(busy), [busy, onBusy])
+  // A result belongs to the network it was claimed on; clear it when the network changes.
+  const [resultNetwork, setResultNetwork] = useState(network)
+  if (resultNetwork !== network) {
+    setResultNetwork(network)
+    setResult(null)
+    setError('')
+  }
 
   function generate() {
     const g = generateTestnetKey()
@@ -87,7 +111,7 @@ export function AddressPanel({
       const res = await fetch('/api/claim', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ address, captchaToken: token }),
+        body: JSON.stringify({ address, network, captchaToken: token }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Request failed')
@@ -103,7 +127,7 @@ export function AddressPanel({
     <form onSubmit={submit} className="flex flex-col gap-4">
       <div>
         <div className="mb-2 flex items-baseline justify-between">
-          <span className="text-[13.5px] font-medium text-foreground">Your Teratestnet address</span>
+          <span className="text-[13.5px] font-medium text-foreground">Your {networkName} address</span>
           <button type="button" onClick={generate} className="text-[13px] font-semibold text-link">
             Generate a test key
           </button>
@@ -146,18 +170,18 @@ export function AddressPanel({
       {/* <TurnstileWidget siteKey={siteKey} onToken={setToken} /> */}
 
       <button type="submit" disabled={busy || !address} className={PRIMARY_CTA}>
-        {busy ? 'Sending…' : `Claim ${fmt(payoutSats)} sats`}
+        {busy ? <BusyLabel>Sending…</BusyLabel> : <ClaimLabel verb="Send" payoutSats={payoutSats} networkName={networkName} />}
       </button>
 
       {error && <p className="text-center text-sm font-medium text-neg">{error}</p>}
 
       {result && (
-        <div className="rounded-[14px] border border-pos bg-pos-bg p-4">
+        <div className="rounded-panel border border-pos bg-pos-bg p-4">
           <div className="mb-3 flex items-center gap-2.5">
             <span className="flex h-[26px] w-[26px] items-center justify-center rounded-full bg-pos">
               <CheckIcon size={15} className="text-primary-foreground" />
             </span>
-            <span className="font-display text-[15px] font-semibold text-foreground">Funds sent</span>
+            <span className="font-display text-[15px] font-semibold text-foreground">Sent on {networkName}</span>
             <button
               type="button"
               onClick={() => onTrack(result.txid)}
@@ -187,14 +211,14 @@ export function AddressPanel({
               )}
             </button>
           </div>
-          <div className="break-all rounded-lg border border-hairline bg-card p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
+          <div className="break-all rounded-input border border-hairline bg-card p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
             {result.ef}
           </div>
         </div>
       )}
 
-      <p className="text-center text-xs text-muted-foreground">
-        Each claim sends {fmt(payoutSats)} sats (~{tbsv(payoutSats)} tBSV) in extended format.
+      <p className="label">
+        {fmt(payoutSats)} sat · ~{tbsv(payoutSats)} tBSV · Returned as extended format
       </p>
     </form>
   )

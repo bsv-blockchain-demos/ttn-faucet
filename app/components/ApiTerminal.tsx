@@ -1,26 +1,35 @@
 'use client'
 import { useState } from 'react'
 import { CopyIcon } from './icons'
+import { useNetwork } from './NetworkProvider'
+import { NETWORK_IDS, type NetworkId } from '@/lib/networks'
 
-const CURL = `# claim test coins to an address
-curl -X POST https://faucet-ttn.bsvblockchain.tech/api/claim \\
+const ORIGIN = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://faucet-ttn.bsvblockchain.tech'
+
+/** The example call, for whichever network is selected in the card. */
+const curl = (network: NetworkId) => `# claim test coins to an address on ${network}
+# (network: ${NETWORK_IDS.join(' | ')}; omit for the faucet's default)
+curl -X POST ${ORIGIN}/api/claim \\
   -H 'content-type: application/json' \\
-  -d '{"address":"<your-teratestnet-address>","captchaToken":"<turnstile>"}'
+  -d '{"address":"<your-testnet-address>","network":"${network}"}'
 
 # -> 200
 {
   "txid": "a1b2…",
   "ef": "0200…",
-  "network": "teratestnet"
+  "network": "${network}"
 }`
 
 const ENDPOINTS = [
   { method: 'POST', path: '/api/claim' },
   { method: 'POST', path: '/api/claim/wallet' },
-  { method: 'GET', path: '/api/status/:txid' },
+  { method: 'GET', path: '/api/status/:txid?network=' },
+  { method: 'GET', path: '/api/networks' },
 ]
 
 export function ApiTerminal() {
+  const { network } = useNetwork()
+  const CURL = curl(network)
   const [copied, setCopied] = useState(false)
 
   function copy() {
@@ -35,7 +44,7 @@ export function ApiTerminal() {
         {ENDPOINTS.map((e) => (
           <span
             key={e.path}
-            className="inline-flex items-center gap-2 rounded-lg border border-hairline px-[11px] py-1.5 font-mono text-xs font-medium text-foreground"
+            className="inline-flex items-center gap-2 rounded-input border border-hairline px-[11px] py-1.5 font-mono text-xs font-medium text-foreground"
           >
             <span className={e.method === 'POST' ? 'text-pos' : 'text-link'}>{e.method}</span>
             {e.path}
@@ -48,12 +57,7 @@ export function ApiTerminal() {
           className="flex items-center justify-between px-4 py-[11px]"
           style={{ borderBottom: '1px solid var(--code-bd-soft)' }}
         >
-          <span className="flex items-center gap-[7px]">
-            <span className="h-[11px] w-[11px] rounded-full" style={{ background: 'var(--tl-red)' }} />
-            <span className="h-[11px] w-[11px] rounded-full" style={{ background: 'var(--tl-amber)' }} />
-            <span className="h-[11px] w-[11px] rounded-full" style={{ background: 'var(--tl-green)' }} />
-            <span className="ml-1.5 font-mono text-xs text-code-dim">claim.sh</span>
-          </span>
+          <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-code-dim">claim.sh</span>
           <button
             type="button"
             onClick={copy}

@@ -1,7 +1,7 @@
 import { PrivateKey } from '@bsv/sdk'
 
 /**
- * Generate a throwaway teratestnet keypair. Pure + isomorphic (browser & node):
+ * Generate a throwaway testnet keypair (every test network shares the 0x6f address format). Pure + isomorphic (browser & node):
  * used client-side so the key never leaves the user's browser.
  */
 export function generateTestnetKey(): { wif: string; address: string } {

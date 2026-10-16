@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('@/lib/arcade', () => ({ getTxStatus: vi.fn() }))
-vi.mock('@/lib/config', () => ({ getConfig: () => ({ ARCADE_URL: 'http://arcade.test' }), CHAIN: 'test' }))
+vi.mock('@/lib/config', async (orig) => (await import('@/lib/test-config')).mockConfigModule(await orig()))
 
 import { GET } from './route'
 import { getTxStatus } from '@/lib/arcade'

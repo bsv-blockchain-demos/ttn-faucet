@@ -21,7 +21,7 @@ import {
 
 const PAYOUT = 100_000
 const fmt = (n: number) => n.toLocaleString()
-const MOCK_ADDR = 'n2ZfV8a9MockTeratestnetAddrExampleXyz'
+const MOCK_ADDR = 'n2ZfV8a9MockTestnetAddressExampleXyz12'
 const MOCK_WIF = 'cR4MockWIFneverUseForRealFundsExample9aBcDeFgHiJkLmN'
 const MOCK_EF = '0200beef01fe4d6f636b4546486578a1b2c3d4e5f60718293a4b5c6d7e8f90feb0c0ad00000000'
 
@@ -102,7 +102,7 @@ function CardShell({ tab, children }: { tab: 'wallet' | 'address'; children: Rea
     <div className="overflow-hidden rounded-card border border-hairline bg-card shadow-card">
       <div className="flex items-center justify-between border-b border-hairline px-6 py-5">
         <div className="leading-tight">
-          <div className="font-display text-[17px] font-semibold text-foreground">Teratestnet Coins</div>
+          <div className="font-display text-[17px] font-semibold text-foreground">Test coins</div>
           <div className="text-[12.5px] text-muted-foreground">{fmt(PAYOUT)} sats per request</div>
         </div>
         <span className="inline-flex items-center gap-1.5 rounded-pill bg-pos-bg px-3 py-[5px] text-xs font-medium text-pos">
@@ -202,7 +202,7 @@ function WalletBody({ phase }: { phase: Phase }) {
           </div>
           {phase === 'mobile' && <span className={SECONDARY_CTA}>On your phone? Open BSV Wallet</span>}
           <p className="w-full text-center text-xs leading-relaxed text-muted-foreground">
-            Make sure BSV Wallet is on Teratestnet, and stay in it for a couple of seconds after approving while the coins arrive.
+            Set BSV Wallet to the selected network first, and stay in it for a couple of seconds after approving while the coins arrive.
           </p>
           <DownloadHint />
           <span className="text-[13px] font-medium text-link">Paste an address instead</span>
@@ -242,10 +242,10 @@ function WalletBody({ phase }: { phase: Phase }) {
           {phase === 'idle' && (
             <div className="flex items-start gap-2.5 rounded-input border border-pos bg-pos-bg p-3">
               <CheckIcon size={16} className="mt-[1px] flex-none text-pos" />
-              <span className="text-[13px] leading-snug text-foreground">Your wallet is connected and on Teratestnet.</span>
+              <span className="text-[13px] leading-snug text-foreground">Wallet connected. Check it&apos;s set to the selected network.</span>
             </div>
           )}
-          {phase === 'idlewarn' && <WarnBand>Your wallet is on mainnet. Switch it to Teratestnet before claiming, or these coins won&apos;t appear.</WarnBand>}
+          {phase === 'idlewarn' && <WarnBand>Your wallet is on mainnet. Switch it to the selected network before claiming, or these coins won&apos;t appear.</WarnBand>}
           {phase === 'claiming' && (
             <div className="flex items-center gap-2.5 rounded-input border border-primary/20 bg-primary/10 p-3">
               <span className="dotpulse h-2 w-2 flex-none rounded-full bg-primary" />
@@ -289,7 +289,7 @@ function AddressBody({ state }: { state: 'empty' | 'generated' | 'busy' | 'error
     <div className="flex flex-col gap-4">
       <div>
         <div className="mb-2 flex items-baseline justify-between">
-          <span className="text-[13.5px] font-medium text-foreground">Your Teratestnet address</span>
+          <span className="text-[13.5px] font-medium text-foreground">Your testnet address</span>
           <span className="text-[13px] font-semibold text-link">Generate a test key</span>
         </div>
         <div className="flex h-[50px] items-center rounded-input border-[1.5px] border-input-border bg-card px-[15px] font-mono text-sm text-foreground">
@@ -495,7 +495,7 @@ export default function StatesGallery() {
             <StatTile label="Sats dispensed" value="184,320,000" sub={<span className="font-medium text-pos">▲ live</span>} />
             <StatTile label="Claims today" value="1,287" sub={<span className="text-muted-foreground">across all subjects</span>} />
             <StatTile label="Treasury balance" value="42.5" sub={<span className="text-muted-foreground">BSV · refilled nightly</span>} />
-            <StatTile label="Network throughput" value="1.04M tps" sub={<span className="text-muted-foreground">peak on Teranode testnet</span>} />
+            <StatTile label="Per claim" value="100,000" sub={<span className="text-muted-foreground">sats, spendable instantly</span>} />
           </div>
         </Tile>
         <Tile title="treasury · 3 live states" note="from /api/balance">

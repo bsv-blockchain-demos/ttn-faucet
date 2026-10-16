@@ -1,8 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { CheckIcon, CloseIcon, ExternalIcon } from './icons'
-
-const EXPLORER = 'https://woc-ttn.bsvblockchain.tech'
+import { NETWORKS, txUrl, type NetworkId } from '@/lib/networks'
 
 type StatusResp = { txid: string; status: string; blockHeight: number | null }
 
@@ -32,7 +31,8 @@ function reachedLevel(status?: string): number {
 const shortTxid = (t: string) => (t.length > 18 ? `${t.slice(0, 12)}…${t.slice(-6)}` : t)
 
 /** Mounted (keyed by txid) only while open, so initial state is always fresh. */
-export function TxStatusModal({ txid, onClose }: { txid: string; onClose: () => void }) {
+export function TxStatusModal({ txid, network, onClose }: { txid: string; network: NetworkId; onClose: () => void }) {
+  const explorer = txUrl(network, txid)
   const [data, setData] = useState<StatusResp | null>(null)
   const [error, setError] = useState('')
   const loading = !data && !error
@@ -43,7 +43,7 @@ export function TxStatusModal({ txid, onClose }: { txid: string; onClose: () => 
   // in the effect body), and the component is remounted per txid so no reset is needed.
   useEffect(() => {
     let alive = true
-    fetch(`/api/status/${txid}`)
+    fetch(`/api/status/${txid}?network=${network}`)
       .then(async (res) => {
         const json = await res.json().catch(() => ({}))
         if (!alive) return
@@ -54,7 +54,7 @@ export function TxStatusModal({ txid, onClose }: { txid: string; onClose: () => 
     return () => {
       alive = false
     }
-  }, [txid])
+  }, [txid, network])
 
   // Esc to close + focus the close button on open + simple focus trap.
   useEffect(() => {
@@ -96,16 +96,23 @@ export function TxStatusModal({ txid, onClose }: { txid: string; onClose: () => 
         role="dialog"
         aria-modal="true"
         aria-label="Transaction status"
-        className="w-[440px] max-w-[90%] overflow-hidden rounded-card border border-hairline bg-card shadow-card"
+        data-network={network}
+        className="net-theme w-[440px] max-w-[90%] overflow-hidden rounded-card border border-hairline bg-card shadow-card"
       >
         <div className="flex items-center justify-between border-b border-hairline px-[22px] py-[18px]">
-          <span className="font-display text-base font-semibold text-foreground">Transaction status</span>
+          <span className="flex items-center gap-2.5">
+            <span className="font-display text-base font-semibold text-foreground">Transaction status</span>
+            <span className="inline-flex items-center gap-1.5 rounded-pill border border-net-bd bg-net-bg px-2 py-0.5 text-[11.5px] font-semibold text-net">
+              <span className="h-1.5 w-1.5 rounded-full bg-net" aria-hidden />
+              {NETWORKS[network].name}
+            </span>
+          </span>
           <button
             ref={closeRef}
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-hairline text-muted-foreground transition hover:bg-band"
+            className="flex h-[30px] w-[30px] items-center justify-center rounded-input border border-hairline text-muted-foreground transition hover:bg-band"
           >
             <CloseIcon size={15} />
           </button>
@@ -113,7 +120,7 @@ export function TxStatusModal({ txid, onClose }: { txid: string; onClose: () => 
 
         <div className="px-[22px] py-5">
           {/* txid + status pill */}
-          <div className="mb-[18px] flex items-center justify-between rounded-[10px] bg-muted px-[14px] py-[11px]">
+          <div className="mb-[18px] flex items-center justify-between rounded-input bg-muted px-[14px] py-[11px]">
             <span className="font-mono text-xs text-foreground">{shortTxid(txid)}</span>
             {error || loading ? (
               <span className="inline-flex items-center gap-1.5 rounded-pill bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
@@ -198,14 +205,16 @@ export function TxStatusModal({ txid, onClose }: { txid: string; onClose: () => 
             </div>
           )}
 
-          <a
-            href={`${EXPLORER}/tx/${txid}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-[18px] inline-flex items-center gap-1.5 text-[13px] font-semibold text-link"
-          >
-            View on explorer <ExternalIcon size={14} />
-          </a>
+          {explorer && (
+            <a
+              href={explorer}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-[18px] inline-flex items-center gap-1.5 text-[13px] font-semibold text-link"
+            >
+              View on {NETWORKS[network].name} explorer <ExternalIcon size={14} />
+            </a>
+          )}
         </div>
       </div>
     </div>

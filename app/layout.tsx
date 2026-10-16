@@ -1,47 +1,31 @@
 import type { Metadata, Viewport } from 'next'
-import { Noto_Sans, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider, themeNoFlashScript } from './components/ThemeProvider'
 
-const notoSans = Noto_Sans({
-  variable: '--font-noto-sans',
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600'],
-  display: 'swap',
-})
-
-const jetBrainsMono = JetBrains_Mono({
-  variable: '--font-jetbrains-mono',
-  subsets: ['latin'],
-  weight: ['400', '500', '600'],
-  display: 'swap',
-})
-
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://faucet-ttn.bsvblockchain.tech'),
-  title: 'BSV Teranode Testnet Faucet',
+  title: 'BSV Faucet: free test coins',
   description:
-    'A BSV Blockchain faucet for the Teranode scaling testnet. Grab free, spendable Teratestnet coins in one click with a BRC-100 wallet, or POST an address via the dev API, and start building on the network that broke one million transactions per second.',
-  applicationName: 'BSV Teranode Testnet Faucet',
+    'A BSV Blockchain faucet for every test network. Pick your network and grab free, spendable test coins in one click with a BRC-100 wallet, or POST an address via the dev API.',
+  applicationName: 'BSV Faucet',
   openGraph: {
     type: 'website',
     siteName: 'BSV Blockchain',
-    title: 'BSV Teranode Testnet Faucet',
+    title: 'BSV Faucet: free test coins',
     description:
-      'Free, spendable Teratestnet coins in one click. Build on the BSV Blockchain Teranode scaling testnet — connect a BRC-100 wallet or POST an address.',
+      'Free, spendable test coins in one click on any BSV test network. Connect a BRC-100 wallet or POST an address.',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'BSV Teranode Testnet Faucet',
-    description:
-      'Free, spendable Teratestnet coins in one click. Build on the BSV Blockchain Teranode scaling testnet.',
+    title: 'BSV Faucet: free test coins',
+    description: 'Free, spendable test coins in one click on any BSV test network.',
   },
 }
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#1e1f24' },
+    { media: '(prefers-color-scheme: light)', color: '#f4f4f1' },
+    { media: '(prefers-color-scheme: dark)', color: '#0e0e0f' },
   ],
 }
 
@@ -54,15 +38,9 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${notoSans.variable} ${jetBrainsMono.variable} h-full antialiased`}
+      className="h-full antialiased"
     >
       <head>
-        {/* Chillax (display) — not on Google Fonts; loaded from Fontshare. */}
-        <link rel="preconnect" href="https://api.fontshare.com" crossOrigin="" />
-        <link
-          rel="stylesheet"
-          href="https://api.fontshare.com/v2/css?f[]=chillax@400,500,600&display=swap"
-        />
         {/* Set the theme class before paint to avoid a flash. */}
         <script dangerouslySetInnerHTML={{ __html: themeNoFlashScript }} />
       </head>

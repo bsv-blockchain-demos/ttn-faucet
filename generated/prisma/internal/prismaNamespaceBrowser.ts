@@ -72,6 +72,7 @@ export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof
 export const ClaimScalarFieldEnum = {
   id: 'id',
   createdAt: 'createdAt',
+  network: 'network',
   recipient: 'recipient',
   amountSats: 'amountSats',
   txid: 'txid',

@@ -4,6 +4,7 @@ import {
   WalletStorageManager,
   StorageKnex,
   Services,
+  createDefaultWalletServicesOptions,
 } from '@bsv/wallet-toolbox'
 import {
   PrivateKey,
@@ -13,42 +14,55 @@ import {
   Beef,
   Utils,
   Random,
+  type AtomicBEEF,
 } from '@bsv/sdk'
 import { knex as makeKnex } from 'knex'
-import { getConfig, CHAIN } from './config'
+import { networkConfig, type NetworkConfig } from './config'
+import type { NetworkId } from './networks'
 import { deriveBrc29, newDerivationValues } from './brc29'
 import { broadcastRawTx } from './arcade'
 import { ArcadeChaintracks } from './arcade-chaintracks'
 import { makeArcadePostBeefResult } from './postbeef-result'
 import { arcadeMerklePath, repairReorgedProofs, startProofCompletion } from './proofs'
 
-let walletPromise: Promise<{
+type WalletArgs = ConstructorParameters<typeof Wallet>[0]
+
+interface FaucetWallet {
   wallet: Wallet
   identityKey: string
   services: Services
   storage: WalletStorageManager
   chaintracks: ArcadeChaintracks
-}> | null = null
-
-export function getWallet() {
-  if (!walletPromise) walletPromise = buildWallet()
-  return walletPromise
 }
 
-async function buildWallet() {
-  const cfg = getConfig()
-  const rootKey = PrivateKey.fromHex(cfg.WALLET_ROOT_KEY_HEX)
+// One server wallet per network, each with its own storage, built on first use.
+const wallets = new Map<NetworkId, Promise<FaucetWallet>>()
+
+export function getWallet(network: NetworkId): Promise<FaucetWallet> {
+  let w = wallets.get(network)
+  if (!w) {
+    w = buildWallet(networkConfig(network))
+    // Don't cache a failed build (e.g. storage briefly unavailable): retry on the next request.
+    w.catch(() => wallets.delete(network))
+    wallets.set(network, w)
+  }
+  return w
+}
+
+async function buildWallet(cfg: NetworkConfig): Promise<FaucetWallet> {
+  const { chain } = cfg
+  const rootKey = PrivateKey.fromHex(cfg.walletRootKeyHex)
   const keyDeriver = new CachedKeyDeriver(rootKey)
   const identityKey = rootKey.toPublicKey().toString()
 
   const storage = new WalletStorageManager(identityKey)
   const knex = makeKnex({
     client: 'sqlite3',
-    connection: { filename: cfg.WALLET_STORAGE_PATH },
+    connection: { filename: cfg.walletStoragePath },
     useNullAsDefault: true,
   })
   const activeStorage = new StorageKnex({
-    chain: CHAIN,
+    chain,
     knex,
     commissionSatoshis: 0,
     commissionPubKeyHex: undefined,
@@ -59,9 +73,19 @@ async function buildWallet() {
   await storage.addWalletStorageProvider(activeStorage)
   await activeStorage.findOrInsertUser(identityKey)
 
-  const options = Services.createDefaultOptions(CHAIN)
-  const chaintracks = new ArcadeChaintracks(CHAIN, cfg.ARCADE_CHAINTRACKS_URL)
-  options.chaintracks = chaintracks as unknown as typeof options.chaintracks
+  // Pass our own chaintracks + arcade so the toolbox never builds its defaults (tstn has none).
+  const chaintracks = new ArcadeChaintracks(chain, cfg.chaintracksUrl)
+  const options = createDefaultWalletServicesOptions(
+    chain,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    chaintracks as unknown as WalletServicesOptions['chaintracks'],
+    cfg.arcadeUrl,
+  )
   const services = new Services(options)
 
   services.postBeefServices.services = [
@@ -87,7 +111,7 @@ async function buildWallet() {
         } catch {
           txHex = tx.toHex()
         }
-        const b = await broadcastRawTx(cfg.ARCADE_URL, txHex)
+        const b = await broadcastRawTx(cfg.arcadeUrl, txHex)
         return makeArcadePostBeefResult(txids, b)
       },
     },
@@ -95,14 +119,17 @@ async function buildWallet() {
 
   services.getMerklePathServices.add({
     name: 'arcade',
-    service: (txid: string) => arcadeMerklePath(cfg.ARCADE_URL, chaintracks, txid),
+    service: (txid: string) => arcadeMerklePath(cfg.arcadeUrl, chaintracks, txid),
   })
 
-  const wallet = new Wallet({ chain: CHAIN, keyDeriver, storage, services })
+  // The toolbox (CJS) types @bsv/sdk from its cjs build: same runtime class, separate declarations.
+  const wallet = new Wallet({ chain, keyDeriver: keyDeriver as unknown as WalletArgs['keyDeriver'], storage, services })
   // Record merkle proofs as blocks arrive, so payout BEEFs stay small (see lib/proofs.ts).
-  startProofCompletion(async () => ({ chain: CHAIN, storage, services, chaintracks }))
+  startProofCompletion(cfg.network, async () => ({ chain, storage, services, chaintracks }))
   return { wallet, identityKey, services, storage, chaintracks }
 }
+
+type WalletServicesOptions = ReturnType<typeof createDefaultWalletServicesOptions>
 
 /**
  * Shared two-phase payout: createAction(signAndProcess:false) -> signAction, so we hold a
@@ -112,31 +139,33 @@ async function buildWallet() {
  * Pure-change payout -> no live chaintracks needed.
  */
 async function signAndBroadcast(
+  network: NetworkId,
   lockingScriptHex: string,
   satoshis: number,
   description: string,
-): Promise<{ txid: string; atomicBEEF: number[] }> {
+): Promise<{ txid: string; atomicBEEF: AtomicBEEF }> {
   try {
-    return await signAndBroadcastOnce(lockingScriptHex, satoshis, description)
+    return await signAndBroadcastOnce(network, lockingScriptHex, satoshis, description)
   } catch (e) {
     // The toolbox verifies the payout's BEEF before broadcasting. If a block it holds a proof for
     // was re-orged away, that check fails until the proof is updated: repair now and retry once,
     // rather than failing payouts until the next background pass.
     if (!(e instanceof Error) || !/merged Beef failed validation/i.test(e.message)) throw e
-    const { storage, chaintracks } = await getWallet()
+    const { storage, chaintracks } = await getWallet(network)
     const r = await repairReorgedProofs({ storage, chaintracks })
-    console.log(`[proofs] payout hit a stale proof: ${r.orphanedBlocks} orphaned block(s), ${r.updated} proof(s) updated`)
+    console.log(`[proofs:${network}] payout hit a stale proof: ${r.orphanedBlocks} orphaned block(s), ${r.updated} proof(s) updated`)
     if (r.updated === 0) throw e
-    return await signAndBroadcastOnce(lockingScriptHex, satoshis, description)
+    return await signAndBroadcastOnce(network, lockingScriptHex, satoshis, description)
   }
 }
 
 async function signAndBroadcastOnce(
+  network: NetworkId,
   lockingScriptHex: string,
   satoshis: number,
   description: string,
-): Promise<{ txid: string; atomicBEEF: number[] }> {
-  const { wallet } = await getWallet()
+): Promise<{ txid: string; atomicBEEF: AtomicBEEF }> {
+  const { wallet } = await getWallet(network)
 
   const created = await wallet.createAction({
     description,
@@ -167,9 +196,13 @@ async function signAndBroadcastOnce(
 /**
  * Build, sign, broadcast (via arcade) a P2PKH payout to `address` and return the EF.
  */
-export async function payToAddress(address: string, satoshis: number): Promise<{ txid: string; ef: string }> {
+export async function payToAddress(
+  network: NetworkId,
+  address: string,
+  satoshis: number,
+): Promise<{ txid: string; ef: string }> {
   const lockingScript = new P2PKH().lock(address).toHex()
-  const { txid, atomicBEEF } = await signAndBroadcast(lockingScript, satoshis, 'teratestnet faucet payout')
+  const { txid, atomicBEEF } = await signAndBroadcast(network, lockingScript, satoshis, `${network} faucet payout`)
   return { txid, ef: Transaction.fromAtomicBEEF(atomicBEEF).toHexEF() }
 }
 
@@ -188,9 +221,12 @@ export interface WalletPayout {
  * `internalizeAction({ protocol: 'wallet payment', paymentRemittance })`. The returned BEEF carries
  * the funded ancestors' proofs, so the recipient can accept the coins immediately (no mining wait).
  */
-export async function payToWallet(recipientIdentityKeyHex: string, satoshis: number): Promise<WalletPayout> {
-  const cfg = getConfig()
-  const rootKey = PrivateKey.fromHex(cfg.WALLET_ROOT_KEY_HEX)
+export async function payToWallet(
+  network: NetworkId,
+  recipientIdentityKeyHex: string,
+  satoshis: number,
+): Promise<WalletPayout> {
+  const rootKey = PrivateKey.fromHex(networkConfig(network).walletRootKeyHex)
   const { derivationPrefix, derivationSuffix } = newDerivationValues()
   const { lockingScriptHex, senderIdentityKeyHex } = deriveBrc29({
     recipientIdentityKeyHex,
@@ -198,7 +234,12 @@ export async function payToWallet(recipientIdentityKeyHex: string, satoshis: num
     derivationPrefix,
     derivationSuffix,
   })
-  const { txid, atomicBEEF } = await signAndBroadcast(lockingScriptHex, satoshis, 'teratestnet faucet payout (wallet)')
+  const { txid, atomicBEEF } = await signAndBroadcast(
+    network,
+    lockingScriptHex,
+    satoshis,
+    `${network} faucet payout (wallet)`,
+  )
   return {
     txid,
     atomicBEEF: Utils.toHex(atomicBEEF),
@@ -219,14 +260,13 @@ async function stopTrackingPayoutOutput(wallet: Wallet, txid: string): Promise<v
   await wallet.relinquishOutput({ basket: 'default', output: `${txid}.0` }).catch(() => {})
 }
 
-/** Total spendable balance (sats) the faucet wallet holds in its default basket. */
 /**
  * A payout's Atomic BEEF (hex) rebuilt from the wallet as it stands now. Ancestors proven since the
  * payout carry a merkle path instead of their own ancestry, so this is usually far smaller than the
  * copy stored at payout time. Null if the wallet can't build it.
  */
-export async function freshAtomicBeef(txid: string): Promise<string | null> {
-  const { storage } = await getWallet()
+export async function freshAtomicBeef(network: NetworkId, txid: string): Promise<string | null> {
+  const { storage } = await getWallet(network)
   try {
     const beef = await storage.runAsStorageProvider((sp) => sp.getBeefForTransaction(txid, {}))
     return Utils.toHex(beef.toBinaryAtomic(txid))
@@ -235,8 +275,9 @@ export async function freshAtomicBeef(txid: string): Promise<string | null> {
   }
 }
 
-export async function getFaucetBalanceSats(): Promise<number> {
-  const { wallet } = await getWallet()
+/** Total spendable balance (sats) a network's faucet wallet holds in its default basket. */
+export async function getFaucetBalanceSats(network: NetworkId): Promise<number> {
+  const { wallet } = await getWallet(network)
   const outs: any = await wallet.listOutputs({ basket: 'default', limit: 10000 })
   return ((outs.outputs ?? []) as Array<{ satoshis?: number }>).reduce((sum, o) => sum + (o.satoshis ?? 0), 0)
 }

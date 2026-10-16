@@ -10,77 +10,69 @@ import {
   type MobileClaimView,
   type NewMobileClaim,
 } from '@/lib/mobile-claim-client'
+import { NETWORKS, type NetworkId } from '@/lib/networks'
 // TODO: re-enable Turnstile — temporarily disabled.
 // import { TurnstileWidget } from './TurnstileWidget'
-import { ArrowRightIcon, CheckIcon, WarningIcon } from './icons'
+import { ArrowRightIcon, CheckIcon, MonitorIcon, PhoneIcon, WarningIcon } from './icons'
+import { useNetwork } from './NetworkProvider'
+import { BusyLabel, ClaimLabel } from './ClaimLabel'
 
 type Phase = 'detecting' | 'unavailable' | 'mobile' | 'idle' | 'claiming' | 'success' | 'error'
-type StepState = 'done' | 'active' | 'todo' | 'error'
 
 const fmt = (n: number) => n.toLocaleString()
-const tbsv = (n: number) => (n / 1e8).toLocaleString(undefined, { maximumFractionDigits: 8 })
 
 /** How often the page asks the server how a mobile claim is going. */
 const MOBILE_POLL_MS = 2000
 
-const STEP_LABELS = ['Connect', 'Authorize', 'Fund', 'Spendable'] as const
-const STEP_MAP: Record<Exclude<Phase, 'mobile'>, StepState[]> = {
-  detecting: ['active', 'todo', 'todo', 'todo'],
-  unavailable: ['error', 'todo', 'todo', 'todo'],
-  idle: ['done', 'active', 'todo', 'todo'],
-  claiming: ['done', 'done', 'active', 'todo'],
-  success: ['done', 'done', 'done', 'done'],
-  error: ['done', 'done', 'error', 'todo'],
-}
+/** How long to wait for a local BRC-100 wallet to answer getNetwork before offering downloads. */
+const DETECT_TIMEOUT_MS = 1500
 
-function StepCircle({ state, n }: { state: StepState; n: number }) {
-  const base = 'step-dot flex h-[30px] w-[30px] items-center justify-center rounded-full border-[1.5px] text-xs font-semibold'
-  if (state === 'done')
-    return (
-      <span className={`${base} border-primary bg-primary text-primary-foreground`}>
-        <CheckIcon size={13} />
-      </span>
-    )
-  if (state === 'active')
-    return <span className={`${base} border-primary bg-accent text-accent-foreground`}>{n}</span>
-  if (state === 'error')
-    return <span className={`${base} border-neg bg-neg-bg text-neg`}>!</span>
-  return <span className={`${base} border-hairline bg-transparent text-muted-foreground`}>{n}</span>
-}
-
-function Stepper({ states }: { states: StepState[] }) {
-  return (
-    <div className="relative mb-[22px] flex justify-between px-2">
-      <div className="absolute left-10 right-10 top-[15px] h-0.5 bg-hairline" />
-      {STEP_LABELS.map((label, i) => (
-        <div key={label} className="relative z-[1] flex flex-1 flex-col items-center gap-2">
-          <StepCircle state={states[i]} n={i + 1} />
-          <span className="text-[11.5px] font-medium text-muted-foreground">{label}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
+/**
+ * The claim button is solid ink, the highest contrast on both the card and the network-coloured
+ * field; its arrow block carries the network colour (see ClaimLabel).
+ */
 const PRIMARY_CTA =
-  'shine flex h-[52px] w-full items-center justify-center gap-2 rounded-pill bg-primary text-[15px] font-semibold text-primary-foreground shadow-primary disabled:cursor-not-allowed disabled:opacity-60'
+  'group shine flex min-h-[64px] w-full items-stretch overflow-hidden rounded-panel bg-[color:var(--card-fg)] text-left text-[17px] font-semibold tracking-[-0.01em] text-[color:var(--card)] transition-colors disabled:cursor-not-allowed disabled:opacity-50'
 const SECONDARY_CTA =
   'inline-flex h-11 w-full items-center justify-center rounded-pill border-[1.5px] border-[color:var(--btn2-bd)] bg-transparent px-[22px] text-sm font-semibold text-[color:var(--btn2-fg)] transition min-[620px]:w-auto'
 
-/** "Need a wallet?" download prompt — shown while detecting and when no wallet is found. */
-function DownloadHint() {
+const DOWNLOADS = [
+  { name: 'BSV Desktop', sub: 'Mac, Windows & Linux', href: 'https://desktop.bsvb.tech/', Icon: MonitorIcon },
+  { name: 'BSV Browser', sub: 'iOS & Android', href: 'https://mobile.bsvb.tech/', Icon: PhoneIcon },
+] as const
+
+/** No wallet answered: the way forward is installing one, so the downloads lead. */
+function GetAWallet() {
   return (
-    <p className="w-full text-[13px] leading-relaxed text-muted-foreground">
-      Need a wallet? Download{' '}
-      <a href="https://desktop.bsvb.tech/" target="_blank" rel="noreferrer" className="font-medium text-link">
-        BSV Desktop
-      </a>{' '}
-      or{' '}
-      <a href="https://mobile.bsvb.tech/" target="_blank" rel="noreferrer" className="font-medium text-link">
-        BSV Browser
-      </a>{' '}
-      for mobile.
-    </p>
+    <div className="flex flex-col gap-3">
+      <div className="flex items-start gap-2.5">
+        <WarningIcon size={16} style={{ color: 'var(--warn-icon)', flex: 'none', marginTop: 2 }} />
+        <div className="text-[13.5px] leading-snug text-foreground">
+          <span className="font-semibold">No BRC-100 wallet found.</span>{' '}
+          <span className="text-muted-foreground">Install one, open this page again, and claim in one click.</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-2.5 min-[420px]:grid-cols-2">
+        {DOWNLOADS.map(({ name, sub, href, Icon }) => (
+          <a
+            key={name}
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className="lift flex items-center gap-3 rounded-input border-[1.5px] border-input-border bg-card px-3.5 py-3 transition hover:border-primary"
+          >
+            <span className="flex h-9 w-9 flex-none items-center justify-center rounded-input bg-accent text-accent-foreground">
+              <Icon size={18} />
+            </span>
+            <span className="min-w-0 leading-tight">
+              <span className="block text-[14px] font-semibold text-foreground">Get {name}</span>
+              <span className="block text-[12px] text-muted-foreground">{sub}</span>
+            </span>
+            <ArrowRightIcon size={15} className="ml-auto flex-none text-link" />
+          </a>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -109,19 +101,51 @@ function ErrorBand({ children }: { children: React.ReactNode }) {
   )
 }
 
-function Success({ amount, note, onTrack }: { amount: number; note?: string; onTrack: () => void }) {
+function WarnBand({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-[14px] border border-pos bg-pos-bg p-[18px] text-center">
+    <div
+      className="flex items-start gap-2.5 rounded-input p-3"
+      style={{ background: 'var(--warn-bg)', border: '1px solid var(--warn-bd)' }}
+    >
+      <WarningIcon size={16} style={{ color: 'var(--warn-icon)', flex: 'none', marginTop: 1 }} />
+      <span className="text-[13px] leading-snug text-foreground">{children}</span>
+    </div>
+  )
+}
+
+function Success({
+  amount,
+  network,
+  note,
+  onTrack,
+  onAgain,
+}: {
+  amount: number
+  network: NetworkId
+  note?: string
+  onTrack: () => void
+  onAgain?: () => void
+}) {
+  return (
+    <div className="rounded-panel border border-pos bg-pos-bg p-[18px] text-center">
       <div className="mx-auto mb-3 flex h-[46px] w-[46px] items-center justify-center rounded-full bg-pos">
         <CheckIcon size={24} className="text-primary-foreground" />
       </div>
       <div className="mb-1 font-display text-lg font-semibold text-foreground">Funds in your wallet</div>
       <div className="mb-[14px] text-[13.5px] leading-relaxed text-muted-foreground">
-        {fmt(amount)} sats are now spendable. No confirmation needed.{note ? ` ${note}` : ''}
+        {fmt(amount)} sats on {NETWORKS[network].name} are spendable now. No confirmation needed.
+        {note ? ` ${note}` : ''}
       </div>
-      <button type="button" onClick={onTrack} className={`${SECONDARY_CTA} hover:bg-band`}>
-        Track transaction
-      </button>
+      <div className="flex flex-col items-center justify-center gap-2.5 min-[420px]:flex-row">
+        <button type="button" onClick={onTrack} className={`${SECONDARY_CTA} hover:bg-band`}>
+          Track transaction
+        </button>
+        {onAgain && (
+          <button type="button" onClick={onAgain} className="text-[13px] font-semibold text-link">
+            Claim again
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -142,53 +166,56 @@ function useOnPhone(): boolean {
   )
 }
 
-const MOBILE_STEPS: Record<MobileView['state'], StepState[]> = {
-  starting: ['active', 'todo', 'todo', 'todo'],
-  waiting: ['active', 'todo', 'todo', 'todo'],
-  claiming: ['done', 'done', 'active', 'todo'],
-  done: ['done', 'done', 'done', 'done'],
-  error: ['done', 'done', 'error', 'todo'],
-  expired: ['error', 'todo', 'todo', 'todo'],
-}
-
 /**
- * Claim with BSV Wallet on a phone, paired over @bsv/wallet-relay. Approving the pairing in the
- * wallet IS the claim: the faucet server pays and delivers while the wallet is still open (on one
- * phone the browser is frozen meanwhile), and this panel just shows the outcome.
+ * No browser wallet: lead with the wallet downloads, and offer a claim with BSV Wallet on a phone,
+ * paired over @bsv/wallet-relay. Approving the pairing in the wallet IS the claim: the faucet
+ * server pays and delivers while the wallet is still open (on one phone the browser is frozen
+ * meanwhile), and this panel just shows the outcome. Keyed by network: switching networks starts
+ * a fresh claim.
  */
 function MobileClaim({
+  network,
   payoutSats,
   onUnavailable,
   onUsePaste,
   onTrack,
+  onBusy,
 }: {
+  network: NetworkId
   payoutSats: number
   onUnavailable: () => void
   onUsePaste: () => void
   onTrack: (txid: string) => void
+  onBusy: (busy: boolean) => void
 }) {
+  const networkName = NETWORKS[network].name
   // Resume a claim started earlier in this tab: the page may have reloaded while the user was in
   // BSV Wallet. (This panel only renders client-side, after wallet detection.)
-  const [resumed] = useState(loadPendingClaim)
+  const [resumed] = useState(() => loadPendingClaim(network))
   const [claim, setClaim] = useState<NewMobileClaim | null>(resumed)
   const [view, setView] = useState<MobileView>({ state: resumed ? 'waiting' : 'starting' })
   const onPhone = useOnPhone()
   const mounted = useRef(true)
 
+  useEffect(() => onBusy(view.state === 'claiming'), [view.state, onBusy])
+
   /** Create a claim and show its QR. Only sets state after the request, so it's effect-safe. */
-  const begin = useCallback(async (alive: () => boolean = () => mounted.current) => {
-    try {
-      const created = await startMobileClaim()
-      if (!alive()) return
-      setClaim(created)
-      setView({ state: 'waiting' })
-    } catch (err) {
-      if (!alive()) return
-      // Disabled/unreachable relay → the plain "no wallet detected" panel.
-      if (!(err instanceof MobileClaimError) || err.status >= 500) return onUnavailable()
-      setView({ state: 'error', code: 'failed', error: err.message })
-    }
-  }, [onUnavailable])
+  const begin = useCallback(
+    async (alive: () => boolean = () => mounted.current) => {
+      try {
+        const created = await startMobileClaim(network)
+        if (!alive()) return
+        setClaim(created)
+        setView({ state: 'waiting' })
+      } catch (err) {
+        if (!alive()) return
+        // Disabled/unreachable relay → downloads only.
+        if (!(err instanceof MobileClaimError) || err.status >= 500) return onUnavailable()
+        setView({ state: 'error', code: 'failed', error: err.message })
+      }
+    },
+    [network, onUnavailable],
+  )
 
   const start = useCallback(() => {
     setClaim(null)
@@ -239,89 +266,75 @@ function MobileClaim({
     }
   }, [sessionId, live, start])
 
-  const openWallet = claim && (
-    <a href={claim.pairingUri} className={`${PRIMARY_CTA} shine-loop`}>
-      Claim {fmt(payoutSats)} sats with BSV Wallet
-      <ArrowRightIcon size={18} />
-    </a>
-  )
-  const qr = claim && (
-    <div className="flex flex-col items-center gap-2">
-      {/* eslint-disable-next-line @next/next/no-img-element -- data: URL from the relay */}
-      <img
-        src={claim.qrDataUrl}
-        alt="QR code to claim with BSV Wallet"
-        width={220}
-        height={220}
-        className="rounded-input border border-hairline bg-white p-2"
-      />
-      <span className="text-xs text-muted-foreground">
-        {onPhone ? 'Or scan from another phone with BSV Wallet' : 'Scan with BSV Wallet on your phone'}
-      </span>
-    </div>
-  )
   const pasteLink = (
-    <button type="button" onClick={onUsePaste} className="text-[13px] font-medium text-link">
+    <button type="button" onClick={onUsePaste} className="self-center text-[13px] font-medium text-link">
       Paste an address instead
     </button>
   )
 
-  return (
-    <div>
-      <Stepper states={MOBILE_STEPS[view.state]} />
+  if (view.state === 'claiming') {
+    return (
+      <div className="flex flex-col gap-4">
+        <InfoBand pulse="dot">
+          BSV Wallet connected. Sending {fmt(payoutSats)} sats on {networkName}…
+        </InfoBand>
+        <p className="text-center text-xs text-muted-foreground">Keep BSV Wallet open until it shows the coins.</p>
+      </div>
+    )
+  }
 
-      {view.state === 'starting' && (
-        <div className="flex flex-col gap-3">
-          <InfoBand>No browser wallet found. Preparing a claim for BSV Wallet…</InfoBand>
-          <DownloadHint />
-        </div>
-      )}
+  if (view.state === 'done') {
+    return (
+      <Success
+        amount={view.amount ?? payoutSats}
+        network={network}
+        note={view.redelivered ? 'This was your earlier payout, now delivered.' : undefined}
+        onTrack={() => view.txid && onTrack(view.txid)}
+      />
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <GetAWallet />
+
+      <div className="flex items-center gap-3 text-[12px] font-medium text-muted-foreground">
+        <span className="h-px flex-1 bg-hairline" />
+        Already have BSV Wallet on your phone?
+        <span className="h-px flex-1 bg-hairline" />
+      </div>
+
+      {view.state === 'starting' && <InfoBand>Preparing a phone claim…</InfoBand>}
 
       {view.state === 'waiting' && claim && (
-        <div className="flex flex-col items-center gap-4">
-          <InfoBand>
-            No browser wallet found. Claim with BSV Wallet: approve the connection and the coins arrive
-            straight away.
-          </InfoBand>
-          {onPhone ? (
-            <>
-              {openWallet}
-              {qr}
-            </>
-          ) : (
-            <>
-              {qr}
-              <a href={claim.pairingUri} className={`${SECONDARY_CTA} hover:bg-band`}>
-                On your phone? Open BSV Wallet
-              </a>
-            </>
+        <div className="flex flex-col items-center gap-3">
+          {onPhone && (
+            <a href={claim.pairingUri} className={`${PRIMARY_CTA} shine-loop`}>
+              <ClaimLabel payoutSats={payoutSats} networkName={networkName} />
+            </a>
           )}
+          <div className="flex flex-col items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element -- data: URL from the relay */}
+            <img
+              src={claim.qrDataUrl}
+              alt={`QR code to claim on ${networkName} with BSV Wallet`}
+              width={180}
+              height={180}
+              className="rounded-input border border-hairline bg-white p-2"
+            />
+            <span className="text-xs text-muted-foreground">
+              {onPhone ? 'Or scan from another phone with BSV Wallet' : 'Scan with BSV Wallet to claim'}
+            </span>
+          </div>
           <p className="w-full text-center text-xs leading-relaxed text-muted-foreground">
-            Make sure BSV Wallet is on Teratestnet, and stay in it for a couple of seconds after
-            approving while the coins arrive.
+            Set BSV Wallet to <span className="font-semibold text-net">{networkName}</span> first, and stay in it
+            for a couple of seconds after approving while the coins arrive.
           </p>
-          <DownloadHint />
-          {pasteLink}
         </div>
-      )}
-
-      {view.state === 'claiming' && (
-        <div className="flex flex-col gap-4">
-          <InfoBand pulse="dot">BSV Wallet connected. Sending {fmt(payoutSats)} sats to it…</InfoBand>
-          <p className="text-center text-xs text-muted-foreground">Keep BSV Wallet open until it shows the coins.</p>
-        </div>
-      )}
-
-      {view.state === 'done' && (
-        <Success
-          amount={view.amount ?? payoutSats}
-          note={view.redelivered ? 'This was your earlier payout, now delivered.' : undefined}
-          onTrack={() => view.txid && onTrack(view.txid)}
-        />
       )}
 
       {view.state === 'error' && (
-        <div className="flex flex-col items-start gap-4">
+        <div className="flex flex-col items-start gap-3">
           <ErrorBand>
             {view.error ?? 'Something went wrong.'}
             {view.txid && (
@@ -336,81 +349,105 @@ function MobileClaim({
           <button type="button" onClick={start} className={`${SECONDARY_CTA} hover:bg-band`}>
             Try again
           </button>
-          {pasteLink}
         </div>
       )}
 
       {view.state === 'expired' && (
-        <div className="flex flex-col items-start gap-4">
+        <div className="flex flex-col items-start gap-3">
           <ErrorBand>The claim code expired before BSV Wallet connected.</ErrorBand>
           <button type="button" onClick={start} className={`${SECONDARY_CTA} hover:bg-band`}>
             Show a new code
           </button>
-          {pasteLink}
         </div>
       )}
+
+      {pasteLink}
     </div>
   )
 }
 
-/** Wallet tab of the faucet card — one-click BRC-100 claim, internalized as Atomic BEEF. */
+/**
+ * Wallet tab of the faucet card — one-click BRC-100 claim on the selected network, internalized
+ * as Atomic BEEF. Detection is the wallet's getNetwork: no answer means no wallet (show
+ * downloads); 'mainnet' blocks the claim; 'testnet' could be any test network, so the picker decides.
+ */
 export function WalletPanel({
   siteKey,
   payoutSats,
   onUsePaste,
   onTrack,
+  onBusy,
 }: {
   siteKey: string
   payoutSats: number
   onUsePaste: () => void
   onTrack: (txid: string) => void
+  onBusy: (busy: boolean) => void
 }) {
+  const { network } = useNetwork()
+  const networkName = NETWORKS[network].name
   const wallet = useRef<WalletClient | null>(null)
   const [phase, setPhase] = useState<Phase>('detecting')
+  const [walletNetwork, setWalletNetwork] = useState<'mainnet' | 'testnet' | null>(null)
   const [token, setToken] = useState('')
   const [error, setError] = useState('')
-  const [result, setResult] = useState<{ txid: string; amount: number } | null>(null)
-  const [networkWarning, setNetworkWarning] = useState('')
-  const [networkOk, setNetworkOk] = useState(false)
+  const [result, setResult] = useState<{ txid: string; amount: number; network: NetworkId } | null>(null)
 
   const onMobileUnavailable = useCallback(() => setPhase('unavailable'), [])
+  useEffect(() => onBusy(phase === 'claiming'), [phase, onBusy])
 
-  // On load: resume a mobile claim from earlier in this tab, else detect a local BRC-100 wallet,
-  // else claim with a mobile wallet. WalletClient('auto') is lazy (safe to construct), but its
-  // first call has no built-in connect timeout — so probe getVersion() inside a Promise.race.
+  // A finished claim belongs to the network it was made on: switching networks goes back to idle.
+  const [shownNetwork, setShownNetwork] = useState(network)
+  if (shownNetwork !== network) {
+    setShownNetwork(network)
+    if (phase === 'success' || phase === 'error') setPhase('idle')
+  }
+
+  /** Ask a local BRC-100 wallet which network it's on; null when no wallet answers in time. */
+  const probe = useCallback(async (): Promise<{ w: WalletClient; net: 'mainnet' | 'testnet' } | null> => {
+    // WalletClient('auto') is lazy (safe to construct), but its first call has no built-in
+    // connect timeout — so race it.
+    const w = new WalletClient('auto')
+    const net = await Promise.race([
+      w.getNetwork({}).then(({ network }) => network),
+      new Promise<null>((r) => setTimeout(() => r(null), DETECT_TIMEOUT_MS)),
+    ]).catch(() => null)
+    return net ? { w, net } : null
+  }, [])
+
+  // On load: resume a mobile claim from earlier in this tab, else detect a local wallet, else go to
+  // the no-wallet panel.
   useEffect(() => {
     let cancelled = false
-    const w = new WalletClient('auto')
     ;(async () => {
       if (loadPendingClaim()) return setPhase('mobile')
-      const detected = await Promise.race([
-        w.getVersion().then(() => true),
-        new Promise<boolean>((r) => setTimeout(() => r(false), 1500)),
-      ]).catch(() => false)
+      const found = await probe()
       if (cancelled) return
-      if (!detected) return setPhase('mobile')
-      wallet.current = w
+      if (!found) return setPhase('mobile')
+      wallet.current = found.w
+      setWalletNetwork(found.net)
       setPhase('idle')
-      // A teratestnet wallet reports 'testnet'; only 'mainnet' is a real mismatch worth flagging.
-      w.getNetwork()
-        .then(({ network }) => {
-          if (cancelled) return
-          if (network === 'mainnet') {
-            setNetworkWarning("Your wallet is on mainnet. Switch it to Teratestnet before claiming, or these coins won't appear.")
-          } else {
-            setNetworkOk(true)
-          }
-        })
-        .catch(() => {})
     })()
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [probe])
+
+  /** After the visitor switches their wallet off mainnet: ask it again. */
+  const [rechecking, setRechecking] = useState(false)
+  async function recheck() {
+    setRechecking(true)
+    const found = await probe()
+    setRechecking(false)
+    if (!found) return
+    wallet.current = found.w
+    setWalletNetwork(found.net)
+  }
 
   async function claim() {
     const w = wallet.current
     if (!w) return
+    const claimNetwork = network
     setPhase('claiming')
     setError('')
     setResult(null)
@@ -419,15 +456,15 @@ export function WalletPanel({
       const res = await fetch('/api/claim/wallet', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ identityKey, captchaToken: token }),
+        body: JSON.stringify({ identityKey, network: claimNetwork, captchaToken: token }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Request failed')
       // From here the payout is already broadcast — keep its txid so a failed accept is traceable.
-      setResult({ txid: json.txid, amount: json.amount })
+      setResult({ txid: json.txid, amount: json.amount, network: claimNetwork })
       await w.internalizeAction({
         tx: Utils.toArray(json.atomicBEEF, 'hex'), // hex -> number[]; a raw hex string fails Beef.fromBinary
-        description: 'Teratestnet faucet payout', // required, >= 5 chars
+        description: `${NETWORKS[claimNetwork].name} faucet payout`, // required, >= 5 chars
         labels: ['faucet'],
         outputs: [
           {
@@ -451,99 +488,89 @@ export function WalletPanel({
   if (phase === 'mobile') {
     return (
       <MobileClaim
+        key={network}
+        network={network}
         payoutSats={payoutSats}
         onUnavailable={onMobileUnavailable}
         onUsePaste={onUsePaste}
         onTrack={onTrack}
+        onBusy={onBusy}
+      />
+    )
+  }
+
+  if (phase === 'detecting') return <InfoBand>Looking for a BRC-100 wallet…</InfoBand>
+
+  if (phase === 'unavailable') {
+    return (
+      <div className="flex flex-col gap-4">
+        <GetAWallet />
+        <button type="button" onClick={onUsePaste} className="self-center text-[13px] font-medium text-link">
+          Paste an address instead
+        </button>
+      </div>
+    )
+  }
+
+  if (phase === 'success' && result) {
+    return (
+      <Success
+        amount={result.amount}
+        network={result.network}
+        onTrack={() => onTrack(result.txid)}
+        onAgain={() => setPhase('idle')}
       />
     )
   }
 
   const busy = phase === 'claiming'
+  const onMainnet = walletNetwork === 'mainnet'
 
   return (
-    <div>
-      <Stepper states={STEP_MAP[phase]} />
-
-      {phase === 'detecting' && (
-        <div className="flex flex-col gap-3">
-          <InfoBand>Looking for a BRC-100 wallet…</InfoBand>
-          <DownloadHint />
-        </div>
-      )}
-
-      {phase === 'unavailable' && (
-        <div className="flex flex-col items-start gap-4">
-          <ErrorBand>No BRC-100 wallet detected.</ErrorBand>
-          <DownloadHint />
-          <button type="button" onClick={onUsePaste} className={`${SECONDARY_CTA} hover:bg-band`}>
-            Paste an address instead
+    <div className="flex flex-col gap-3.5">
+      {phase === 'idle' && onMainnet && (
+        <WarnBand>
+          Your wallet is on <span className="font-semibold">mainnet</span>. Switch it to {networkName}, then{' '}
+          <button type="button" onClick={recheck} disabled={rechecking} className="font-semibold text-link">
+            {rechecking ? 'checking…' : 'check again'}
           </button>
+          .
+        </WarnBand>
+      )}
+
+      {phase === 'idle' && !onMainnet && (
+        <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
+          <CheckIcon size={15} className="flex-none text-pos" />
+          <span>
+            Wallet connected. Check it&apos;s set to <span className="font-semibold text-net">{networkName}</span>.
+          </span>
         </div>
       )}
 
-      {(phase === 'idle' || phase === 'claiming' || phase === 'error') && (
-        <div className="flex flex-col gap-4">
-          {phase === 'idle' && networkOk && (
-            <div className="flex items-start gap-2.5 rounded-input border border-pos bg-pos-bg p-3">
-              <CheckIcon size={16} className="mt-[1px] flex-none text-pos" />
-              <span className="text-[13px] leading-snug text-foreground">
-                Your wallet is connected and on Teratestnet.
-              </span>
-            </div>
+      {phase === 'claiming' && <InfoBand pulse="dot">Approve the request in your wallet…</InfoBand>}
+
+      {phase === 'error' && (
+        <ErrorBand>
+          {result ? `The payout was sent, but your wallet didn't accept it: ${error}` : error}
+          {result && (
+            <>
+              {' '}
+              <button type="button" onClick={() => onTrack(result.txid)} className="font-medium text-link">
+                Track transaction
+              </button>
+            </>
           )}
-
-          {phase === 'idle' && networkWarning && (
-            <div
-              className="flex items-start gap-2.5 rounded-input p-3"
-              style={{ background: 'var(--warn-bg)', border: '1px solid var(--warn-bd)' }}
-            >
-              <WarningIcon size={16} style={{ color: 'var(--warn-icon)', flex: 'none', marginTop: 1 }} />
-              <span className="text-[13px] leading-snug text-foreground">{networkWarning}</span>
-            </div>
-          )}
-
-          {phase === 'claiming' && <InfoBand pulse="dot">Approve the request in your wallet…</InfoBand>}
-
-          {phase === 'error' && (
-            <ErrorBand>
-              {result ? `The payout was sent, but your wallet didn't accept it: ${error}` : error}
-              {result && (
-                <>
-                  {' '}
-                  <button type="button" onClick={() => onTrack(result.txid)} className="font-medium text-link">
-                    Track transaction
-                  </button>
-                </>
-              )}
-            </ErrorBand>
-          )}
-
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            We&apos;ll pay a BRC-29 output straight to your identity key, internalized as Atomic BEEF
-            and <span className="font-semibold text-foreground">spendable instantly</span>.
-          </p>
-
-          {/* TODO: re-enable Turnstile — and restore `!token` in the button's disabled below. */}
-          {/* {(phase === 'idle' || phase === 'error') && <TurnstileWidget siteKey={siteKey} onToken={setToken} />} */}
-
-          <button
-            type="button"
-            onClick={claim}
-            disabled={busy}
-            className={`${PRIMARY_CTA} shine-loop`}
-          >
-            {busy ? 'Claiming…' : `Claim ${fmt(payoutSats)} sats`}
-            {!busy && <ArrowRightIcon size={18} />}
-          </button>
-
-          <p className="text-center text-xs text-muted-foreground">
-            No address to type, no key to paste, ~{tbsv(payoutSats)} tBSV
-          </p>
-        </div>
+        </ErrorBand>
       )}
 
-      {phase === 'success' && result && <Success amount={result.amount} onTrack={() => onTrack(result.txid)} />}
+      {/* TODO: re-enable Turnstile — and restore `!token` in the button's disabled below. */}
+      {/* {(phase === 'idle' || phase === 'error') && <TurnstileWidget siteKey={siteKey} onToken={setToken} />} */}
+
+      <button type="button" onClick={claim} disabled={busy || onMainnet} className={`${PRIMARY_CTA} shine-loop`}>
+        {busy ? <BusyLabel>Claiming…</BusyLabel> : <ClaimLabel payoutSats={payoutSats} networkName={networkName} />}
+      </button>
+
+      <p className="label">Atomic BEEF · Spendable on receipt · Nothing to paste</p>
     </div>
   )
 }

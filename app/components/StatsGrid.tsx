@@ -1,6 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useFaucetBalanceSats } from './FaucetBalance'
+import { useNetwork } from './NetworkProvider'
+import { NETWORKS } from '@/lib/networks'
 
 type Stats = { payoutCount: number; totalSatsDisbursed: number }
 
@@ -32,32 +34,38 @@ function useFaucetStats(): Stats | undefined {
   return stats
 }
 
-function StatCard({
+/** One solid block of the readout: mono label top, oversized tabular figure, context line. */
+function Readout({
   label,
   value,
   sub,
+  panel,
 }: {
   label: string
   value: React.ReactNode
   sub: React.ReactNode
+  panel: string
 }) {
   return (
-    <div className="lift rounded-panel border border-hairline bg-card p-5">
-      <div className="mb-3 inline-block rounded-md bg-accent px-2 py-[3px] text-[11px] font-medium text-accent-foreground">
-        {label}
+    <div className={`${panel} flex min-h-[200px] flex-col justify-between gap-8 rounded-card p-6 transition-colors`}>
+      <div className="label">{label}</div>
+      <div>
+        <div className="tnum font-display text-[clamp(36px,4.4vw,56px)] font-semibold leading-none tracking-[-0.045em] text-foreground">
+          {value}
+        </div>
+        <div className="mt-3 text-[14px] text-muted-foreground">{sub}</div>
       </div>
-      <div className="tnum font-display text-[27px] font-semibold text-foreground">{value}</div>
-      <div className="mt-1.5 text-[11.5px]">{sub}</div>
     </div>
   )
 }
 
 /**
- * Sats dispensed + Total payouts are live from /api/stats (broadcast Claim rows). Treasury
- * balance is live from /api/balance. Network throughput is an intentionally static marketing figure.
+ * Sats dispensed + Total payouts are live from /api/stats (broadcast Claim rows, all networks).
+ * Treasury balance is live from /api/balance for the selected network, on a network-coloured block.
  */
-export function StatsGrid() {
-  const sats = useFaucetBalanceSats()
+export function StatsGrid({ payoutSats }: { payoutSats: number }) {
+  const { network } = useNetwork()
+  const sats = useFaucetBalanceSats(network)
   const stats = useFaucetStats()
 
   const treasuryBsv =
@@ -70,27 +78,11 @@ export function StatsGrid() {
   const payouts = stats === undefined ? '…' : stats.payoutCount.toLocaleString()
 
   return (
-    <div className="grid grid-cols-1 gap-4 min-[620px]:grid-cols-2 min-[880px]:grid-cols-4">
-      <StatCard
-        label="Sats dispensed"
-        value={dispensed}
-        sub={<span className="font-medium text-pos">▲ live</span>}
-      />
-      <StatCard
-        label="Total payouts"
-        value={payouts}
-        sub={<span className="text-muted-foreground">across all subjects</span>}
-      />
-      <StatCard
-        label="Treasury balance"
-        value={treasuryBsv}
-        sub={<span className="text-muted-foreground">BSV · refilled nightly</span>}
-      />
-      <StatCard
-        label="Network throughput"
-        value="1.04M tps"
-        sub={<span className="text-muted-foreground">peak on Teranode testnet</span>}
-      />
+    <div data-network={network} className="grid grid-cols-1 gap-2 min-[620px]:grid-cols-2 min-[1000px]:grid-cols-4">
+      <Readout panel="on-ink" label="Dispensed" value={dispensed} sub="sat, all networks" />
+      <Readout panel="bg-card" label="Payouts" value={payouts} sub="lifetime, all networks" />
+      <Readout panel="on-net" label={`Treasury · ${NETWORKS[network].name}`} value={treasuryBsv} sub="BSV available" />
+      <Readout panel="bg-muted" label="Per claim" value={payoutSats.toLocaleString()} sub="sat, spendable on receipt" />
     </div>
   )
 }

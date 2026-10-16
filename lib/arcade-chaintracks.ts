@@ -1,6 +1,9 @@
 // Minimal ChaintracksClientApi implementation backed by arcade's /chaintracks/v2 routes.
 // Only the methods the toolbox SPV path calls are implemented; the rest throw.
 
+/** @bsv/wallet-toolbox chains this faucet runs a wallet on. */
+export type Chain = 'main' | 'test' | 'ttn' | 'tstn'
+
 export interface BlockHeaderLike {
   version: number
   previousHash: string
@@ -13,7 +16,10 @@ export interface BlockHeaderLike {
 }
 
 export class ArcadeChaintracks {
-  constructor(private readonly chain: 'main' | 'test', private readonly baseUrl: string) {}
+  constructor(
+    readonly chain: Chain,
+    private readonly baseUrl: string,
+  ) {}
 
   private async getJson<T>(path: string): Promise<T | undefined> {
     const resp = await fetch(`${this.baseUrl}${path}`)
@@ -21,7 +27,7 @@ export class ArcadeChaintracks {
     return (await resp.json()) as T
   }
 
-  async getChain(): Promise<'main' | 'test'> {
+  async getChain(): Promise<Chain> {
     return this.chain
   }
 

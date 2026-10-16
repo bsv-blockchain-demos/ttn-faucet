@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { guard, hashIp } from '@/lib/guard'
+import { resolveNetwork } from '@/lib/config'
 import { claimToWallet } from '@/lib/faucet'
 import { payToWallet } from '@/lib/wallet'
 
@@ -13,6 +14,8 @@ const CORS = {
 const BodySchema = z.object({
   identityKey: z.string().regex(/^0[23][0-9a-fA-F]{64}$/, 'Invalid identity key'),
   amount: z.number().int().positive().optional(),
+  /** lib/networks.ts id; omitted = the faucet's default network. */
+  network: z.string().optional(),
   // Turnstile temporarily disabled (see lib/guard.ts); token is unused server-side, so accept "" too.
   captchaToken: z.string().optional(),
 })
@@ -30,6 +33,9 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid request body', code: 'bad_request' }, { status: 400, headers: CORS })
   }
+  const net = resolveNetwork(parsed.data.network)
+  if (!net.ok) return NextResponse.json({ error: net.error, code: net.code }, { status: net.status, headers: CORS })
+  const { network } = net
   const ip = clientIp(req)
   const apiKey = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || undefined
 
@@ -43,12 +49,13 @@ export async function POST(req: Request) {
   try {
     const result = await claimToWallet(
       {
+        network,
         identityKey: parsed.data.identityKey,
         amountSats: parsed.data.amount,
         ipHash: g.apiKeyId ? `apikey:${g.apiKeyId}` : hashIp(ip),
         apiKeyId: g.apiKeyId,
       },
-      { payWallet: payToWallet },
+      { payWallet: (identityKey, sats) => payToWallet(network, identityKey, sats) },
     )
     return NextResponse.json(
       {
@@ -59,7 +66,7 @@ export async function POST(req: Request) {
         senderIdentityKey: result.senderIdentityKey,
         outputIndex: result.outputIndex,
         amount: result.amountSats,
-        network: 'teratestnet',
+        network,
       },
       { status: 200, headers: CORS },
     )

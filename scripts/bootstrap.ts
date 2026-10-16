@@ -1,12 +1,22 @@
 import 'dotenv/config'
 import { readFileSync } from 'node:fs'
 import { PrivateKey, P2PKH, Transaction, MerklePath, SatoshisPerKilobyte, LockingScript } from '@bsv/sdk'
-import { getConfig } from '../lib/config'
+import { getConfig, networkConfig, resolveNetwork } from '../lib/config'
+import { NETWORKS } from '../lib/networks'
 import { deriveBrc29, newDerivationValues } from '../lib/brc29'
 import { broadcastRawTx, getTxStatus } from '../lib/arcade'
 import { getWallet } from '../lib/wallet'
 
 interface SeedUtxo { txid: string; vout: number; satoshis: number; sourceRawTxHex: string }
+
+/** The network to fund: FAUCET_NETWORK (a lib/networks.ts id), else the faucet's default network. */
+function scriptNetwork() {
+  const net = resolveNetwork(process.env.FAUCET_NETWORK)
+  if (!net.ok) throw new Error(net.error)
+  const n = networkConfig(net.network)
+  if (!n.treasuryWif) throw new Error(`Set ${NETWORKS[n.network].envPrefix}_TREASURY_WIF for ${n.network}`)
+  return { ...n, treasuryWif: n.treasuryWif }
+}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
@@ -26,8 +36,10 @@ async function waitForProof(arcadeUrl: string, txid: string, timeoutMs = 30 * 60
 
 async function main() {
   const cfg = getConfig()
-  const { wallet, identityKey } = await getWallet()
-  const flatKey = PrivateKey.fromWif(cfg.TREASURY_WIF)
+  const net = scriptNetwork()
+  console.log(`Bootstrapping the ${net.network} faucet wallet`)
+  const { wallet, identityKey } = await getWallet(net.network)
+  const flatKey = PrivateKey.fromWif(net.treasuryWif)
   const senderIdentityKeyHex = flatKey.toPublicKey().toString()
 
   const seedUtxos: SeedUtxo[] = JSON.parse(readFileSync(process.env.TREASURY_UTXOS_FILE ?? './treasury-utxos.json', 'utf8'))
@@ -68,11 +80,11 @@ async function main() {
   console.log('Sweep txid:', txid)
 
   // arcade-v2 POST /tx requires extended format (EF); inputs carry source data so toHexEF() works.
-  const b = await broadcastRawTx(cfg.ARCADE_URL, tx.toHexEF())
+  const b = await broadcastRawTx(net.arcadeUrl, tx.toHexEF())
   if (!b.ok) throw new Error(`broadcast failed: ${JSON.stringify(b.raw)}`)
   console.log('Broadcast accepted. Waiting for it to be mined + proven by arcade...')
 
-  const merklePathHex = await waitForProof(cfg.ARCADE_URL, txid)
+  const merklePathHex = await waitForProof(net.arcadeUrl, txid)
   tx.merklePath = MerklePath.fromHex(merklePathHex)
   const atomicBEEF = tx.toAtomicBEEF()
 

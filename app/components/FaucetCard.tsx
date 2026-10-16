@@ -3,61 +3,85 @@ import { useState } from 'react'
 import { WalletPanel } from './WalletClaim'
 import { AddressPanel } from './ClaimForm'
 import { TxStatusModal } from './TxStatusModal'
+import { NetworkPicker } from './NetworkPicker'
+import { useNetwork } from './NetworkProvider'
+import type { NetworkId } from '@/lib/networks'
 
 type Tab = 'wallet' | 'address'
 
-/** The hero faucet card: brand-native chrome, Wallet / Paste tabs, one claim flow each. */
+/**
+ * The faucet card: pick a network, then claim with a BRC-100 wallet (default) or to an address.
+ * The whole card carries data-network + .net-theme, so its colours follow the pick.
+ */
 export function FaucetCard({ siteKey, payoutSats }: { siteKey: string; payoutSats: number }) {
+  const { network } = useNetwork()
   const [tab, setTab] = useState<Tab>('wallet')
-  const [trackTxid, setTrackTxid] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [track, setTrack] = useState<{ txid: string; network: NetworkId } | null>(null)
+  const onTrack = (txid: string) => setTrack({ txid, network })
 
   const tabCls = (active: boolean) =>
-    `flex h-[42px] flex-1 items-center justify-center rounded-pill px-2 text-center text-[13px] font-semibold leading-tight transition ${
-      active ? 'bg-primary text-primary-foreground shadow-card' : 'text-muted-foreground'
+    `flex h-9 flex-1 items-center justify-center rounded-input border text-[13px] font-medium transition-colors disabled:cursor-not-allowed ${
+      active ? 'border-net bg-card text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
     }`
 
   return (
-    <div className="overflow-hidden rounded-card border border-hairline bg-card shadow-card">
-      {/* Card header */}
-      <div className="flex items-center justify-between border-b border-hairline px-6 py-5">
-        <div className="leading-tight">
-          <div className="font-display text-[17px] font-semibold text-foreground">Teratestnet Coins</div>
-          <div className="text-[12.5px] text-muted-foreground">{payoutSats.toLocaleString()} sats per request</div>
-        </div>
-        <span className="inline-flex items-center gap-1.5 rounded-pill bg-pos-bg px-3 py-[5px] text-xs font-medium text-pos">
-          <span className="dotpulse h-[7px] w-[7px] rounded-full bg-pos" />
-          Live
-        </span>
-      </div>
+    <div
+      data-network={network}
+      className="net-theme overflow-hidden rounded-card bg-card transition-colors"
+    >
+      <div className="flex flex-col gap-5 p-5 min-[480px]:p-7">
+        <NetworkPicker locked={busy} />
 
-      <div className="px-6 pt-5">
-        {/* Segmented tabs */}
-        <div className="flex gap-[7px] rounded-pill bg-muted p-[5px]">
-          <button type="button" onClick={() => setTab('wallet')} className={tabCls(tab === 'wallet')}>
-            Auto: BRC-100 Wallet
+        <div>
+          <div className="label mb-2">02 · Method</div>
+          <div className="flex gap-[3px] rounded-panel bg-muted p-[3px]" role="tablist" aria-label="Claim method">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'wallet'}
+            disabled={busy}
+            onClick={() => setTab('wallet')}
+            className={tabCls(tab === 'wallet')}
+          >
+            BRC-100 wallet
           </button>
-          <button type="button" onClick={() => setTab('address')} className={tabCls(tab === 'address')}>
-            Manual: Legacy Address
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'address'}
+            disabled={busy}
+            onClick={() => setTab('address')}
+            className={tabCls(tab === 'address')}
+          >
+            Paste an address
           </button>
+          </div>
         </div>
-      </div>
 
-      <div className="px-6 pb-6 pt-[22px]">
         {tab === 'wallet' && (
           <WalletPanel
             siteKey={siteKey}
             payoutSats={payoutSats}
             onUsePaste={() => setTab('address')}
-            onTrack={setTrackTxid}
+            onTrack={onTrack}
+            onBusy={setBusy}
           />
         )}
 
         {tab === 'address' && (
-          <AddressPanel siteKey={siteKey} payoutSats={payoutSats} onTrack={setTrackTxid} />
+          <AddressPanel siteKey={siteKey} payoutSats={payoutSats} onTrack={onTrack} onBusy={setBusy} />
         )}
       </div>
 
-      {trackTxid && <TxStatusModal key={trackTxid} txid={trackTxid} onClose={() => setTrackTxid(null)} />}
+      {track && (
+        <TxStatusModal
+          key={track.txid}
+          txid={track.txid}
+          network={track.network}
+          onClose={() => setTrack(null)}
+        />
+      )}
     </div>
   )
 }

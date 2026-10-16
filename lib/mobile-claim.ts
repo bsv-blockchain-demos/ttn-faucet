@@ -1,6 +1,7 @@
 import type { GuardResult } from './guard'
 import type { WalletClaimResult } from './faucet'
 import { RelayError, type RelaySession, type RelayStatus } from './relay-api'
+import { NETWORKS, type NetworkId } from './networks'
 
 /**
  * Mobile-wallet claims over @bsv/wallet-relay, run by the faucet server the moment the phone
@@ -40,13 +41,13 @@ export interface MobileClaimDeps {
   getStatus: (sessionId: string) => Promise<RelayStatus>
   call: <T>(session: RelaySession, method: string, params: unknown) => Promise<T>
   guard: (ip: string) => Promise<GuardResult>
-  pay: (identityKey: string, ip: string) => Promise<WalletClaimResult>
-  findUndelivered: (identityKey: string) => Promise<WalletClaimResult | null>
+  pay: (network: NetworkId, identityKey: string, ip: string) => Promise<WalletClaimResult>
+  findUndelivered: (network: NetworkId, identityKey: string) => Promise<WalletClaimResult | null>
   /**
    * Current Atomic BEEF (hex) for an earlier payout, rebuilt from the faucet wallet: ancestors
    * proven since the payout drop out, so a redelivery is much smaller than the stored copy.
    */
-  refreshBeef?: (txid: string) => Promise<string | null>
+  refreshBeef?: (network: NetworkId, txid: string) => Promise<string | null>
   markDelivered: (txid: string) => Promise<void>
   hasPayoutInFlight: (identityKey: string) => Promise<boolean>
   now?: () => number
@@ -55,6 +56,7 @@ export interface MobileClaimDeps {
 
 interface Entry {
   session: RelaySession
+  network: NetworkId
   ip: string
   createdAt: number
   view: MobileClaimView
@@ -110,10 +112,10 @@ function deliveryFailure(err: unknown): ClaimFailure {
   return new ClaimFailure('undelivered', MESSAGES.deliveryFailed(message(err)))
 }
 
-function internalizeArgs(p: WalletClaimResult) {
+function internalizeArgs(network: NetworkId, p: WalletClaimResult) {
   return {
     tx: Array.from(Buffer.from(p.atomicBEEF, 'hex')),
-    description: 'Teratestnet faucet payout',
+    description: `${NETWORKS[network].name} faucet payout`,
     labels: ['faucet'],
     outputs: [
       {
@@ -137,13 +139,13 @@ export class MobileClaims {
     this.now = deps.now ?? Date.now
   }
 
-  /** Open a relay pairing session for a claim. The guard runs at connect time, not here. */
-  async create(ip: string): Promise<NewMobileClaim> {
+  /** Open a relay pairing session for a claim on `network`. The guard runs at connect time, not here. */
+  async create(ip: string, network: NetworkId): Promise<NewMobileClaim> {
     let waiting = 0
     for (const e of this.entries.values()) if (e.view.state === 'waiting') waiting++
     if (waiting >= MAX_WAITING) throw new RelayError('Too many mobile claims in progress. Try again shortly.', 429)
     const session = await this.deps.createSession()
-    this.entries.set(session.sessionId, { session, ip, createdAt: this.now(), view: { state: 'waiting' } })
+    this.entries.set(session.sessionId, { session, network, ip, createdAt: this.now(), view: { state: 'waiting' } })
     return { sessionId: session.sessionId, qrDataUrl: session.qrDataUrl, pairingUri: session.pairingUri }
   }
 
@@ -202,10 +204,10 @@ export class MobileClaims {
       }
 
       // 2. Redeliver an earlier payout the wallet never accepted, else pay a new one.
-      paid = await deps.findUndelivered(identityKey)
+      paid = await deps.findUndelivered(entry.network, identityKey)
       redelivered = paid !== null
       if (paid && deps.refreshBeef) {
-        const fresh = await deps.refreshBeef(paid.txid).catch(() => null)
+        const fresh = await deps.refreshBeef(entry.network, paid.txid).catch(() => null)
         if (fresh) paid = { ...paid, atomicBEEF: fresh }
       }
       if (!paid) {
@@ -214,13 +216,13 @@ export class MobileClaims {
         if (!g.ok) {
           throw new ClaimFailure(g.code === 'rate_limit' ? 'rate_limit' : 'failed', `${g.message}. No coins were sent.`)
         }
-        paid = await deps.pay(identityKey, entry.ip)
+        paid = await deps.pay(entry.network, identityKey, entry.ip)
       }
 
       // 3. Hand the payment to the wallet. internalizeAction tolerates a repeat, so a redelivery of
       //    something the phone did accept (but whose reply was lost) is harmless.
       try {
-        await deps.call(entry.session, 'internalizeAction', internalizeArgs(paid))
+        await deps.call(entry.session, 'internalizeAction', internalizeArgs(entry.network, paid))
       } catch (err) {
         deps.log?.(
           `[mobile-claim] internalizeAction failed session=${sessionId} txid=${paid.txid} beefBytes=${paid.atomicBEEF.length / 2}: ${message(err)}`,

@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 vi.mock('@/lib/guard', () => ({ guard: vi.fn(), hashIp: (ip: string) => `hash:${ip}` }))
 vi.mock('@/lib/faucet', () => ({ claimToAddress: vi.fn() }))
 vi.mock('@/lib/wallet', () => ({ payToAddress: vi.fn() }))
+vi.mock('@/lib/config', async (orig) => (await import('@/lib/test-config')).mockConfigModule(await orig()))
 
 import { POST } from './route'
 import { guard } from '@/lib/guard'
@@ -46,6 +47,29 @@ describe('POST /api/claim', () => {
     const res = await POST(req({ address: ADDR, captchaToken: 't' }))
     expect(res.status).toBe(200)
     const json = await res.json()
-    expect(json).toMatchObject({ txid: 'tx1', ef: '00ef', network: 'teratestnet' })
+    expect(json).toMatchObject({ txid: 'tx1', ef: '00ef', network: 'testnet' })
+  })
+
+  it('pays on the requested network and reports it', async () => {
+    ;(guard as any).mockResolvedValue({ ok: true, subject: 's' })
+    ;(claimToAddress as any).mockResolvedValue({ txid: 'tx1', ef: '00ef', amountSats: 100 })
+    const res = await POST(req({ address: ADDR, network: 'ttn' }))
+    expect(res.status).toBe(200)
+    expect((await res.json()).network).toBe('ttn')
+    expect((claimToAddress as any).mock.calls[0][0]).toMatchObject({ network: 'ttn' })
+  })
+
+  it('400 for an unknown network, before paying', async () => {
+    const res = await POST(req({ address: ADDR, network: 'mainnet' }))
+    expect(res.status).toBe(400)
+    expect((await res.json()).code).toBe('bad_request')
+    expect(claimToAddress).not.toHaveBeenCalled()
+  })
+
+  it('400 network_unavailable for a network this faucet does not serve', async () => {
+    const res = await POST(req({ address: ADDR, network: 'tstn' }))
+    expect(res.status).toBe(400)
+    expect((await res.json()).code).toBe('network_unavailable')
+    expect(guard).not.toHaveBeenCalled()
   })
 })
