@@ -26,7 +26,7 @@ server wallet, seeded once from a flat treasury key.
 
 ## Stack
 
-Next.js 16 (App Router) · TypeScript · `@bsv/sdk` 1.10.4 · `@bsv/wallet-toolbox` 1.8.2 ·
+Next.js 16 (App Router) · TypeScript · `@bsv/sdk` 3.2.1 · `@bsv/wallet-toolbox` 2.14.9 ·
 `knex` + `sqlite3` (toolbox storage) · Prisma 7 + SQLite (policy DB) · Zod · Tailwind ·
 Vitest · pnpm. Use Node.js 22.12+ and pnpm 10.31.0, matching the package requirements and Docker toolchain.
 

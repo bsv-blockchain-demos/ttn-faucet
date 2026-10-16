@@ -13,8 +13,11 @@ import {
   Beef,
   Utils,
   Random,
+  type AtomicBEEF,
 } from '@bsv/sdk'
 import { knex as makeKnex } from 'knex'
+
+type WalletArgs = ConstructorParameters<typeof Wallet>[0]
 import { getConfig, CHAIN } from './config'
 import { deriveBrc29, newDerivationValues } from './brc29'
 import { broadcastRawTx } from './arcade'
@@ -98,7 +101,8 @@ async function buildWallet() {
     service: (txid: string) => arcadeMerklePath(cfg.ARCADE_URL, chaintracks, txid),
   })
 
-  const wallet = new Wallet({ chain: CHAIN, keyDeriver, storage, services })
+  // The toolbox (CJS) types @bsv/sdk from its cjs build: same runtime class, separate declarations.
+  const wallet = new Wallet({ chain: CHAIN, keyDeriver: keyDeriver as unknown as WalletArgs['keyDeriver'], storage, services })
   // Record merkle proofs as blocks arrive, so payout BEEFs stay small (see lib/proofs.ts).
   startProofCompletion(async () => ({ chain: CHAIN, storage, services, chaintracks }))
   return { wallet, identityKey, services, storage, chaintracks }
@@ -115,7 +119,7 @@ async function signAndBroadcast(
   lockingScriptHex: string,
   satoshis: number,
   description: string,
-): Promise<{ txid: string; atomicBEEF: number[] }> {
+): Promise<{ txid: string; atomicBEEF: AtomicBEEF }> {
   try {
     return await signAndBroadcastOnce(lockingScriptHex, satoshis, description)
   } catch (e) {
@@ -135,7 +139,7 @@ async function signAndBroadcastOnce(
   lockingScriptHex: string,
   satoshis: number,
   description: string,
-): Promise<{ txid: string; atomicBEEF: number[] }> {
+): Promise<{ txid: string; atomicBEEF: AtomicBEEF }> {
   const { wallet } = await getWallet()
 
   const created = await wallet.createAction({

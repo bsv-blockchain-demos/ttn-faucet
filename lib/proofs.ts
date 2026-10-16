@@ -1,10 +1,17 @@
 import { MerklePath } from '@bsv/sdk'
 import { Monitor, type Services, type WalletStorageManager } from '@bsv/wallet-toolbox'
 // Not re-exported from the package root (no "exports" map, so the deep path resolves).
-import { getProofs } from '@bsv/wallet-toolbox/out/src/monitor/tasks/TaskCheckForProofs'
+import { createRequire } from 'node:module'
+import type * as TaskCheckForProofs from '@bsv/wallet-toolbox/out/src/monitor/tasks/TaskCheckForProofs'
 import type { GetMerklePathResult } from '@bsv/wallet-toolbox/out/src/sdk/WalletServices.interfaces'
 import { getTxStatus } from './arcade'
 import type { ArcadeChaintracks } from './arcade-chaintracks'
+
+// The toolbox's deep `out/src/*` exports declare only a `require` condition, so ESM loaders
+// (vitest, tsx) can't import them; require it instead. getProofs isn't on the package root.
+const { getProofs } = createRequire(import.meta.url)(
+  '@bsv/wallet-toolbox/out/src/monitor/tasks/TaskCheckForProofs',
+) as typeof TaskCheckForProofs
 
 /**
  * Merkle proof completion for the faucet's server wallet.
@@ -32,7 +39,8 @@ export async function arcadeMerklePath(
   const merklePath = MerklePath.fromHex(st.merklePath)
   const header = await chaintracks.findHeaderForHeight(merklePath.blockHeight)
   if (!header || header.merkleRoot !== merklePath.computeRoot(txid)) return none
-  return { name: 'arcade', merklePath, header, notes: [] }
+  // The toolbox (CJS) types @bsv/sdk from its cjs build; same runtime class, separate declarations.
+  return { name: 'arcade', merklePath: merklePath as unknown as GetMerklePathResult['merklePath'], header, notes: [] }
 }
 
 /** Statuses of broadcast transactions still waiting for a proof (as TaskCheckForProofs uses). */
@@ -79,7 +87,7 @@ export async function completeProofs(deps: ProofDeps): Promise<{ checked: number
   })
   let proven = 0
   for (let i = 0; i < reqs.length; i += CHUNK) {
-    const r = await getProofs(task, reqs.slice(i, i + CHUNK), 0, false, false, tip - CONFIRMATIONS)
+    const r = await getProofs(task, reqs.slice(i, i + CHUNK), tip - CONFIRMATIONS, 0, false, false)
     proven += r.proven.length
   }
   return { checked: reqs.length, proven }
