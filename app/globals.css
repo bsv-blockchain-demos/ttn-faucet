@@ -18,6 +18,10 @@
   --hairline: rgba(17, 17, 17, 0.12);
   --input-border: rgba(17, 17, 17, 0.2);
   --rule: #111111; /* section rules: full-strength ink */
+  --ink: #111111; /* solid ink panels */
+  --paper: #f4f4f1;
+  --card-fg: #111111; /* text on cards, restored inside coloured panels */
+  --card-muted-fg: #5c5c58;
 
   /* text — ink, graphite */
   --fg: #111111;
@@ -59,6 +63,10 @@
   --hairline: rgba(255, 255, 255, 0.1);
   --input-border: rgba(255, 255, 255, 0.18);
   --rule: #f2f2ef;
+  --ink: #f2f2ef;
+  --paper: #0e0e0f;
+  --card-fg: #f2f2ef;
+  --card-muted-fg: #9d9d98;
 
   --fg: #f2f2ef;
   --muted-fg: #9d9d98;
@@ -138,6 +146,9 @@
    card (CTA, tabs, links, bands, inputs, the status modal) follows the selected network without
    per-component colour logic. Text uses --net directly: ≥ 5:1 on the card in both themes. */
 .net-theme {
+  --fg: var(--card-fg);
+  --muted-fg: var(--card-muted-fg);
+  color: var(--fg);
   --primary: var(--net);
   --primary-fg: var(--net-fg);
   --pshadow: var(--net-shadow);
@@ -151,6 +162,30 @@
   --muted: color-mix(in srgb, var(--net) 7%, var(--card));
   --hairline: color-mix(in srgb, var(--net) 18%, var(--card));
   --ring: color-mix(in srgb, var(--net) 55%, transparent);
+}
+
+/* Solid colour panels. Each flips the text tokens so everything inside (headings, labels, links,
+   borders) reads on the fill; a faucet card inside restores its own (see .net-theme). All text
+   on a fill stays ≥ 4.5:1. */
+.on-net {
+  background: var(--net);
+  --fg: var(--net-fg);
+  --muted-fg: var(--net-fg); /* full ink: amber can't spare any contrast; hierarchy via size/weight */
+  --hairline: color-mix(in srgb, var(--net-fg) 24%, transparent);
+  --link: var(--net-fg);
+  color: var(--fg);
+}
+.on-ink {
+  background: var(--ink);
+  --fg: var(--paper);
+  --muted-fg: color-mix(in srgb, var(--paper) 72%, var(--ink));
+  --hairline: color-mix(in srgb, var(--paper) 18%, transparent);
+  --link: var(--paper);
+  color: var(--fg);
+}
+/* A tinted block inside a panel. */
+.panel-sub {
+  background: color-mix(in srgb, var(--fg) 10%, transparent);
 }
 
 @theme inline {
@@ -239,14 +274,17 @@ body {
   border-color: var(--fg);
 }
 
-/* Monospace micro-label: section indices, field labels, readouts. */
-.label {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted-fg);
+/* Monospace micro-label: section indices, field labels, readouts. In the components layer so a
+   text-* utility can recolour it on a solid panel. */
+@layer components {
+  .label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted-fg);
+  }
 }
 
 /* Links read as links in a monochrome system: hairline underline. */

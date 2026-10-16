@@ -28,12 +28,9 @@ export function FaucetCard({ siteKey, payoutSats }: { siteKey: string; payoutSat
   return (
     <div
       data-network={network}
-      className="net-theme overflow-hidden rounded-card border border-net-bd bg-card shadow-card transition-colors"
+      className="net-theme overflow-hidden rounded-card bg-card transition-colors"
     >
-      {/* Network stripe: the first thing the eye lands on is which network pays out. */}
-      <div className="h-1 bg-net transition-colors" aria-hidden />
-
-      <div className="flex flex-col gap-5 p-5 min-[480px]:p-6">
+      <div className="flex flex-col gap-5 p-5 min-[480px]:p-7">
         <NetworkPicker locked={busy} />
 
         <div>

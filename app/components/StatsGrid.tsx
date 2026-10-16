@@ -34,22 +34,34 @@ function useFaucetStats(): Stats | undefined {
   return stats
 }
 
-/** One cell of the readout strip: mono label, large tabular figure, unit/context line. */
-function Readout({ label, value, sub }: { label: string; value: React.ReactNode; sub: React.ReactNode }) {
+/** One solid block of the readout: mono label top, oversized tabular figure, context line. */
+function Readout({
+  label,
+  value,
+  sub,
+  panel,
+}: {
+  label: string
+  value: React.ReactNode
+  sub: React.ReactNode
+  panel: string
+}) {
   return (
-    <div className="border-t border-hairline py-5 min-[1000px]:px-6 min-[1000px]:first:pl-0 min-[1000px]:[&:not(:first-child)]:border-l">
-      <div className="label mb-4">{label}</div>
-      <div className="tnum font-display text-[32px] font-semibold leading-none tracking-[-0.03em] text-foreground">
-        {value}
+    <div className={`${panel} flex min-h-[200px] flex-col justify-between gap-8 rounded-card p-6 transition-colors`}>
+      <div className="label">{label}</div>
+      <div>
+        <div className="tnum font-display text-[clamp(36px,4.4vw,56px)] font-semibold leading-none tracking-[-0.045em] text-foreground">
+          {value}
+        </div>
+        <div className="mt-3 text-[14px] text-muted-foreground">{sub}</div>
       </div>
-      <div className="mt-2 text-[13px] text-muted-foreground">{sub}</div>
     </div>
   )
 }
 
 /**
  * Sats dispensed + Total payouts are live from /api/stats (broadcast Claim rows, all networks).
- * Treasury balance is live from /api/balance for the selected network.
+ * Treasury balance is live from /api/balance for the selected network, on a network-coloured block.
  */
 export function StatsGrid({ payoutSats }: { payoutSats: number }) {
   const { network } = useNetwork()
@@ -66,19 +78,11 @@ export function StatsGrid({ payoutSats }: { payoutSats: number }) {
   const payouts = stats === undefined ? '…' : stats.payoutCount.toLocaleString()
 
   return (
-    <div className="grid grid-cols-1 border-b border-hairline min-[620px]:grid-cols-2 min-[620px]:gap-x-8 min-[1000px]:ml-[232px] min-[1000px]:grid-cols-4 min-[1000px]:gap-x-0">
-      <Readout label="Dispensed" value={dispensed} sub="sat, all networks" />
-      <Readout label="Payouts" value={payouts} sub="lifetime, all networks" />
-      <Readout
-        label="Treasury"
-        value={treasuryBsv}
-        sub={
-          <span data-network={network}>
-            BSV on <span className="font-medium text-net">{NETWORKS[network].name}</span>
-          </span>
-        }
-      />
-      <Readout label="Per claim" value={payoutSats.toLocaleString()} sub="sat, spendable on receipt" />
+    <div data-network={network} className="grid grid-cols-1 gap-2 min-[620px]:grid-cols-2 min-[1000px]:grid-cols-4">
+      <Readout panel="on-ink" label="Dispensed" value={dispensed} sub="sat, all networks" />
+      <Readout panel="bg-card" label="Payouts" value={payouts} sub="lifetime, all networks" />
+      <Readout panel="on-net" label={`Treasury · ${NETWORKS[network].name}`} value={treasuryBsv} sub="BSV available" />
+      <Readout panel="bg-muted" label="Per claim" value={payoutSats.toLocaleString()} sub="sat, spendable on receipt" />
     </div>
   )
 }
