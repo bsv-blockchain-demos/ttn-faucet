@@ -64,8 +64,8 @@ export default function Home() {
         <NetworkPanel className="on-net transition-colors">
           <header className={`${WRAP} flex h-16 items-center justify-between`}>
             <div className="flex items-center gap-4">
-              <BrandMark height={30} />
-              <span className="h-6 w-px bg-current opacity-40" aria-hidden />
+              <BrandMark className="h-3 min-[480px]:h-[15px]" />
+              <span className="h-5 w-px bg-current opacity-40" aria-hidden />
               <span className="font-display text-[17px] font-semibold tracking-[-0.02em]">Faucet</span>
             </div>
             <div className="flex items-center gap-6">

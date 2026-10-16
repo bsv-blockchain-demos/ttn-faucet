@@ -1,17 +1,16 @@
 /**
- * The BSV Blockchain stacked lockup in one colour: the white PNG is used as a mask over
- * currentColor, so the logo takes the text colour of whatever panel it sits on.
+ * The one-line BSV Blockchain wordmark in one colour: the white PNG is used as a mask over
+ * currentColor, so the logo takes the text colour of whatever panel it sits on. Size it with a
+ * height class; width follows the artwork's aspect ratio.
  */
-export function BrandMark({ height = 24, className = '' }: { height?: number; className?: string }) {
-  // Source is 2173 x 677.
-  const width = Math.round((height * 2173) / 677)
-  const mask = 'url(/brand/bsv-stacked-white.png) center / contain no-repeat'
+export function BrandMark({ className = 'h-4' }: { className?: string }) {
+  const mask = 'url(/brand/bsv-wordmark-white.png) center / contain no-repeat'
   return (
     <span
       role="img"
       aria-label="BSV Blockchain"
       className={`inline-block flex-none bg-current ${className}`}
-      style={{ width, height, mask, WebkitMask: mask }}
+      style={{ aspectRatio: '4255 / 297', mask, WebkitMask: mask }}
     />
   )
 }
