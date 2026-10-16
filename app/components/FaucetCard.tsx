@@ -21,8 +21,8 @@ export function FaucetCard({ siteKey, payoutSats }: { siteKey: string; payoutSat
   const onTrack = (txid: string) => setTrack({ txid, network })
 
   const tabCls = (active: boolean) =>
-    `flex h-9 flex-1 items-center justify-center rounded-pill px-2 text-center text-[12.5px] font-semibold leading-tight transition disabled:cursor-not-allowed ${
-      active ? 'bg-primary text-primary-foreground shadow-primary' : 'text-muted-foreground hover:text-foreground'
+    `flex h-9 flex-1 items-center justify-center rounded-input border text-[13px] font-medium transition-colors disabled:cursor-not-allowed ${
+      active ? 'border-net bg-card text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
     }`
 
   return (
@@ -31,12 +31,14 @@ export function FaucetCard({ siteKey, payoutSats }: { siteKey: string; payoutSat
       className="net-theme overflow-hidden rounded-card border border-net-bd bg-card shadow-card transition-colors"
     >
       {/* Network stripe: the first thing the eye lands on is which network pays out. */}
-      <div className="h-1.5 bg-net transition-colors" aria-hidden />
+      <div className="h-1 bg-net transition-colors" aria-hidden />
 
-      <div className="flex flex-col gap-4 px-5 pb-5 pt-4 min-[480px]:px-6">
+      <div className="flex flex-col gap-5 p-5 min-[480px]:p-6">
         <NetworkPicker locked={busy} />
 
-        <div className="flex gap-1 rounded-pill bg-muted p-1" role="tablist" aria-label="Claim method">
+        <div>
+          <div className="label mb-2">02 · Method</div>
+          <div className="flex gap-[3px] rounded-panel bg-muted p-[3px]" role="tablist" aria-label="Claim method">
           <button
             type="button"
             role="tab"
@@ -57,6 +59,7 @@ export function FaucetCard({ siteKey, payoutSats }: { siteKey: string; payoutSat
           >
             Paste an address
           </button>
+          </div>
         </div>
 
         {tab === 'wallet' && (

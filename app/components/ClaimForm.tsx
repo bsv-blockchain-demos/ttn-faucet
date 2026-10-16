@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { generateTestnetKey } from '@/lib/keygen'
 import { ArrowRightIcon, CheckIcon, CopyIcon, WarningIcon } from './icons'
 import { useNetwork } from './NetworkProvider'
+import { ClaimLabel } from './ClaimLabel'
 import { NETWORKS } from '@/lib/networks'
 
 const fmt = (n: number) => n.toLocaleString()
@@ -12,7 +13,7 @@ const tbsv = (n: number) => (n / 1e8).toLocaleString(undefined, { maximumFractio
 
 /** The claim button wears the selected network's colour (see [data-network] in globals.css). */
 const PRIMARY_CTA =
-  'shine flex min-h-[56px] w-full items-center justify-center gap-2 rounded-pill bg-net px-4 text-[15px] font-semibold text-net-fg shadow-net transition-colors disabled:cursor-not-allowed disabled:opacity-60'
+  'shine flex min-h-[56px] w-full items-center justify-between gap-3 rounded-panel bg-net px-5 text-left text-[15px] font-semibold tracking-[-0.01em] text-net-fg shadow-net transition-colors disabled:cursor-not-allowed disabled:opacity-60'
 
 /** A labelled, single-line copyable field (truncates; full value copied on click). */
 function CopyRow({
@@ -33,7 +34,7 @@ function CopyRow({
         type="button"
         onClick={onCopy}
         title={`Copy ${label}`}
-        className="flex w-full items-center gap-2 rounded-lg border border-hairline bg-card px-3 py-2 text-left transition hover:border-[color:var(--btn2-bd)]"
+        className="flex w-full items-center gap-2 rounded-input border border-hairline bg-card px-3 py-2 text-left transition hover:border-[color:var(--btn2-bd)]"
       >
         <span className="min-w-0 flex-1 truncate font-mono text-xs text-foreground">{value}</span>
         <span className="ml-auto flex flex-none items-center gap-1">
@@ -166,23 +167,13 @@ export function AddressPanel({
       {/* <TurnstileWidget siteKey={siteKey} onToken={setToken} /> */}
 
       <button type="submit" disabled={busy || !address} className={PRIMARY_CTA}>
-        {busy ? (
-          'Sending…'
-        ) : (
-          <>
-            <span className="flex flex-col items-center py-1.5 leading-tight">
-              <span>Send {fmt(payoutSats)} sats</span>
-              <span className="mt-0.5 text-[12.5px] font-medium opacity-90">on {networkName}</span>
-            </span>
-            <ArrowRightIcon size={18} />
-          </>
-        )}
+        {busy ? 'Sending…' : <ClaimLabel verb="Send" payoutSats={payoutSats} networkName={networkName} />}
       </button>
 
       {error && <p className="text-center text-sm font-medium text-neg">{error}</p>}
 
       {result && (
-        <div className="rounded-[14px] border border-pos bg-pos-bg p-4">
+        <div className="rounded-panel border border-pos bg-pos-bg p-4">
           <div className="mb-3 flex items-center gap-2.5">
             <span className="flex h-[26px] w-[26px] items-center justify-center rounded-full bg-pos">
               <CheckIcon size={15} className="text-primary-foreground" />
@@ -217,14 +208,14 @@ export function AddressPanel({
               )}
             </button>
           </div>
-          <div className="break-all rounded-lg border border-hairline bg-card p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
+          <div className="break-all rounded-input border border-hairline bg-card p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
             {result.ef}
           </div>
         </div>
       )}
 
-      <p className="text-center text-xs text-muted-foreground">
-        Each claim sends {fmt(payoutSats)} sats (~{tbsv(payoutSats)} tBSV) in extended format.
+      <p className="label">
+        {fmt(payoutSats)} sat · ~{tbsv(payoutSats)} tBSV · Returned as extended format
       </p>
     </form>
   )

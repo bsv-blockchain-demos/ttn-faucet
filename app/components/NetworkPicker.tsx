@@ -13,8 +13,8 @@ export function NetworkPicker({ locked = false }: { locked?: boolean }) {
 
   return (
     <fieldset className="min-w-0" disabled={locked}>
-      <legend className="mb-2 text-[12.5px] font-medium text-muted-foreground">Network</legend>
-      <div role="radiogroup" aria-label="Network" className="grid grid-cols-3 gap-[6px] rounded-[14px] bg-muted p-[5px]">
+      <legend className="label mb-2">01 · Network</legend>
+      <div role="radiogroup" aria-label="Network" className="grid grid-cols-3 gap-[3px] rounded-panel bg-muted p-[3px]">
         {NETWORK_IDS.map((id) => {
           const selected = id === network
           const offered = available === undefined || available.includes(id)
@@ -28,21 +28,21 @@ export function NetworkPicker({ locked = false }: { locked?: boolean }) {
               disabled={!offered || locked}
               title={offered ? NETWORKS[id].blurb : 'Not offered by this faucet'}
               onClick={() => setNetwork(id)}
-              className={`flex min-h-[44px] min-w-0 items-center justify-center gap-1.5 rounded-[10px] px-1.5 py-1 text-[13px] font-semibold leading-tight transition-colors disabled:cursor-not-allowed ${
+              className={`flex min-h-[44px] min-w-0 items-center justify-center gap-2 rounded-input border px-1.5 py-1 text-[13px] font-medium leading-tight transition-colors disabled:cursor-not-allowed ${
                 selected
-                  ? 'border-[1.5px] border-net bg-card text-foreground shadow-card'
+                  ? 'border-net bg-card text-foreground'
                   : offered
-                    ? 'border-[1.5px] border-transparent text-muted-foreground hover:text-foreground'
-                    : 'border-[1.5px] border-transparent text-muted-foreground opacity-40'
+                    ? 'border-transparent text-muted-foreground hover:text-foreground'
+                    : 'border-transparent text-muted-foreground opacity-40'
               }`}
             >
-              <span className="h-2.5 w-2.5 flex-none rounded-full bg-net" aria-hidden />
+              <span className="h-2 w-2 flex-none rounded-[2px] bg-net" aria-hidden />
               <span className="text-center">{NETWORKS[id].name}</span>
             </button>
           )
         })}
       </div>
-      <p className="mt-2.5 text-[12.5px] leading-snug text-muted-foreground" aria-live="polite">
+      <p className="mt-3 text-[13px] leading-snug text-muted-foreground" aria-live="polite">
         Coins go out on <span className="font-semibold text-net">{info.name}</span>. Your wallet must be on{' '}
         {info.name} too, or the coins won&apos;t show up.
       </p>

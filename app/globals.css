@@ -7,75 +7,79 @@
    never a raw literal. See docs handoff TOKEN_STYLE_GUIDE.md.
    ========================================================================== */
 
+/* Direction: a calibrated instrument. Paper and ink, hairline rules, small radii, flat depth
+   (borders only). The selected network colour is the only chroma on the page (see .net-theme). */
 :root {
-  /* surfaces */
-  --page: #ffffff;
+  /* surfaces — paper, with white instrument faces */
+  --page: #f4f4f1;
   --card: #ffffff;
-  --band: #f4f6fc;
-  --muted: #eff0f7;
-  --hairline: #e7e9f4;
-  --input-border: #dae3ff;
+  --band: #f4f4f1;
+  --muted: #ecece8;
+  --hairline: rgba(17, 17, 17, 0.12);
+  --input-border: rgba(17, 17, 17, 0.2);
+  --rule: #111111; /* section rules: full-strength ink */
 
-  /* text */
-  --fg: #2d2d31;
-  --muted-fg: #63656f;
+  /* text — ink, graphite */
+  --fg: #111111;
+  --muted-fg: #5c5c58;
 
-  /* brand / actions */
-  --primary: #1b1ea9;
+  /* actions — ink outside the card; .net-theme swaps these for the network inside it */
+  --primary: #111111;
   --primary-fg: #ffffff;
-  --accent: #dae3ff; /* Ice */
-  --accent-fg: #1b1ea9;
-  --link: #003fff;
-  --hl: #1b1ea9;
-  --btn2-fg: #1b1ea9;
-  --btn2-bd: #1b1ea9;
+  --accent: #ecece8;
+  --accent-fg: #111111;
+  --link: #111111;
+  --hl: #111111;
+  --btn2-fg: #111111;
+  --btn2-bd: rgba(17, 17, 17, 0.35);
 
-  /* status (badges / result blocks only) */
-  --pos: #1d9e75;
-  --pos-bg: rgba(29, 158, 117, 0.12);
-  --neg: #b0443c;
-  --neg-bg: rgba(176, 68, 60, 0.12);
+  /* status (result blocks only) */
+  --pos: #15803d;
+  --pos-bg: rgba(21, 128, 61, 0.08);
+  --neg: #b42318;
+  --neg-bg: rgba(180, 35, 24, 0.07);
 
-  /* effects */
-  --ring: rgba(0, 230, 255, 0.55);
-  --shadow: 0 8px 28px rgba(45, 45, 49, 0.08);
-  --pshadow: 0 10px 24px -8px rgba(27, 30, 169, 0.5);
+  /* effects — flat: a 1px ring stands in for elevation */
+  --ring: rgba(17, 17, 17, 0.35);
+  --shadow: 0 0 0 0 transparent;
+  --pshadow: 0 0 0 0 transparent;
 
-  /* radius */
-  --r-input: 12px;
-  --r-panel: 16px;
-  --r-card: 20px;
-  --r-pill: 9999px;
+  /* radius — machined, not pillowy */
+  --r-input: 4px;
+  --r-panel: 6px;
+  --r-card: 8px;
+  --r-pill: 6px;
 }
 
 .dark {
-  --page: #1e1f24;
-  --card: #2d2d31;
-  --band: #26272d;
-  --muted: #33343b;
-  --hairline: #3a3a41;
-  --input-border: #44454d;
+  --page: #0e0e0f;
+  --card: #161618;
+  --band: #0e0e0f;
+  --muted: #1e1e21;
+  --hairline: rgba(255, 255, 255, 0.1);
+  --input-border: rgba(255, 255, 255, 0.18);
+  --rule: #f2f2ef;
 
-  --fg: #ffffff;
-  --muted-fg: #b9bcc9;
+  --fg: #f2f2ef;
+  --muted-fg: #9d9d98;
 
-  --primary: #003fff; /* Blue in dark */
-  --primary-fg: #ffffff;
-  --accent: #26284a;
-  --accent-fg: #ffffff;
-  --link: #00e6ff; /* Cyan links in dark */
-  --hl: #7c8cff; /* brighter periwinkle so the highlight stays legible on dark */
-  --btn2-fg: #ffffff;
-  --btn2-bd: rgba(255, 255, 255, 0.5);
+  --primary: #f2f2ef;
+  --primary-fg: #0e0e0f;
+  --accent: #1e1e21;
+  --accent-fg: #f2f2ef;
+  --link: #f2f2ef;
+  --hl: #f2f2ef;
+  --btn2-fg: #f2f2ef;
+  --btn2-bd: rgba(255, 255, 255, 0.35);
 
-  --pos: #5dcaa5;
-  --pos-bg: rgba(93, 202, 165, 0.16);
-  --neg: #e0837c;
-  --neg-bg: rgba(224, 131, 124, 0.16);
+  --pos: #4ade80;
+  --pos-bg: rgba(74, 222, 128, 0.1);
+  --neg: #f87171;
+  --neg-bg: rgba(248, 113, 113, 0.1);
 
-  --ring: rgba(0, 230, 255, 0.55);
-  --shadow: 0 10px 32px rgba(0, 0, 0, 0.35);
-  --pshadow: 0 12px 28px -8px rgba(0, 63, 255, 0.55);
+  --ring: rgba(255, 255, 255, 0.4);
+  --shadow: 0 0 0 0 transparent;
+  --pshadow: 0 0 0 0 transparent;
 }
 
 /* Code / terminal surface — theme-independent (always dark). */
@@ -87,11 +91,11 @@
   --code-bd: rgba(255, 255, 255, 0.09); /* terminal panel border */
   --code-bd-soft: rgba(255, 255, 255, 0.07); /* terminal header divider */
   --qr-bg: #ffffff; /* QR must stay dark-on-white in both themes for scannability */
-  --qr-fg: #11131d;
-  --code-bg: #11131d;
-  --code-fg: #9aa4c4;
-  --code-dim: #6b7494;
-  --code-link: #8ea0ff;
+  --qr-fg: #141415;
+  --code-bg: #141415;
+  --code-fg: #b4b4ae;
+  --code-dim: #75756f;
+  --code-link: #ecece8;
   --code-pos: #5dcaa5;
   --code-warn: #e9b949;
   --tl-red: #ff5f56;
@@ -127,7 +131,7 @@
   --net-fg: var(--net-ink);
   --net-bg: color-mix(in srgb, var(--net) 12%, transparent);
   --net-bd: color-mix(in srgb, var(--net) 45%, transparent);
-  --net-shadow: 0 10px 24px -8px color-mix(in srgb, var(--net) 60%, transparent);
+  --net-shadow: 0 0 0 0 transparent; /* flat: no glow under the CTA */
 }
 
 /* .net-theme re-points the brand tokens at the network colour, so everything inside the faucet
@@ -187,9 +191,10 @@
   --shadow-primary: var(--pshadow);
   --shadow-net: var(--net-shadow);
 
-  --font-display: "Chillax", var(--font-noto-sans), sans-serif;
-  --font-sans: var(--font-noto-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+  --font-display: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --color-rule: var(--rule);
 }
 
 /* ---------------------------------- base --------------------------------- */
@@ -214,54 +219,49 @@ body {
   box-shadow: 0 0 0 3px var(--ring);
 }
 
-/* Primary button shine: a diagonal streak that auto-loops on the main CTA and
-   sweeps once on hover. */
+/* Primary action: no decoration, just a precise press. (.shine-loop is kept as a no-op hook.) */
 .shine {
   position: relative;
-  overflow: hidden;
-  transition: transform 0.18s cubic-bezier(0.22, 0.61, 0.36, 1), filter 0.18s;
-}
-.shine::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    100deg,
-    transparent 30%,
-    rgba(255, 255, 255, 0.5) 50%,
-    transparent 70%
-  );
-  transform: translateX(-130%) skewX(-20deg);
-  pointer-events: none;
+  transition: transform 0.12s cubic-bezier(0.23, 1, 0.32, 1), filter 0.12s;
 }
 .shine:not(:disabled):hover {
-  transform: translateY(-1px);
-  filter: brightness(1.05);
+  filter: brightness(1.08);
 }
 .shine:not(:disabled):active {
-  transform: translateY(0);
-}
-.shine:not(:disabled):hover::after {
-  animation: shine-sweep 0.7s ease;
-}
-/* the hero CTA opts into the slow auto loop */
-.shine-loop:not(:disabled)::after {
-  animation: shine-sweep 3.6s ease-in-out 1.1s infinite;
-}
-@keyframes shine-sweep {
-  to {
-    transform: translateX(130%) skewX(-20deg);
-  }
+  transform: scale(0.985);
 }
 
-/* Hover-lift for tiles / pillar cards (not the faucet card or modal). */
+/* Hover emphasis for links-as-tiles: the edge firms up; nothing moves. */
 .lift {
-  transition: transform 0.25s cubic-bezier(0.22, 0.61, 0.36, 1),
-    box-shadow 0.25s cubic-bezier(0.22, 0.61, 0.36, 1);
+  transition: border-color 0.15s ease;
 }
 .lift:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow);
+  border-color: var(--fg);
+}
+
+/* Monospace micro-label: section indices, field labels, readouts. */
+.label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-fg);
+}
+
+/* Links read as links in a monochrome system: hairline underline. */
+a.text-link,
+button.text-link {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+h1, h2 {
+  text-wrap: balance;
+}
+p {
+  text-wrap: pretty;
 }
 
 /* Pulsing live dot. */

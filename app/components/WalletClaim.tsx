@@ -15,6 +15,7 @@ import { NETWORKS, type NetworkId } from '@/lib/networks'
 // import { TurnstileWidget } from './TurnstileWidget'
 import { ArrowRightIcon, CheckIcon, MonitorIcon, PhoneIcon, WarningIcon } from './icons'
 import { useNetwork } from './NetworkProvider'
+import { ClaimLabel } from './ClaimLabel'
 
 type Phase = 'detecting' | 'unavailable' | 'mobile' | 'idle' | 'claiming' | 'success' | 'error'
 
@@ -28,7 +29,7 @@ const DETECT_TIMEOUT_MS = 1500
 
 /** The claim button wears the selected network's colour (see [data-network] in globals.css). */
 const PRIMARY_CTA =
-  'shine flex min-h-[56px] w-full items-center justify-center gap-2 rounded-pill bg-net px-4 text-[15px] font-semibold text-net-fg shadow-net transition-colors disabled:cursor-not-allowed disabled:opacity-60'
+  'shine flex min-h-[56px] w-full items-center justify-between gap-3 rounded-panel bg-net px-5 text-left text-[15px] font-semibold tracking-[-0.01em] text-net-fg shadow-net transition-colors disabled:cursor-not-allowed disabled:opacity-60'
 const SECONDARY_CTA =
   'inline-flex h-11 w-full items-center justify-center rounded-pill border-[1.5px] border-[color:var(--btn2-bd)] bg-transparent px-[22px] text-sm font-semibold text-[color:var(--btn2-fg)] transition min-[620px]:w-auto'
 
@@ -36,19 +37,6 @@ const DOWNLOADS = [
   { name: 'BSV Desktop', sub: 'Mac, Windows & Linux', href: 'https://desktop.bsvb.tech/', Icon: MonitorIcon },
   { name: 'BSV Browser', sub: 'iOS & Android', href: 'https://mobile.bsvb.tech/', Icon: PhoneIcon },
 ] as const
-
-/** CTA label: the amount, then the network on its own line so it's never missed or truncated. */
-function ClaimLabel({ payoutSats, networkName }: { payoutSats: number; networkName: string }) {
-  return (
-    <>
-      <span className="flex flex-col items-center py-1.5 leading-tight">
-        <span>Claim {fmt(payoutSats)} sats</span>
-        <span className="mt-0.5 text-[12.5px] font-medium opacity-90">on {networkName}</span>
-      </span>
-      <ArrowRightIcon size={18} />
-    </>
-  )
-}
 
 /** No wallet answered: the way forward is installing one, so the downloads lead. */
 function GetAWallet() {
@@ -70,7 +58,7 @@ function GetAWallet() {
             rel="noreferrer"
             className="lift flex items-center gap-3 rounded-input border-[1.5px] border-input-border bg-card px-3.5 py-3 transition hover:border-primary"
           >
-            <span className="flex h-9 w-9 flex-none items-center justify-center rounded-[10px] bg-accent text-accent-foreground">
+            <span className="flex h-9 w-9 flex-none items-center justify-center rounded-input bg-accent text-accent-foreground">
               <Icon size={18} />
             </span>
             <span className="min-w-0 leading-tight">
@@ -136,7 +124,7 @@ function Success({
   onAgain?: () => void
 }) {
   return (
-    <div className="rounded-[14px] border border-pos bg-pos-bg p-[18px] text-center">
+    <div className="rounded-panel border border-pos bg-pos-bg p-[18px] text-center">
       <div className="mx-auto mb-3 flex h-[46px] w-[46px] items-center justify-center rounded-full bg-pos">
         <CheckIcon size={24} className="text-primary-foreground" />
       </div>
@@ -579,10 +567,7 @@ export function WalletPanel({
         {busy ? 'Claiming…' : <ClaimLabel payoutSats={payoutSats} networkName={networkName} />}
       </button>
 
-      <p className="text-center text-xs leading-relaxed text-muted-foreground">
-        Paid straight to your wallet as Atomic BEEF:{' '}
-        <span className="font-semibold text-foreground">spendable instantly</span>, nothing to copy or paste.
-      </p>
+      <p className="label">Atomic BEEF · Spendable on receipt · Nothing to paste</p>
     </div>
   )
 }

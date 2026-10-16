@@ -112,7 +112,7 @@ export function TxStatusModal({ txid, network, onClose }: { txid: string; networ
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-hairline text-muted-foreground transition hover:bg-band"
+            className="flex h-[30px] w-[30px] items-center justify-center rounded-input border border-hairline text-muted-foreground transition hover:bg-band"
           >
             <CloseIcon size={15} />
           </button>
@@ -120,7 +120,7 @@ export function TxStatusModal({ txid, network, onClose }: { txid: string; networ
 
         <div className="px-[22px] py-5">
           {/* txid + status pill */}
-          <div className="mb-[18px] flex items-center justify-between rounded-[10px] bg-muted px-[14px] py-[11px]">
+          <div className="mb-[18px] flex items-center justify-between rounded-input bg-muted px-[14px] py-[11px]">
             <span className="font-mono text-xs text-foreground">{shortTxid(txid)}</span>
             {error || loading ? (
               <span className="inline-flex items-center gap-1.5 rounded-pill bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">

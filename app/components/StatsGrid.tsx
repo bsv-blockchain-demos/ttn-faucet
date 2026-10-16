@@ -34,22 +34,15 @@ function useFaucetStats(): Stats | undefined {
   return stats
 }
 
-function StatCard({
-  label,
-  value,
-  sub,
-}: {
-  label: string
-  value: React.ReactNode
-  sub: React.ReactNode
-}) {
+/** One cell of the readout strip: mono label, large tabular figure, unit/context line. */
+function Readout({ label, value, sub }: { label: string; value: React.ReactNode; sub: React.ReactNode }) {
   return (
-    <div className="lift rounded-panel border border-hairline bg-card p-5">
-      <div className="mb-3 inline-block rounded-md bg-accent px-2 py-[3px] text-[11px] font-medium text-accent-foreground">
-        {label}
+    <div className="border-t border-hairline py-5 min-[1000px]:px-6 min-[1000px]:first:pl-0 min-[1000px]:[&:not(:first-child)]:border-l">
+      <div className="label mb-4">{label}</div>
+      <div className="tnum font-display text-[32px] font-semibold leading-none tracking-[-0.03em] text-foreground">
+        {value}
       </div>
-      <div className="tnum font-display text-[27px] font-semibold text-foreground">{value}</div>
-      <div className="mt-1.5 text-[11.5px]">{sub}</div>
+      <div className="mt-2 text-[13px] text-muted-foreground">{sub}</div>
     </div>
   )
 }
@@ -73,31 +66,19 @@ export function StatsGrid({ payoutSats }: { payoutSats: number }) {
   const payouts = stats === undefined ? '…' : stats.payoutCount.toLocaleString()
 
   return (
-    <div className="grid grid-cols-1 gap-4 min-[620px]:grid-cols-2 min-[880px]:grid-cols-4">
-      <StatCard
-        label="Sats dispensed"
-        value={dispensed}
-        sub={<span className="font-medium text-pos">▲ live</span>}
-      />
-      <StatCard
-        label="Total payouts"
-        value={payouts}
-        sub={<span className="text-muted-foreground">across all networks</span>}
-      />
-      <StatCard
-        label="Treasury balance"
+    <div className="grid grid-cols-1 border-b border-hairline min-[620px]:grid-cols-2 min-[620px]:gap-x-8 min-[1000px]:ml-[232px] min-[1000px]:grid-cols-4 min-[1000px]:gap-x-0">
+      <Readout label="Dispensed" value={dispensed} sub="sat, all networks" />
+      <Readout label="Payouts" value={payouts} sub="lifetime, all networks" />
+      <Readout
+        label="Treasury"
         value={treasuryBsv}
         sub={
-          <span data-network={network} className="text-muted-foreground">
-            BSV on <span className="font-semibold text-net">{NETWORKS[network].name}</span>
+          <span data-network={network}>
+            BSV on <span className="font-medium text-net">{NETWORKS[network].name}</span>
           </span>
         }
       />
-      <StatCard
-        label="Per claim"
-        value={payoutSats.toLocaleString()}
-        sub={<span className="text-muted-foreground">sats, spendable instantly</span>}
-      />
+      <Readout label="Per claim" value={payoutSats.toLocaleString()} sub="sat, spendable on receipt" />
     </div>
   )
 }

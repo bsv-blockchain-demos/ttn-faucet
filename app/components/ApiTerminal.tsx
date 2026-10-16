@@ -44,7 +44,7 @@ export function ApiTerminal() {
         {ENDPOINTS.map((e) => (
           <span
             key={e.path}
-            className="inline-flex items-center gap-2 rounded-lg border border-hairline px-[11px] py-1.5 font-mono text-xs font-medium text-foreground"
+            className="inline-flex items-center gap-2 rounded-input border border-hairline px-[11px] py-1.5 font-mono text-xs font-medium text-foreground"
           >
             <span className={e.method === 'POST' ? 'text-pos' : 'text-link'}>{e.method}</span>
             {e.path}
@@ -57,12 +57,7 @@ export function ApiTerminal() {
           className="flex items-center justify-between px-4 py-[11px]"
           style={{ borderBottom: '1px solid var(--code-bd-soft)' }}
         >
-          <span className="flex items-center gap-[7px]">
-            <span className="h-[11px] w-[11px] rounded-full" style={{ background: 'var(--tl-red)' }} />
-            <span className="h-[11px] w-[11px] rounded-full" style={{ background: 'var(--tl-amber)' }} />
-            <span className="h-[11px] w-[11px] rounded-full" style={{ background: 'var(--tl-green)' }} />
-            <span className="ml-1.5 font-mono text-xs text-code-dim">claim.sh</span>
-          </span>
+          <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-code-dim">claim.sh</span>
           <button
             type="button"
             onClick={copy}

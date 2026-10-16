@@ -1,19 +1,18 @@
 import type { Metadata, Viewport } from 'next'
-import { Noto_Sans, JetBrains_Mono } from 'next/font/google'
+import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider, themeNoFlashScript } from './components/ThemeProvider'
 
-const notoSans = Noto_Sans({
-  variable: '--font-noto-sans',
+// Geist: an engineered grotesk for text and display; Geist Mono for labels, readouts and figures.
+const geist = Geist({
+  variable: '--font-geist',
   subsets: ['latin'],
-  weight: ['300', '400', '500', '600'],
   display: 'swap',
 })
 
-const jetBrainsMono = JetBrains_Mono({
-  variable: '--font-jetbrains-mono',
+const geistMono = Geist_Mono({
+  variable: '--font-geist-mono',
   subsets: ['latin'],
-  weight: ['400', '500', '600'],
   display: 'swap',
 })
 
@@ -39,8 +38,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#1e1f24' },
+    { media: '(prefers-color-scheme: light)', color: '#f4f4f1' },
+    { media: '(prefers-color-scheme: dark)', color: '#0e0e0f' },
   ],
 }
 
@@ -53,15 +52,9 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${notoSans.variable} ${jetBrainsMono.variable} h-full antialiased`}
+      className={`${geist.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
-        {/* Chillax (display) — not on Google Fonts; loaded from Fontshare. */}
-        <link rel="preconnect" href="https://api.fontshare.com" crossOrigin="" />
-        <link
-          rel="stylesheet"
-          href="https://api.fontshare.com/v2/css?f[]=chillax@400,500,600&display=swap"
-        />
         {/* Set the theme class before paint to avoid a flash. */}
         <script dangerouslySetInnerHTML={{ __html: themeNoFlashScript }} />
       </head>
