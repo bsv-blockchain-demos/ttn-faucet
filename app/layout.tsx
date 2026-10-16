@@ -1,19 +1,36 @@
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import localFont from 'next/font/local'
 import './globals.css'
 import { ThemeProvider, themeNoFlashScript } from './components/ThemeProvider'
 
-// Geist: an engineered grotesk for text and display; Geist Mono for labels, readouts and figures.
-const geist = Geist({
-  variable: '--font-geist',
-  subsets: ['latin'],
+// Rysana Type (rysana.com/type, SIL OFL 1.1 — see app/fonts/rysana/OFL.txt): Sans for text and
+// display, Mono for labels, readouts and code. Vendored from rysana-type@1.0.1 (the Latin "Core"
+// variable subsets, 100–900 upright + italic) rather than installed, so no package can change
+// underneath the build.
+// next/font needs literal options, so the Latin unicode-range is repeated in each loader.
+
+const rysanaSans = localFont({
+  src: [
+    { path: './fonts/rysana/RysanaSans-Variable-Core.woff2', style: 'normal' },
+    { path: './fonts/rysana/RysanaSans-VariableItalic-Core.woff2', style: 'italic' },
+  ],
+  weight: '100 900',
+  variable: '--font-rysana-sans',
   display: 'swap',
+  declarations: [{ prop: 'unicode-range', value: 'U+0-36F,U+1E00-1EFF,U+2000-206F,U+20A0-20CF,U+2100-215F,U+2190-21FF,U+2212,U+FEFF,U+FFFD' }],
+  fallback: ['ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
 })
 
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
+const rysanaMono = localFont({
+  src: [
+    { path: './fonts/rysana/RysanaMono-Variable-Core.woff2', style: 'normal' },
+    { path: './fonts/rysana/RysanaMono-VariableItalic-Core.woff2', style: 'italic' },
+  ],
+  weight: '100 900',
+  variable: '--font-rysana-mono',
   display: 'swap',
+  declarations: [{ prop: 'unicode-range', value: 'U+0-36F,U+1E00-1EFF,U+2000-206F,U+20A0-20CF,U+2100-215F,U+2190-21FF,U+2212,U+FEFF,U+FFFD' }],
+  fallback: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace'],
 })
 
 export const metadata: Metadata = {
@@ -52,7 +69,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geist.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${rysanaSans.variable} ${rysanaMono.variable} h-full antialiased`}
     >
       <head>
         {/* Set the theme class before paint to avoid a flash. */}
