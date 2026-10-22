@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Mobile wallet pairing relay for the faucet. Build context: ./relay
-FROM node:22-trixie-slim AS builder
+FROM node:22.23.4-trixie-slim AS builder
 RUN corepack enable && corepack prepare pnpm@10.31.0 --activate
 WORKDIR /build
 COPY package.json pnpm-lock.yaml ./
@@ -10,7 +10,7 @@ COPY tsconfig.json ./
 COPY src ./src
 RUN pnpm build && pnpm prune --prod --ignore-workspace
 
-FROM node:22-trixie-slim AS runner
+FROM node:22.23.4-trixie-slim AS runner
 RUN apt-get update && apt-get install -y --no-install-recommends tini \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app

@@ -3,7 +3,7 @@
 # ---------- builder ----------
 # trixie (Debian 13, glibc 2.41) so the sqlite3/better-sqlite3 prebuilt binaries
 # (which need glibc >= 2.38) load in the runtime stage.
-FROM node:22-trixie-slim AS builder
+FROM node:22.23.4-trixie-slim AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
       python3 make g++ ca-certificates \
     && rm -rf /var/lib/apt/lists/*
@@ -22,7 +22,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm build
 
 # ---------- runtime ----------
-FROM node:22-trixie-slim AS runner
+FROM node:22.23.4-trixie-slim AS runner
 RUN apt-get update && apt-get install -y --no-install-recommends tini ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
