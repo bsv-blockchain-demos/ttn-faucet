@@ -29,7 +29,7 @@ describe('startMobileClaim', () => {
   it('POSTs, returns the QR and remembers the pending claim', async () => {
     fetchMock.mockResolvedValue(jsonRes(claim))
     expect(await startMobileClaim('ttn')).toEqual(claim)
-    expect(fetchMock.mock.calls[0]).toEqual(['/api/claim/mobile', expect.objectContaining({ method: 'POST' })])
+    expect(fetchMock.mock.calls[0]).toEqual(['/faucet/api/claim/mobile', expect.objectContaining({ method: 'POST' })])
     expect(loadPendingClaim()).toEqual(claim)
     expect(loadPendingClaim('ttn')).toEqual(claim)
     expect(loadPendingClaim('testnet')).toBeNull() // started for another network: not resumed

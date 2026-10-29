@@ -1,4 +1,5 @@
 'use client'
+import { withBasePath } from '@/lib/base-path'
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { DEFAULT_NETWORK, isNetworkId, type NetworkId } from '@/lib/networks'
 
@@ -44,7 +45,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
     const stored = loadStored()
     ;(async () => {
       if (stored) setNetworkState(stored)
-      const res = await fetch('/api/networks').catch(() => null)
+      const res = await fetch(withBasePath('/api/networks')).catch(() => null)
       const json = res?.ok ? await res.json().catch(() => null) : null
       // Unknown (fetch failed): leave `available` unset rather than claim every network is offered;
       // a claim on an unserved network is still refused server-side.

@@ -1,4 +1,5 @@
 'use client'
+import { withBasePath } from '@/lib/base-path'
 import { useEffect, useState } from 'react'
 // TODO: re-enable Turnstile — temporarily disabled.
 // import { TurnstileWidget } from './TurnstileWidget'
@@ -108,7 +109,7 @@ export function AddressPanel({
     setError('')
     setResult(null)
     try {
-      const res = await fetch('/api/claim', {
+      const res = await fetch(withBasePath('/api/claim'), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ address, network, captchaToken: token }),

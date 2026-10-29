@@ -1,4 +1,5 @@
 'use client'
+import { withBasePath } from '@/lib/base-path'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { WalletClient, Utils } from '@bsv/sdk'
 import {
@@ -453,7 +454,7 @@ export function WalletPanel({
     setResult(null)
     try {
       const { publicKey: identityKey } = await w.getPublicKey({ identityKey: true })
-      const res = await fetch('/api/claim/wallet', {
+      const res = await fetch(withBasePath('/api/claim/wallet'), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ identityKey, network: claimNetwork, captchaToken: token }),
