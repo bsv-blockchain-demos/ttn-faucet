@@ -3,7 +3,7 @@ import { BASE_PATH } from "./lib/base-path";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  // bsvblockchain.org/faucet proxies here by path, so the app lives under /faucet (lib/base-path.ts).
+  // bsvblockchain.com/faucet proxies here by path, so the app lives under /faucet (lib/base-path.ts).
   basePath: BASE_PATH,
   serverExternalPackages: [
     "@bsv/wallet-toolbox",

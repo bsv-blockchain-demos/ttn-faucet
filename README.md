@@ -26,7 +26,7 @@ Browser download links) and to block claims from a mainnet wallet.
 Built on a [`@bsv/wallet-toolbox`](https://github.com/bsv-blockchain/wallet-toolbox)
 server wallet, seeded once from a flat treasury key.
 
-[Hosted faucet](https://bsvblockchain.org/faucet), proxied by path to this app at faucet.bsvblockchain.tech/faucet (also served at faucet-ttn.bsvblockchain.tech). The app is mounted under `/faucet` (`lib/base-path.ts`); the old root addresses redirect, and `/api/*` still answers at the root.
+[Hosted faucet](https://bsvblockchain.com/faucet), proxied by path to this app at faucet.bsvblockchain.tech/faucet (also served at faucet-ttn.bsvblockchain.tech). The app is mounted under `/faucet` (`lib/base-path.ts`); the old root addresses redirect, and `/api/*` still answers at the root.
 
 **Current claim controls:** captcha verification is commented out in `lib/guard.ts`, and rate limiting defaults to disabled. Set `RATE_LIMIT_DISABLED=false` to enable per-subject limits. Turnstile keys alone do not enable captcha verification. Valid API keys receive tier-based limits when rate limiting is enabled.
 
