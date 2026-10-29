@@ -1,3 +1,4 @@
+import { withBasePath } from './base-path'
 import type { MobileClaimView, NewMobileClaim } from './mobile-claim'
 import type { NetworkId } from './networks'
 
@@ -24,7 +25,7 @@ const STORAGE_KEY = 'faucet.mobileClaim'
 
 /** Start a claim on `network`. Throws MobileClaimError (503 when mobile pairing is disabled). */
 export async function startMobileClaim(network: NetworkId): Promise<NewMobileClaim> {
-  const res = await fetch('/api/claim/mobile', {
+  const res = await fetch(withBasePath('/api/claim/mobile'), {
     method: 'POST',
     cache: 'no-store',
     headers: { 'content-type': 'application/json' },
@@ -38,7 +39,7 @@ export async function startMobileClaim(network: NetworkId): Promise<NewMobileCla
 
 /** The claim's current outcome, or null if the server no longer knows it (e.g. it restarted). */
 export async function pollMobileClaim(sessionId: string): Promise<MobileClaimView | null> {
-  const res = await fetch(`/api/claim/mobile/${encodeURIComponent(sessionId)}`, { cache: 'no-store' })
+  const res = await fetch(withBasePath(`/api/claim/mobile/${encodeURIComponent(sessionId)}`), { cache: 'no-store' })
   if (res.status === 404) return null
   if (!res.ok) throw new MobileClaimError(`HTTP ${res.status}`, res.status)
   return (await res.json()) as MobileClaimView

@@ -1,4 +1,5 @@
 'use client'
+import { withBasePath } from '@/lib/base-path'
 import { useEffect, useRef, useState } from 'react'
 import { CheckIcon, CloseIcon, ExternalIcon } from './icons'
 import { NETWORKS, txUrl, type NetworkId } from '@/lib/networks'
@@ -43,7 +44,7 @@ export function TxStatusModal({ txid, network, onClose }: { txid: string; networ
   // in the effect body), and the component is remounted per txid so no reset is needed.
   useEffect(() => {
     let alive = true
-    fetch(`/api/status/${txid}?network=${network}`)
+    fetch(withBasePath(`/api/status/${txid}?network=${network}`))
       .then(async (res) => {
         const json = await res.json().catch(() => ({}))
         if (!alive) return

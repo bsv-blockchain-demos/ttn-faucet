@@ -1,4 +1,5 @@
 'use client'
+import { withBasePath } from '@/lib/base-path'
 import { useEffect, useState } from 'react'
 import type { NetworkId } from '@/lib/networks'
 
@@ -19,7 +20,7 @@ export function useFaucetBalanceSats(network: NetworkId): BalanceState {
     let alive = true
     const load = async () => {
       try {
-        const res = await fetch(`/api/balance?network=${network}`)
+        const res = await fetch(withBasePath(`/api/balance?network=${network}`))
         const json = await res.json()
         if (alive) setSats(typeof json.balanceSats === 'number' ? json.balanceSats : null)
       } catch {

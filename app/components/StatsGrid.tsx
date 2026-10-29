@@ -1,4 +1,5 @@
 'use client'
+import { withBasePath } from '@/lib/base-path'
 import { useEffect, useState } from 'react'
 import { useFaucetBalanceSats } from './FaucetBalance'
 import { useNetwork } from './NetworkProvider'
@@ -14,7 +15,7 @@ function useFaucetStats(): Stats | undefined {
     let alive = true
     const load = async () => {
       try {
-        const res = await fetch('/api/stats')
+        const res = await fetch(withBasePath('/api/stats'))
         const json = await res.json()
         if (alive && typeof json.payoutCount === 'number' && typeof json.totalSatsDisbursed === 'number') {
           setStats({ payoutCount: json.payoutCount, totalSatsDisbursed: json.totalSatsDisbursed })
