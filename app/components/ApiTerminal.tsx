@@ -3,12 +3,11 @@ import { useState } from 'react'
 import { CopyIcon } from './icons'
 import { useNetwork } from './NetworkProvider'
 import { NETWORK_IDS, type NetworkId } from '@/lib/networks'
-import { siteUrl } from '@/lib/base-path'
 
-/** The example call, for whichever network is selected in the card. */
-const curl = (network: NetworkId) => `# claim test coins to an address on ${network}
+/** The example call to this deployment's claim URL, for whichever network is selected in the card. */
+const curl = (claimUrl: string, network: NetworkId) => `# claim test coins to an address on ${network}
 # (network: ${NETWORK_IDS.join(' | ')}; omit for the faucet's default)
-curl -X POST ${siteUrl('/api/claim')} \\
+curl -X POST ${claimUrl} \\
   -H 'content-type: application/json' \\
   -d '{"address":"<your-testnet-address>","network":"${network}"}'
 
@@ -26,9 +25,9 @@ const ENDPOINTS = [
   { method: 'GET', path: '/api/networks' },
 ]
 
-export function ApiTerminal() {
+export function ApiTerminal({ claimUrl }: { claimUrl: string }) {
   const { network } = useNetwork()
-  const CURL = curl(network)
+  const CURL = curl(claimUrl, network)
   const [copied, setCopied] = useState(false)
 
   function copy() {

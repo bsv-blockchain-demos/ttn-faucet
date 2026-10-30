@@ -62,14 +62,21 @@ Set the same absolute `DATABASE_URL` in `.env` for the running app. The Prisma C
 | `{PREFIX}_WALLET_STORAGE_PATH` | That network's toolbox wallet SQLite file (e.g. `./data/wallet-testnet.sqlite`). One file per network. |
 | `{PREFIX}_TREASURY_WIF` | Flat key holding that network's coins — used **only** by the bootstrap scripts. |
 | `DATABASE_URL` | Prisma policy DB, e.g. `file:./prisma/dev.db`. |
-| `TURNSTILE_SECRET_KEY` / `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Cloudflare Turnstile keys. |
+| `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret key, used server-side to verify tokens. |
+| `TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key, read at runtime and passed to the widget. Required (or its deprecated name below). |
 | `FAUCET_PAYOUT_SATS` / `FAUCET_MAX_SATS` | Default payout and per-request cap (satoshis). |
 | `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS` | Max claims per window per subject. |
 | `RATE_LIMIT_DISABLED` | Set to the literal `false` to enable rate limiting. Unset or any other value disables it. |
 | `BOOTSTRAP_SPLIT_COUNT` | How many parallel-spendable UTXOs the bootstrap splits the treasury into. |
 | `FAUCET_DEFAULT_NETWORK` | Optional. `testnet` \| `ttn` \| `tstn`: where API calls without a `network` go. Must be a configured network. |
 | `RELAY_INTERNAL_URL` | Optional. Base URL of the mobile-wallet relay service, e.g. `http://faucet-relay:8787`. Unset disables mobile pairing. |
-| `NEXT_PUBLIC_SITE_URL` | Optional, read at build time. Public address of the faucet, base path included. Used for Open Graph image URLs and the API example on the page. Default `https://bsvblockchain.com/faucet`. |
+| `SITE_URL` | Optional, read at runtime. Public address of the faucet, base path included, e.g. `https://example.com/faucet`; a trailing slash is ignored, and a value that is not an absolute `http(s)` URL is skipped. Used for Open Graph image URLs and the API example on the page. Default `https://bsvblockchain.com/faucet`. |
+| `NEXT_PUBLIC_SITE_URL` / `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | **Deprecated** names for `SITE_URL` / `TURNSTILE_SITE_KEY`. Still read, from the runtime environment and then as inlined by `next build` (the Docker `NEXT_PUBLIC_TURNSTILE_SITE_KEY` build arg). The runtime vars above take precedence. |
+
+The page is rendered per request, so one image serves every deployment: set `SITE_URL` and
+`TURNSTILE_SITE_KEY` on each deployment rather than building an image per URL or key. With no site
+key set or inlined, the page falls back to Cloudflare's always-passing test key
+`1x00000000000000000000AA`.
 
 ### Networks
 

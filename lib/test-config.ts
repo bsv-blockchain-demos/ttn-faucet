@@ -7,7 +7,7 @@ import type * as Config from './config'
 export const TEST_ENV: Record<string, string> = {
   DATABASE_URL: 'file:./prisma/dev.db',
   TURNSTILE_SECRET_KEY: 'secret',
-  NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'site',
+  TURNSTILE_SITE_KEY: 'site',
   FAUCET_PAYOUT_SATS: '100000',
   FAUCET_MAX_SATS: '1000000',
   RATE_LIMIT_WINDOW_MS: '3600000',
