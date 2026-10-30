@@ -14,9 +14,11 @@ import {
 import { NETWORKS, type NetworkId } from '@/lib/networks'
 // TODO: re-enable Turnstile — temporarily disabled.
 // import { TurnstileWidget } from './TurnstileWidget'
-import { ArrowRightIcon, CheckIcon, MonitorIcon, PhoneIcon, WarningIcon } from './icons'
+import { CheckIcon, WarningIcon } from './icons'
+import { AndroidLogo, AppleLogo, ArrowUpRight, LinuxLogo, WindowsLogo } from '@phosphor-icons/react/dist/ssr'
 import { useNetwork } from './NetworkProvider'
 import { BusyLabel, ClaimLabel } from './ClaimLabel'
+import { BTN_CLAIM, BTN_SECONDARY } from './buttons'
 
 type Phase = 'detecting' | 'unavailable' | 'mobile' | 'idle' | 'claiming' | 'success' | 'error'
 
@@ -28,58 +30,101 @@ const MOBILE_POLL_MS = 2000
 /** How long to wait for a local BRC-100 wallet to answer getNetwork before offering downloads. */
 const DETECT_TIMEOUT_MS = 1500
 
-/**
- * The claim button is solid ink, the highest contrast on both the card and the network-coloured
- * field; its arrow block carries the network colour (see ClaimLabel).
- */
-const PRIMARY_CTA =
-  'group shine flex min-h-[64px] w-full items-stretch overflow-hidden rounded-panel bg-[color:var(--card-fg)] text-left text-[17px] font-semibold tracking-[-0.01em] text-[color:var(--card)] transition-colors disabled:cursor-not-allowed disabled:opacity-50'
-const SECONDARY_CTA =
-  'inline-flex h-11 w-full items-center justify-center rounded-pill border-[1.5px] border-[color:var(--btn2-bd)] bg-transparent px-[22px] text-sm font-semibold text-[color:var(--btn2-fg)] transition min-[620px]:w-auto'
+const SECONDARY_CTA = `${BTN_SECONDARY} w-full min-[620px]:w-auto`
+const TEXT_LINK = 'font-medium text-primary underline-offset-4 hover:underline'
 
-const DOWNLOADS = [
-  { name: 'BSV Desktop', sub: 'Mac, Windows & Linux', href: 'https://desktop.bsvb.tech/', Icon: MonitorIcon },
-  { name: 'BSV Browser', sub: 'iOS & Android', href: 'https://mobile.bsvb.tech/', Icon: PhoneIcon },
-] as const
-
-/** No wallet answered: the way forward is installing one, so the downloads lead. */
+/** No wallet answered: the way forward is installing one, so the download leads. */
 function GetAWallet() {
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-start gap-2.5">
-        <WarningIcon size={16} style={{ color: 'var(--warn-icon)', flex: 'none', marginTop: 2 }} />
-        <div className="text-[13.5px] leading-snug text-foreground">
-          <span className="font-semibold">No BRC-100 wallet found.</span>{' '}
-          <span className="text-muted-foreground">Install one, open this page again, and claim in one click.</span>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 gap-2.5 min-[420px]:grid-cols-2">
-        {DOWNLOADS.map(({ name, sub, href, Icon }) => (
-          <a
-            key={name}
-            href={href}
-            target="_blank"
-            rel="noreferrer"
-            className="lift flex items-center gap-3 rounded-input border-[1.5px] border-input-border bg-card px-3.5 py-3 transition hover:border-primary"
-          >
-            <span className="flex h-9 w-9 flex-none items-center justify-center rounded-input bg-accent text-accent-foreground">
-              <Icon size={18} />
-            </span>
-            <span className="min-w-0 leading-tight">
-              <span className="block text-[14px] font-semibold text-foreground">Get {name}</span>
-              <span className="block text-[12px] text-muted-foreground">{sub}</span>
-            </span>
-            <ArrowRightIcon size={15} className="ml-auto flex-none text-link" />
-          </a>
-        ))}
-      </div>
+      {/* The icon is inline, so a centred line that wraps keeps it beside the first word. */}
+      <p className="text-center text-sm leading-snug text-balance text-foreground">
+        <WarningIcon size={16} className="me-1.5 inline-block -translate-y-px align-middle text-primary" />
+        <span className="font-medium">No BRC-100 wallet found.</span>{' '}
+        <span className="text-ink-muted">Install one, open this page again, and claim in one click.</span>
+      </p>
+      <BrowserPromo />
     </div>
+  )
+}
+
+const PLATFORMS = [
+  { name: 'iPhone & Mac', Icon: AppleLogo },
+  { name: 'Android', Icon: AndroidLogo },
+  { name: 'Windows', Icon: WindowsLogo },
+  { name: 'Linux', Icon: LinuxLogo },
+] as const
+
+/**
+ * The BSV Browser download, as one card in the style of its own share image (browser.bsvb.tech's
+ * og-image): deep navy with a teal glow, one bold white line, the device line-up, and the platforms.
+ * The call to action sits top right where the eye starts; the platforms sit on the artwork, each on
+ * a dark radial matte so they hold up over the bright laptop screen. The whole card is the link,
+ * and it stays dark in both themes, like the artwork it comes from.
+ */
+function BrowserPromo() {
+  return (
+    <a
+      href="https://browser.bsvb.tech/"
+      target="_blank"
+      rel="noreferrer noopener"
+      data-glow=""
+      className="browser-promo group relative isolate block overflow-hidden rounded-lg text-white ring-1 ring-white/10 transition-transform duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+    >
+      <div className="relative z-10 px-5 pt-5 min-[480px]:px-6 min-[480px]:pt-6">
+        <div className="flex items-center justify-between gap-4">
+          <p className="label-sm text-brand-cyan uppercase">BSV Browser</p>
+          <span className="inline-flex h-11 flex-none items-center gap-2 rounded-md bg-white px-5 text-sm font-medium text-[var(--promo-base)] shadow-[0_6px_16px_-8px_rgb(0_0_0/0.6)] transition-transform duration-150 group-hover:-translate-y-px">
+            Get BSV Browser
+            <ArrowUpRight aria-hidden className="size-4 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          </span>
+        </div>
+        <p className="mt-4 max-w-[22ch] text-[1.375rem] leading-[1.15] font-bold tracking-[-0.025em] text-balance">
+          A web browser with your wallet, identity and data built in.
+        </p>
+      </div>
+
+      {/* The whole line-up, sized to the card and bleeding off the right edge like the share image.
+          The box is a little shorter than the artwork, so the bottom of the devices is cropped here,
+          inside the card, and the platform row sits in what's visible. */}
+      <div className="relative mt-5 aspect-[100/42] overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element -- static artwork; basePath-aware via withBasePath */}
+        <img
+          src={withBasePath('/brand/bsv-browser-devices.webp')}
+          alt=""
+          aria-hidden
+          width={1400}
+          height={650}
+          className="relative left-[5%] block h-auto w-[104%] max-w-none transition-transform duration-500 ease-out group-hover:-translate-y-1.5"
+        />
+        <div aria-hidden className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[var(--promo-base)] via-[var(--promo-base)]/60 to-transparent" />
+
+        {/* Platforms, over the artwork's lower edge. A soft vignette under the row, then a radial
+            matte per icon: darkest at the centre, so a white glyph reads over any part of the image. */}
+        <ul className="absolute bottom-4 left-5 z-10 flex items-center gap-2 min-[480px]:left-6">
+          <li aria-hidden className="pointer-events-none absolute -inset-x-8 -inset-y-6 -z-10 bg-[radial-gradient(closest-side,rgb(5_12_24/0.75),transparent)]" />
+          {PLATFORMS.map(({ name, Icon }) => (
+            <li
+              key={name}
+              title={name}
+              className="flex size-10 items-center justify-center rounded-full bg-[radial-gradient(circle_at_50%_35%,rgb(5_12_24/0.95)_0%,rgb(5_12_24/0.8)_60%,rgb(5_12_24/0.55)_100%)] ring-1 ring-white/15 shadow-[0_4px_14px_-4px_rgb(0_0_0/0.7)]"
+            >
+              <Icon aria-hidden weight="fill" className="size-5 text-white" />
+              <span className="sr-only">{name}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </a>
   )
 }
 
 function InfoBand({ children, pulse = 'ping' }: { children: React.ReactNode; pulse?: 'ping' | 'dot' }) {
   return (
-    <div className="flex w-full items-center gap-2.5 rounded-input border border-primary/20 bg-primary/10 p-3 text-[13px] leading-snug text-foreground">
+    <div
+      role="status"
+      className="flex w-full items-center gap-2.5 rounded-md border border-info-bd bg-info-bg p-3 text-sm leading-snug text-foreground"
+    >
       {pulse === 'ping' ? (
         <span className="relative flex h-2 w-2 flex-none">
           <span className="ping-ring absolute inline-flex h-full w-full rounded-full bg-primary" />
@@ -95,21 +140,18 @@ function InfoBand({ children, pulse = 'ping' }: { children: React.ReactNode; pul
 
 function ErrorBand({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex w-full items-start gap-2.5 rounded-input border border-neg bg-neg-bg p-3">
-      <WarningIcon size={16} className="mt-[1px] flex-none text-neg" />
-      <span className="text-[13px] font-medium leading-snug text-foreground">{children}</span>
+    <div role="alert" className="flex w-full items-start gap-2.5 rounded-md border border-destructive/40 bg-neg-bg p-3">
+      <WarningIcon size={16} className="mt-px flex-none text-destructive" />
+      <span className="text-sm font-medium leading-snug text-foreground">{children}</span>
     </div>
   )
 }
 
 function WarnBand({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      className="flex items-start gap-2.5 rounded-input p-3"
-      style={{ background: 'var(--warn-bg)', border: '1px solid var(--warn-bd)' }}
-    >
-      <WarningIcon size={16} style={{ color: 'var(--warn-icon)', flex: 'none', marginTop: 1 }} />
-      <span className="text-[13px] leading-snug text-foreground">{children}</span>
+    <div className="flex items-start gap-2.5 rounded-md border border-destructive/40 bg-neg-bg p-3">
+      <WarningIcon size={16} className="mt-px flex-none text-destructive" />
+      <span className="text-sm leading-snug text-foreground">{children}</span>
     </div>
   )
 }
@@ -128,21 +170,21 @@ function Success({
   onAgain?: () => void
 }) {
   return (
-    <div className="rounded-panel border border-pos bg-pos-bg p-[18px] text-center">
-      <div className="mx-auto mb-3 flex h-[46px] w-[46px] items-center justify-center rounded-full bg-pos">
-        <CheckIcon size={24} className="text-primary-foreground" />
+    <div role="status" className="rounded-md border border-pos/40 bg-pos-bg p-5 text-center">
+      <div className="mx-auto mb-3 flex size-11 items-center justify-center rounded-full bg-pos">
+        <CheckIcon size={22} weight="bold" className="text-primary-foreground" />
       </div>
-      <div className="mb-1 font-display text-lg font-semibold text-foreground">Funds in your wallet</div>
-      <div className="mb-[14px] text-[13.5px] leading-relaxed text-muted-foreground">
+      <div className="headline-md mb-1 text-foreground">Funds in your wallet</div>
+      <div className="mb-4 text-sm leading-relaxed text-ink-muted">
         {fmt(amount)} sats on {NETWORKS[network].name} are spendable now. No confirmation needed.
         {note ? ` ${note}` : ''}
       </div>
       <div className="flex flex-col items-center justify-center gap-2.5 min-[420px]:flex-row">
-        <button type="button" onClick={onTrack} className={`${SECONDARY_CTA} hover:bg-band`}>
+        <button type="button" onClick={onTrack} className={SECONDARY_CTA}>
           Track transaction
         </button>
         {onAgain && (
-          <button type="button" onClick={onAgain} className="text-[13px] font-semibold text-link">
+          <button type="button" onClick={onAgain} className={`text-sm ${TEXT_LINK}`}>
             Claim again
           </button>
         )}
@@ -268,8 +310,8 @@ function MobileClaim({
   }, [sessionId, live, start])
 
   const pasteLink = (
-    <button type="button" onClick={onUsePaste} className="self-center text-[13px] font-medium text-link">
-      Paste an address instead
+    <button type="button" onClick={onUsePaste} className={`self-center text-sm ${TEXT_LINK}`}>
+      Paste a 1address instead
     </button>
   )
 
@@ -279,7 +321,7 @@ function MobileClaim({
         <InfoBand pulse="dot">
           BSV Wallet connected. Sending {fmt(payoutSats)} sats on {networkName}…
         </InfoBand>
-        <p className="text-center text-xs text-muted-foreground">Keep BSV Wallet open until it shows the coins.</p>
+        <p className="text-center text-xs text-ink-muted">Keep BSV Wallet open until it shows the coins.</p>
       </div>
     )
   }
@@ -299,10 +341,10 @@ function MobileClaim({
     <div className="flex flex-col gap-4">
       <GetAWallet />
 
-      <div className="flex items-center gap-3 text-[12px] font-medium text-muted-foreground">
-        <span className="h-px flex-1 bg-hairline" />
+      <div className="flex items-center gap-3 text-xs font-medium text-ink-muted">
+        <span className="h-px flex-1 bg-border" />
         Already have BSV Wallet on your phone?
-        <span className="h-px flex-1 bg-hairline" />
+        <span className="h-px flex-1 bg-border" />
       </div>
 
       {view.state === 'starting' && <InfoBand>Preparing a phone claim…</InfoBand>}
@@ -310,7 +352,7 @@ function MobileClaim({
       {view.state === 'waiting' && claim && (
         <div className="flex flex-col items-center gap-3">
           {onPhone && (
-            <a href={claim.pairingUri} className={`${PRIMARY_CTA} shine-loop`}>
+            <a href={claim.pairingUri} data-glow="" className={BTN_CLAIM}>
               <ClaimLabel payoutSats={payoutSats} networkName={networkName} />
             </a>
           )}
@@ -321,13 +363,13 @@ function MobileClaim({
               alt={`QR code to claim on ${networkName} with BSV Wallet`}
               width={180}
               height={180}
-              className="rounded-input border border-hairline bg-white p-2"
+              className="rounded-md border border-border bg-white p-2"
             />
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-ink-muted">
               {onPhone ? 'Or scan from another phone with BSV Wallet' : 'Scan with BSV Wallet to claim'}
             </span>
           </div>
-          <p className="w-full text-center text-xs leading-relaxed text-muted-foreground">
+          <p className="w-full text-center text-xs leading-relaxed text-ink-muted">
             Set BSV Wallet to <span className="font-semibold text-net">{networkName}</span> first, and stay in it
             for a couple of seconds after approving while the coins arrive.
           </p>
@@ -341,13 +383,13 @@ function MobileClaim({
             {view.txid && (
               <>
                 {' '}
-                <button type="button" onClick={() => onTrack(view.txid!)} className="font-medium text-link">
+                <button type="button" onClick={() => onTrack(view.txid!)} className={TEXT_LINK}>
                   Track transaction
                 </button>
               </>
             )}
           </ErrorBand>
-          <button type="button" onClick={start} className={`${SECONDARY_CTA} hover:bg-band`}>
+          <button type="button" onClick={start} className={SECONDARY_CTA}>
             Try again
           </button>
         </div>
@@ -356,7 +398,7 @@ function MobileClaim({
       {view.state === 'expired' && (
         <div className="flex flex-col items-start gap-3">
           <ErrorBand>The claim code expired before BSV Wallet connected.</ErrorBand>
-          <button type="button" onClick={start} className={`${SECONDARY_CTA} hover:bg-band`}>
+          <button type="button" onClick={start} className={SECONDARY_CTA}>
             Show a new code
           </button>
         </div>
@@ -506,8 +548,8 @@ export function WalletPanel({
     return (
       <div className="flex flex-col gap-4">
         <GetAWallet />
-        <button type="button" onClick={onUsePaste} className="self-center text-[13px] font-medium text-link">
-          Paste an address instead
+        <button type="button" onClick={onUsePaste} className={`self-center text-sm ${TEXT_LINK}`}>
+          Paste a 1address instead
         </button>
       </div>
     )
@@ -532,7 +574,7 @@ export function WalletPanel({
       {phase === 'idle' && onMainnet && (
         <WarnBand>
           Your wallet is on <span className="font-semibold">mainnet</span>. Switch it to {networkName}, then{' '}
-          <button type="button" onClick={recheck} disabled={rechecking} className="font-semibold text-link">
+          <button type="button" onClick={recheck} disabled={rechecking} className={TEXT_LINK}>
             {rechecking ? 'checking…' : 'check again'}
           </button>
           .
@@ -540,7 +582,7 @@ export function WalletPanel({
       )}
 
       {phase === 'idle' && !onMainnet && (
-        <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
+        <div className="flex items-center gap-2 text-sm text-ink-muted">
           <CheckIcon size={15} className="flex-none text-pos" />
           <span>
             Wallet connected. Check it&apos;s set to <span className="font-semibold text-net">{networkName}</span>.
@@ -556,7 +598,7 @@ export function WalletPanel({
           {result && (
             <>
               {' '}
-              <button type="button" onClick={() => onTrack(result.txid)} className="font-medium text-link">
+              <button type="button" onClick={() => onTrack(result.txid)} className={TEXT_LINK}>
                 Track transaction
               </button>
             </>
@@ -567,11 +609,11 @@ export function WalletPanel({
       {/* TODO: re-enable Turnstile — and restore `!token` in the button's disabled below. */}
       {/* {(phase === 'idle' || phase === 'error') && <TurnstileWidget siteKey={siteKey} onToken={setToken} />} */}
 
-      <button type="button" onClick={claim} disabled={busy || onMainnet} className={`${PRIMARY_CTA} shine-loop`}>
+      <button type="button" data-glow="" onClick={claim} disabled={busy || onMainnet} className={BTN_CLAIM}>
         {busy ? <BusyLabel>Claiming…</BusyLabel> : <ClaimLabel payoutSats={payoutSats} networkName={networkName} />}
       </button>
 
-      <p className="label">Atomic BEEF · Spendable on receipt · Nothing to paste</p>
+      <p className="text-center text-xs text-ink-muted">Atomic BEEF, spendable on receipt. Nothing to paste.</p>
     </div>
   )
 }
