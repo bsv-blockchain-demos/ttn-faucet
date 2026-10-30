@@ -71,7 +71,7 @@ function BrowserPromo() {
       data-glow=""
       className="browser-promo group relative isolate block overflow-hidden rounded-lg text-white ring-1 ring-white/10 transition-transform duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
     >
-      <div className="relative z-10 px-5 pt-5 min-[480px]:px-6 min-[480px]:pt-6">
+      <div className="relative z-10 px-6 pt-6 min-[480px]:px-7 min-[480px]:pt-7">
         <div className="flex items-center justify-between gap-4">
           <p className="label-sm text-brand-cyan uppercase">BSV Browser</p>
           <span className="inline-flex h-11 flex-none items-center gap-2 rounded-md bg-white px-5 text-sm font-medium text-[var(--promo-base)] shadow-[0_6px_16px_-8px_rgb(0_0_0/0.6)] transition-transform duration-150 group-hover:-translate-y-px">
@@ -101,7 +101,7 @@ function BrowserPromo() {
 
         {/* Platforms, over the artwork's lower edge. A soft vignette under the row, then a radial
             matte per icon: darkest at the centre, so a white glyph reads over any part of the image. */}
-        <ul className="absolute bottom-4 left-5 z-10 flex items-center gap-2 min-[480px]:left-6">
+        <ul className="absolute bottom-5 left-6 z-10 flex items-center gap-2 min-[480px]:left-7">
           <li aria-hidden className="pointer-events-none absolute -inset-x-8 -inset-y-6 -z-10 bg-[radial-gradient(closest-side,rgb(5_12_24/0.75),transparent)]" />
           {PLATFORMS.map(({ name, Icon }) => (
             <li
