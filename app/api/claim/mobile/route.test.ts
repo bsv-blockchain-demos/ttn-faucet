@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 const claims = { create: vi.fn(), view: vi.fn(), check: vi.fn() }
 vi.mock('@/lib/mobile-claim-runtime', () => ({ mobileClaims: () => claims }))
 vi.mock('@/lib/config', async (orig) => (await import('@/lib/test-config')).mockConfigModule(await orig()))
+const { checkCaptcha } = vi.hoisted(() => ({ checkCaptcha: vi.fn() }))
+vi.mock('@/lib/guard', () => ({ checkCaptcha }))
 
 import { POST as start } from './route'
 import { GET as poll, POST as notify } from './[id]/route'
@@ -12,6 +14,7 @@ const ctx = (id: string) => ({ params: Promise.resolve({ id }) })
 
 beforeEach(() => {
   vi.clearAllMocks()
+  checkCaptcha.mockResolvedValue(null)
   vi.stubEnv('RELAY_INTERNAL_URL', 'http://relay:8787')
 })
 afterEach(() => vi.unstubAllEnvs())
@@ -30,6 +33,22 @@ describe('POST /api/claim/mobile', () => {
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ sessionId: 's1', qrDataUrl: 'data:qr', pairingUri: 'bsv-wallet://pair' })
     expect(claims.create).toHaveBeenCalledWith('9.9.9.9', 'testnet')
+  })
+
+  it('checks the Turnstile token against the client IP before opening a session', async () => {
+    claims.create.mockResolvedValue({ sessionId: 's1', qrDataUrl: 'data:qr', pairingUri: 'bsv-wallet://pair' })
+    const body = JSON.stringify({ network: 'ttn', captchaToken: 'tok' })
+    const res = await start(new Request('http://x', { method: 'POST', body, headers: { 'x-forwarded-for': '9.9.9.9' } }))
+    expect(res.status).toBe(200)
+    expect(checkCaptcha).toHaveBeenCalledWith('tok', '9.9.9.9')
+  })
+
+  it('403s and opens no session when the Turnstile check fails', async () => {
+    checkCaptcha.mockResolvedValue({ ok: false, code: 'captcha', status: 403, message: 'Captcha verification failed' })
+    const res = await start(new Request('http://x', { method: 'POST', body: JSON.stringify({ network: 'ttn' }) }))
+    expect(res.status).toBe(403)
+    expect(await res.json()).toMatchObject({ code: 'captcha' })
+    expect(claims.create).not.toHaveBeenCalled()
   })
 
   it('passes a relay rate limit through as 429', async () => {
@@ -73,9 +92,10 @@ describe('GET /api/claim/mobile/:id', () => {
 })
 
 describe('POST /api/claim/mobile/:id (relay connect webhook)', () => {
-  it('only prompts a check', async () => {
+  it('only prompts a check, and needs no Turnstile token (server to server)', async () => {
     const res = await notify(new Request('http://x', { method: 'POST' }), ctx('s1'))
     expect(res.status).toBe(202)
     expect(claims.check).toHaveBeenCalledWith('s1')
+    expect(checkCaptcha).not.toHaveBeenCalled()
   })
 })

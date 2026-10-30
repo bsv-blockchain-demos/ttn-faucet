@@ -19,7 +19,8 @@ export function mobileClaims(): MobileClaims {
       createSession: createRelaySession,
       getStatus: getRelayStatus,
       call: relayCall,
-      guard: (ip) => guard({ ip }),
+      // The claim's Turnstile token was checked when it started (POST /api/claim/mobile).
+      guard: (ip) => guard({ ip, captchaVerified: true }),
       pay: (network, identityKey, ip) =>
         claimToWallet(
           { network, identityKey, ipHash: hashIp(ip), recordRemittance: true },

@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const { cfg } = vi.hoisted(() => ({
-  cfg: { TURNSTILE_SECRET_KEY: 'sec', RATE_LIMIT_MAX: 5, RATE_LIMIT_WINDOW_MS: 1000, RATE_LIMIT_DISABLED: false },
+  cfg: {
+    TURNSTILE_REQUIRED: false,
+    TURNSTILE_SECRET_KEY: 'sec',
+    RATE_LIMIT_MAX: 5,
+    RATE_LIMIT_WINDOW_MS: 1000,
+    RATE_LIMIT_DISABLED: false,
+  },
 }))
 vi.mock('./config', () => ({
   getConfig: () => cfg,
@@ -11,7 +17,7 @@ vi.mock('./turnstile', () => ({ verifyTurnstile: vi.fn() }))
 vi.mock('./rate-limit', () => ({ checkAndRecord: vi.fn() }))
 vi.mock('./prisma', () => ({ prisma: { apiKey: { findUnique: vi.fn() } } }))
 
-import { guard, hashIp } from './guard'
+import { checkCaptcha, guard, hashIp } from './guard'
 import { verifyTurnstile } from './turnstile'
 import { checkAndRecord } from './rate-limit'
 import { prisma } from './prisma'
@@ -30,11 +36,12 @@ describe('guard', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     cfg.RATE_LIMIT_DISABLED = false
-    ;(checkAndRecord as any).mockResolvedValue({ allowed: true, remaining: 4, retryAfterMs: 0 })
+    cfg.TURNSTILE_REQUIRED = false
+    ;vi.mocked(checkAndRecord).mockResolvedValue({ allowed: true, remaining: 4, retryAfterMs: 0 })
   })
 
   it('valid API key under limit → ok with apiKeyId, skips captcha, uses tier-multiplied limit', async () => {
-    ;(prisma.apiKey.findUnique as any).mockResolvedValue({ id: 'key1', enabled: true, tier: 2 })
+    ;vi.mocked(prisma.apiKey.findUnique).mockResolvedValue({ id: 'key1', enabled: true, tier: 2 } as never)
     const r = await guard({ ip: '1.2.3.4', apiKey: 'secret-key' })
     expect(r).toMatchObject({ ok: true, subject: 'key1', apiKeyId: 'key1' })
     expect(verifyTurnstile).not.toHaveBeenCalled()
@@ -42,20 +49,58 @@ describe('guard', () => {
   })
 
   it('missing/disabled API key → 401 unauthorized', async () => {
-    ;(prisma.apiKey.findUnique as any).mockResolvedValue(null)
+    ;vi.mocked(prisma.apiKey.findUnique).mockResolvedValue(null)
     const r = await guard({ ip: '1.2.3.4', apiKey: 'bad' })
     expect(r).toMatchObject({ ok: false, code: 'unauthorized', status: 401 })
   })
 
-  // TODO: re-enable with Turnstile — captcha is temporarily disabled, so a failing token no longer 403s.
-  // it('public path with failing captcha → 403', async () => {
-  //   ;(verifyTurnstile as any).mockResolvedValue(false)
-  //   const r = await guard({ ip: '1.2.3.4', captchaToken: 'tok' })
-  //   expect(r).toMatchObject({ ok: false, code: 'captcha', status: 403 })
-  // })
+  it('Turnstile not required → public path ignores the token and never calls siteverify', async () => {
+    const r = await guard({ ip: '1.2.3.4' })
+    expect(r.ok).toBe(true)
+    expect(verifyTurnstile).not.toHaveBeenCalled()
+  })
+
+  it('Turnstile required, valid token → ok, verified with the secret and client IP', async () => {
+    cfg.TURNSTILE_REQUIRED = true
+    vi.mocked(verifyTurnstile).mockResolvedValue(true)
+    const r = await guard({ ip: '1.2.3.4', captchaToken: 'tok' })
+    expect(r.ok).toBe(true)
+    expect(verifyTurnstile).toHaveBeenCalledWith('sec', 'tok', '1.2.3.4')
+  })
+
+  it('Turnstile required, missing token → 403 without calling siteverify', async () => {
+    cfg.TURNSTILE_REQUIRED = true
+    const r = await guard({ ip: '1.2.3.4' })
+    expect(r).toMatchObject({ ok: false, code: 'captcha', status: 403 })
+    expect(verifyTurnstile).not.toHaveBeenCalled()
+    expect(checkAndRecord).not.toHaveBeenCalled()
+  })
+
+  it('Turnstile required, invalid token → 403', async () => {
+    cfg.TURNSTILE_REQUIRED = true
+    vi.mocked(verifyTurnstile).mockResolvedValue(false)
+    const r = await guard({ ip: '1.2.3.4', captchaToken: 'bad' })
+    expect(r).toMatchObject({ ok: false, code: 'captcha', status: 403 })
+    expect(checkAndRecord).not.toHaveBeenCalled()
+  })
+
+  it('Turnstile required, captchaVerified (mobile claim at connect) → no token needed', async () => {
+    cfg.TURNSTILE_REQUIRED = true
+    const r = await guard({ ip: '1.2.3.4', captchaVerified: true })
+    expect(r.ok).toBe(true)
+    expect(verifyTurnstile).not.toHaveBeenCalled()
+  })
+
+  it('Turnstile required, API key → no token needed', async () => {
+    cfg.TURNSTILE_REQUIRED = true
+    vi.mocked(prisma.apiKey.findUnique).mockResolvedValue({ id: 'key1', enabled: true, tier: 1 } as never)
+    const r = await guard({ ip: '1.2.3.4', apiKey: 'secret-key' })
+    expect(r.ok).toBe(true)
+    expect(verifyTurnstile).not.toHaveBeenCalled()
+  })
 
   it('public path, under limit → ok with ipHash subject and no apiKeyId', async () => {
-    ;(verifyTurnstile as any).mockResolvedValue(true)
+    ;vi.mocked(verifyTurnstile).mockResolvedValue(true)
     const r = await guard({ ip: '1.2.3.4', captchaToken: 'tok' })
     expect(r.ok).toBe(true)
     if (r.ok) {
@@ -65,26 +110,41 @@ describe('guard', () => {
   })
 
   it('public path over rate limit → 429 with retryAfterMs', async () => {
-    ;(verifyTurnstile as any).mockResolvedValue(true)
-    ;(checkAndRecord as any).mockResolvedValue({ allowed: false, remaining: 0, retryAfterMs: 500 })
+    ;vi.mocked(verifyTurnstile).mockResolvedValue(true)
+    ;vi.mocked(checkAndRecord).mockResolvedValue({ allowed: false, remaining: 0, retryAfterMs: 500 })
     const r = await guard({ ip: '1.2.3.4', captchaToken: 'tok' })
     expect(r).toMatchObject({ ok: false, code: 'rate_limit', status: 429, retryAfterMs: 500 })
   })
 
   it('RATE_LIMIT_DISABLED → never records or rejects on the limit', async () => {
     cfg.RATE_LIMIT_DISABLED = true
-    ;(verifyTurnstile as any).mockResolvedValue(true)
-    ;(checkAndRecord as any).mockResolvedValue({ allowed: false, remaining: 0, retryAfterMs: 500 })
+    ;vi.mocked(verifyTurnstile).mockResolvedValue(true)
+    ;vi.mocked(checkAndRecord).mockResolvedValue({ allowed: false, remaining: 0, retryAfterMs: 500 })
     const r = await guard({ ip: '1.2.3.4', captchaToken: 'tok' })
     expect(r.ok).toBe(true) // not 429, even though checkAndRecord would have blocked
     expect(checkAndRecord).not.toHaveBeenCalled()
   })
 
-  // TODO: re-enable with Turnstile — captcha is temporarily disabled.
-  // it('RATE_LIMIT_DISABLED still rejects a failing captcha (only the limit is off)', async () => {
-  //   cfg.RATE_LIMIT_DISABLED = true
-  //   ;(verifyTurnstile as any).mockResolvedValue(false)
-  //   const r = await guard({ ip: '1.2.3.4', captchaToken: 'bad' })
-  //   expect(r).toMatchObject({ ok: false, code: 'captcha', status: 403 })
-  // })
+  it('RATE_LIMIT_DISABLED still rejects a failing captcha (only the limit is off)', async () => {
+    cfg.RATE_LIMIT_DISABLED = true
+    cfg.TURNSTILE_REQUIRED = true
+    vi.mocked(verifyTurnstile).mockResolvedValue(false)
+    const r = await guard({ ip: '1.2.3.4', captchaToken: 'bad' })
+    expect(r).toMatchObject({ ok: false, code: 'captcha', status: 403 })
+  })
+})
+
+describe('checkCaptcha', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('passes everything when Turnstile is not required', async () => {
+    cfg.TURNSTILE_REQUIRED = false
+    expect(await checkCaptcha(undefined, '1.2.3.4')).toBeNull()
+  })
+
+  it('returns the 403 for a refused token when required', async () => {
+    cfg.TURNSTILE_REQUIRED = true
+    vi.mocked(verifyTurnstile).mockResolvedValue(false)
+    expect(await checkCaptcha('bad', '1.2.3.4')).toMatchObject({ ok: false, code: 'captcha', status: 403 })
+  })
 })
