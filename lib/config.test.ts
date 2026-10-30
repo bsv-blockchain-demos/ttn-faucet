@@ -55,6 +55,14 @@ describe('parseConfig', () => {
     expect(() => parseConfig(missing)).toThrow(/TESTNET_WALLET_STORAGE_PATH/)
   })
 
+  it('takes the Turnstile site key under either name, and requires one', () => {
+    const noKey = { ...TEST_ENV }
+    delete noKey.TURNSTILE_SITE_KEY
+    expect(() => parseConfig(noKey)).toThrow(/TURNSTILE_SITE_KEY/)
+    expect(() => parseConfig({ ...noKey, TURNSTILE_SITE_KEY: '' })).toThrow(/TURNSTILE_SITE_KEY/)
+    expect(() => parseConfig({ ...noKey, NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'site' })).not.toThrow()
+  })
+
   it('throws when no network is configured', () => {
     expect(() => parseConfig(shared)).toThrow(/No network configured/)
   })

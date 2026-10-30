@@ -5,7 +5,10 @@ const schema = z
   .object({
     DATABASE_URL: z.string().min(1),
     TURNSTILE_SECRET_KEY: z.string().min(1),
-    NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().min(1),
+    /** Turnstile site key: one of these two must be set. The page reads it per request (lib/public-config.ts). */
+    TURNSTILE_SITE_KEY: z.string().optional(),
+    /** Deprecated name for TURNSTILE_SITE_KEY, still accepted. */
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().optional(),
     FAUCET_PAYOUT_SATS: z.coerce.number().int().positive(),
     FAUCET_MAX_SATS: z.coerce.number().int().positive(),
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive(),
@@ -19,6 +22,10 @@ const schema = z
     BOOTSTRAP_SPLIT_COUNT: z.coerce.number().int().positive(),
     /** Where API calls without a `network` go. Unset: testnet if enabled, else the first enabled. */
     FAUCET_DEFAULT_NETWORK: z.preprocess((v) => (v === '' ? undefined : v), z.enum(NETWORK_IDS).optional()),
+  })
+  .refine((c) => c.TURNSTILE_SITE_KEY || c.NEXT_PUBLIC_TURNSTILE_SITE_KEY, {
+    message: 'TURNSTILE_SITE_KEY (or the deprecated NEXT_PUBLIC_TURNSTILE_SITE_KEY) is required',
+    path: ['TURNSTILE_SITE_KEY'],
   })
   .refine((c) => c.FAUCET_PAYOUT_SATS <= c.FAUCET_MAX_SATS, {
     message: 'FAUCET_PAYOUT_SATS must be <= FAUCET_MAX_SATS',

@@ -1,10 +1,16 @@
 import type { Metadata, Viewport } from 'next'
+import { connection } from 'next/server'
 import './globals.css'
-import { siteUrl } from '@/lib/base-path'
+import { resolvePublicConfig } from '@/lib/public-config'
 import { ThemeProvider, themeNoFlashScript } from './components/ThemeProvider'
 
-export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl()),
+/** Per request, so each deployment's og:image and other absolute URLs point at its own SITE_URL. */
+export async function generateMetadata(): Promise<Metadata> {
+  await connection()
+  return { metadataBase: new URL(resolvePublicConfig(process.env).siteUrl), ...metadata }
+}
+
+const metadata: Metadata = {
   title: 'BSV Faucet: free test coins',
   description:
     'A BSV Blockchain faucet for every test network. Pick your network and grab free, spendable test coins in one click with a BRC-100 wallet, or POST an address via the dev API.',

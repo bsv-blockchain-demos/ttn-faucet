@@ -14,7 +14,8 @@ WORKDIR /build
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 RUN pnpm install --frozen-lockfile --prod=false
 
-# Build (NEXT_PUBLIC_* are inlined at build time)
+# Build. SITE_URL and TURNSTILE_SITE_KEY are read at runtime; this deprecated build arg is only the
+# fallback the page inlines for deployments that set neither.
 COPY . .
 ARG NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA
 ENV NEXT_PUBLIC_TURNSTILE_SITE_KEY=${NEXT_PUBLIC_TURNSTILE_SITE_KEY}

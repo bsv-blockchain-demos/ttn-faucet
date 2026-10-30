@@ -105,8 +105,8 @@ There is **one HTML screen.** Everything is on `/`. The rest are JSON API routes
 
 ## 5. Page anatomy (`app/page.tsx`, top → bottom)
 
-The page is a server component that reads `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `FAUCET_PAYOUT_SATS`
-from env and passes them down as props.
+The page is a server component, rendered per request, that reads `TURNSTILE_SITE_KEY`, `SITE_URL` and
+`FAUCET_PAYOUT_SATS` from env (`lib/public-config.ts`) and passes them down as props.
 
 1. **Sticky header** (`max-w-5xl`) — Logo (a `B` glyph in a brand square + "BSV Teranode / TESTNET FAUCET"), nav links: **Dev API** (anchor `#api`), **Explorer** (`#` — dead), **GitHub** (outbound).
 2. **Hero** (`max-w-3xl`) — ⚠️ **unusual order**: the interactive **FaucetCard comes first**, *then* below it the marketing: a "● NETWORK ONLINE · teratestnet" pill, the H1 *"Free test coins to build on the **million-TPS** network."*, a sub-paragraph, and a 3-stat inline list (100,000 sats / ~0s / BRC-100).

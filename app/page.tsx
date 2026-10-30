@@ -6,6 +6,9 @@ import { NetworkProvider } from './components/NetworkProvider'
 import { NetworkPanel } from './components/NetworkPanel'
 import { BrandMark } from './components/BrandMark'
 import { NETWORK_IDS } from '@/lib/networks'
+import { siteUrl } from '@/lib/base-path'
+import { resolvePublicConfig } from '@/lib/public-config'
+import { connection } from 'next/server'
 
 const GITHUB = 'https://github.com/bsv-blockchain-demos/ttn-faucet'
 const DOCS = `${GITHUB}#readme`
@@ -46,8 +49,11 @@ function SectionHead({ index, title, sub }: { index: string; title: string; sub?
   )
 }
 
-export default function Home() {
-  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? ''
+export default async function Home() {
+  // Rendered per request, so one image serves each deployment's own URL and Turnstile key.
+  await connection()
+  const config = resolvePublicConfig(process.env)
+  const siteKey = config.turnstileSiteKey
   const payoutSats = Number(process.env.FAUCET_PAYOUT_SATS ?? 100000)
 
   const spec = [
@@ -159,7 +165,7 @@ export default function Home() {
                 title="Or call it from a script"
                 sub="POST an address and a network. The faucet builds, signs and broadcasts the payout, and returns the transaction in extended format."
               />
-              <ApiTerminal />
+              <ApiTerminal claimUrl={siteUrl('/api/claim', config.siteUrl)} />
             </div>
           </section>
         </main>
