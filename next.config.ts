@@ -18,11 +18,7 @@ const nextConfig: NextConfig = {
       { source: "/states", destination: `${BASE_PATH}/states`, basePath: false, permanent: false },
     ];
   },
-  // The API stays at its root address too, rewritten rather than redirected: external clients,
-  // the relay's callback and health probes POST and GET /api/* and need not follow a redirect.
-  async rewrites() {
-    return [{ source: "/api/:path*", destination: `${BASE_PATH}/api/:path*`, basePath: false }];
-  },
+  // The API's root address, /api/*, is rewritten onto /faucet/api/* in proxy.ts.
 };
 
 export default nextConfig;

@@ -1,7 +1,7 @@
 /**
  * Where the app is mounted. bsvblockchain.com/faucet is proxied here with the path unchanged, so
  * every page, asset and API route lives under /faucet; next.config.ts sets it as Next's basePath and
- * keeps the old root addresses answering on this host.
+ * redirects the old root pages, and proxy.ts keeps /api/* answering at the root on this host.
  */
 export const BASE_PATH = '/faucet'
 
