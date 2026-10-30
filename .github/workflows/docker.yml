@@ -13,14 +13,18 @@ env:
 
 jobs:
   build:
+    name: build (${{ matrix.component }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
+        # Image names follow the repository: ghcr.io/<owner>/<repo> and ghcr.io/<owner>/<repo>-relay.
         include:
-          - image: ttn-faucet
+          - component: app
+            suffix: ""
             context: .
           # Mobile wallet pairing relay (@bsv/wallet-relay) — see relay/ and README.
-          - image: ttn-faucet-relay
+          - component: relay
+            suffix: -relay
             context: relay
     permissions:
       contents: read
@@ -44,7 +48,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}
+          images: ${{ env.REGISTRY }}/${{ github.repository }}${{ matrix.suffix }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix=sha-
@@ -58,7 +62,7 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.image }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
           build-args: |
             NEXT_PUBLIC_TURNSTILE_SITE_KEY=${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '1x00000000000000000000AA' }}
