@@ -11,7 +11,8 @@ type Tab = 'wallet' | 'address'
 
 /**
  * The faucet card: pick a network, then claim with a BRC-100 wallet (default) or to an address.
- * The whole card carries data-network + .net-theme, so its colours follow the pick.
+ * The whole card carries data-network + .net-theme, so its colours follow the pick. `siteKey` is the
+ * Turnstile site key, or '' when Turnstile is off (no widget, no token sent).
  */
 export function FaucetCard({ siteKey, payoutSats }: { siteKey: string; payoutSats: number }) {
   const { network } = useNetwork()

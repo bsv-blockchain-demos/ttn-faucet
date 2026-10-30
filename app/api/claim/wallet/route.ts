@@ -16,7 +16,7 @@ const BodySchema = z.object({
   amount: z.number().int().positive().optional(),
   /** lib/networks.ts id; omitted = the faucet's default network. */
   network: z.string().optional(),
-  // Turnstile temporarily disabled (see lib/guard.ts); token is unused server-side, so accept "" too.
+  // Checked only when TURNSTILE_REQUIRED is on (lib/guard.ts); API-key callers send none.
   captchaToken: z.string().optional(),
 })
 

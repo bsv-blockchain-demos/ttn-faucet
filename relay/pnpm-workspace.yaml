@@ -2,3 +2,14 @@
 # parent directory, so a plain `pnpm install` here uses relay/pnpm-lock.yaml.
 packages:
   - '.'
+
+# Same as the faucet root: esbuild (via vite and tsx) may run its install script.
+allowBuilds:
+  esbuild: true
+
+onlyBuiltDependencies:
+  - esbuild
+
+# Keep the patched vite floor without a direct dependency on it.
+overrides:
+  vite: ^8.3.5

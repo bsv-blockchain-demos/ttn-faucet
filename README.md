@@ -28,7 +28,7 @@ server wallet, seeded once from a flat treasury key.
 
 [Hosted faucet](https://bsvblockchain.com/faucet), proxied by path to this app at faucet.bsvblockchain.tech/faucet (also served at faucet-ttn.bsvblockchain.tech). The app is mounted under `/faucet` (`lib/base-path.ts`); the old root addresses redirect, and `/api/*` still answers at the root.
 
-**Current claim controls:** captcha verification is commented out in `lib/guard.ts`, and rate limiting defaults to disabled. Set `RATE_LIMIT_DISABLED=false` to enable per-subject limits. Turnstile keys alone do not enable captcha verification. Valid API keys receive tier-based limits when rate limiting is enabled.
+**Current claim controls:** Turnstile and rate limiting are both off by default. Set `TURNSTILE_REQUIRED=true` (with both Turnstile keys) to require a captcha on public claims, and `RATE_LIMIT_DISABLED=false` to enable per-subject limits. Turnstile keys alone do not enable captcha verification. Valid API keys skip the captcha and receive tier-based limits when rate limiting is enabled.
 
 > See `docs/superpowers/specs/2026-06-23-teratestnet-faucet-design.md` for the full design.
 
@@ -62,8 +62,9 @@ Set the same absolute `DATABASE_URL` in `.env` for the running app. The Prisma C
 | `{PREFIX}_WALLET_STORAGE_PATH` | That network's toolbox wallet SQLite file (e.g. `./data/wallet-testnet.sqlite`). One file per network. |
 | `{PREFIX}_TREASURY_WIF` | Flat key holding that network's coins — used **only** by the bootstrap scripts. |
 | `DATABASE_URL` | Prisma policy DB, e.g. `file:./prisma/dev.db`. |
-| `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret key, used server-side to verify tokens. |
-| `TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key, read at runtime and passed to the widget. Required (or its deprecated name below). |
+| `TURNSTILE_REQUIRED` | Set to the literal `true` to require a Turnstile token on public claims ([Turnstile](#turnstile)). Unset or any other value leaves Turnstile off. |
+| `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret key, used server-side to verify tokens. Required when `TURNSTILE_REQUIRED=true`. |
+| `TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key, read at runtime and passed to the widget. Required (or its deprecated name below) when `TURNSTILE_REQUIRED=true`. |
 | `FAUCET_PAYOUT_SATS` / `FAUCET_MAX_SATS` | Default payout and per-request cap (satoshis). |
 | `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS` | Max claims per window per subject. |
 | `RATE_LIMIT_DISABLED` | Set to the literal `false` to enable rate limiting. Unset or any other value disables it. |
@@ -71,12 +72,33 @@ Set the same absolute `DATABASE_URL` in `.env` for the running app. The Prisma C
 | `FAUCET_DEFAULT_NETWORK` | Optional. `testnet` \| `ttn` \| `tstn`: where API calls without a `network` go. Must be a configured network. |
 | `RELAY_INTERNAL_URL` | Optional. Base URL of the mobile-wallet relay service, e.g. `http://faucet-relay:8787`. Unset disables mobile pairing. |
 | `SITE_URL` | Optional, read at runtime. Public address of the faucet, base path included, e.g. `https://example.com/faucet`; a trailing slash is ignored, and a value that is not an absolute `http(s)` URL is skipped. Used for Open Graph image URLs and the API example on the page. Default `https://bsvblockchain.com/faucet`. |
-| `NEXT_PUBLIC_SITE_URL` / `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | **Deprecated** names for `SITE_URL` / `TURNSTILE_SITE_KEY`. Still read, from the runtime environment and then as inlined by `next build` (the Docker `NEXT_PUBLIC_TURNSTILE_SITE_KEY` build arg). The runtime vars above take precedence. |
+| `NEXT_PUBLIC_SITE_URL` / `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | **Deprecated** names for `SITE_URL` / `TURNSTILE_SITE_KEY`, still read from the runtime environment. The site key is also read as inlined by `next build` (the Docker `NEXT_PUBLIC_TURNSTILE_SITE_KEY` build arg). The runtime vars above take precedence. |
 
 The page is rendered per request, so one image serves every deployment: set `SITE_URL` and
-`TURNSTILE_SITE_KEY` on each deployment rather than building an image per URL or key. With no site
-key set or inlined, the page falls back to Cloudflare's always-passing test key
-`1x00000000000000000000AA`.
+`TURNSTILE_SITE_KEY` on each deployment rather than building an image per URL or key. A `SITE_URL`
+that is set but rejected is logged once (`Ignoring SITE_URL=…`) and the next source is used.
+
+### Turnstile
+
+With `TURNSTILE_REQUIRED=true`, a claim without an API key needs a Turnstile token that Cloudflare's
+siteverify accepts for `TURNSTILE_SECRET_KEY`; anything else gets 403 `captcha`. With `TURNSTILE_REQUIRED=true` and either key
+missing, the config fails to load, so every claim errors (500) and the log names the missing key.
+Per claim path:
+
+| Path | Token |
+|---|---|
+| `POST /api/claim`, `POST /api/claim/wallet` | `captchaToken` in the body, unless an API key is sent. |
+| `POST /api/claim/mobile` | `captchaToken` in the body, checked before the pairing session opens. The claim itself runs later, when the phone connects, and is only rate-limited then. |
+| `POST /api/claim/mobile/:id` (relay notification) | None: server to server, and it only prompts a check. |
+
+Unset or any other value: no widget on the page, tokens are ignored, claims behave as before.
+
+Test keys: with no site key set or inlined, the page falls back to Cloudflare's test site key
+`1x00000000000000000000AA`, whose widget always passes and hands out a dummy token. Only
+Cloudflare's test secret keys accept dummy tokens (`1x0000000000000000000000000000000AA` always
+passes, `2x0000000000000000000000000000000AA` always fails); a real secret rejects them. So switch
+Turnstile on with a matching real pair, and add every host the page is served from to the site
+key's hostnames in the Cloudflare dashboard.
 
 ### Networks
 
@@ -133,7 +155,8 @@ Headers: Authorization: Bearer <api-key>   (optional; tier-based limits when ena
          Idempotency-Key: <uuid>           (optional → replays the prior result)
 200:     { "txid", "ef", "outputs": [{ "vout", "satoshis", "address" }], "network": "<network>" }
 Errors:  400 bad input / unknown network · 400 network_unavailable (not configured here) · 401 bad key
-         · 429 rate-limited when enabled (+Retry-After) · 503 faucet error
+         · 403 captcha (TURNSTILE_REQUIRED, no API key) · 429 rate-limited when enabled (+Retry-After)
+         · 503 faucet error
 ```
 ```bash
 curl -X POST http://localhost:3000/api/claim \
@@ -212,7 +235,7 @@ relay   ─ POST {FAUCET_INTERNAL_URL}/api/claim/mobile/:id ─▶ faucet       
 
 | Endpoint (faucet) | Purpose |
 |---|---|
-| `POST /api/claim/mobile` | Start a claim (body `{ network? }`) → `{ sessionId, qrDataUrl, pairingUri }` |
+| `POST /api/claim/mobile` | Start a claim (body `{ network?, captchaToken? }`) → `{ sessionId, qrDataUrl, pairingUri }`; 403 `captcha` when Turnstile is required and the token fails |
 | `GET /api/claim/mobile/:id` | Outcome: `{ state: waiting \| claiming \| done \| error \| expired, txid?, amount?, redelivered?, code?, error? }` |
 | `POST /api/claim/mobile/:id` | Relay's connect notification. It only prompts a check; the claim runs only if the relay reports the session connected |
 | `GET /api/session/:id` | Proxied to the relay: how the phone finds the relay socket after scanning |
@@ -228,8 +251,9 @@ claims every 1.5s, so a lost notification costs at most a second or two. With `R
 unset, `POST /api/claim/mobile` returns 503 `relay_disabled` and the UI falls back to "No BRC-100
 wallet detected".
 
-The guard (captcha/rate limit) runs when the phone connects, not when the QR is shown, so viewing
-the page doesn't use up a claim. A rate-limited user learns this after approving in the wallet; the
+The rate limit runs when the phone connects, not when the QR is shown, so viewing the page doesn't
+use up a claim. The captcha, when required, is the exception: it is checked when the claim starts,
+because no browser token is at hand when the phone connects. A rate-limited user learns this after approving in the wallet; the
 error says no coins were sent.
 
 **Relay environment** (`relay/.env.example`):
@@ -252,7 +276,7 @@ host to it with WebSocket upgrades and long read timeouts, and point the faucet'
 with ngrok (`ngrok http 3000` and `ngrok http 8787`):
 
 ```bash
-cd relay && pnpm install --ignore-workspace
+cd relay && pnpm install
 RELAY_PRIVATE_KEY=<hex> FAUCET_PUBLIC_URL=https://<faucet-tunnel> \
   RELAY_WS_URL=wss://<relay-tunnel> FAUCET_INTERNAL_URL=http://localhost:3000 \
   pnpm dev                                              # or put these in relay/.env
@@ -283,7 +307,7 @@ funded treasury:
    if names differ.
 2. Run `pnpm bootstrap` with a funded `TREASURY_WIF` + `treasury-utxos.json`.
 3. `curl` a claim end-to-end; confirm the returned `ef` parses and the status advances to `MINED`.
-4. Enable rate limiting and check for HTTP 429 over the limit, invalid API key rejection, and idempotent replay. Captcha rejection requires restoring the verification code first.
+4. Enable rate limiting and check for HTTP 429 over the limit, invalid API key rejection, and idempotent replay. With `TURNSTILE_REQUIRED=true`, check that a claim without a token gets HTTP 403 `captcha`.
 5. If arcade has no `/health` route, point the health probe at `${ARCADE_URL}/` instead.
 
 ## Known limitations

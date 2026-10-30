@@ -7,8 +7,7 @@ import { NetworkPanel } from './components/NetworkPanel'
 import { BrandMark } from './components/BrandMark'
 import { NETWORK_IDS } from '@/lib/networks'
 import { siteUrl } from '@/lib/base-path'
-import { resolvePublicConfig } from '@/lib/public-config'
-import { connection } from 'next/server'
+import { getPublicConfig } from '@/lib/public-config'
 
 const GITHUB = 'https://github.com/bsv-blockchain-demos/ttn-faucet'
 const DOCS = `${GITHUB}#readme`
@@ -51,9 +50,9 @@ function SectionHead({ index, title, sub }: { index: string; title: string; sub?
 
 export default async function Home() {
   // Rendered per request, so one image serves each deployment's own URL and Turnstile key.
-  await connection()
-  const config = resolvePublicConfig(process.env)
-  const siteKey = config.turnstileSiteKey
+  const config = await getPublicConfig()
+  // '' tells the claim forms Turnstile is off: no widget, no token.
+  const siteKey = config.turnstileRequired ? config.turnstileSiteKey : ''
   const payoutSats = Number(process.env.FAUCET_PAYOUT_SATS ?? 100000)
 
   const spec = [

@@ -1,8 +1,7 @@
 'use client'
 import { withBasePath } from '@/lib/base-path'
 import { useEffect, useState } from 'react'
-// TODO: re-enable Turnstile — temporarily disabled.
-// import { TurnstileWidget } from './TurnstileWidget'
+import { TurnstileWidget } from './TurnstileWidget'
 import { generateTestnetKey } from '@/lib/keygen'
 import { ArrowRightIcon, CheckIcon, CopyIcon, WarningIcon } from './icons'
 import { useNetwork } from './NetworkProvider'
@@ -76,6 +75,8 @@ export function AddressPanel({
   const networkName = NETWORKS[network].name
   const [address, setAddress] = useState('')
   const [token, setToken] = useState('')
+  // Bumped after each claim: a Turnstile token is single-use, so the widget remounts for a new one.
+  const [captchaRound, setCaptchaRound] = useState(0)
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<{ txid: string; ef: string } | null>(null)
   const [error, setError] = useState('')
@@ -121,6 +122,10 @@ export function AddressPanel({
       setError(err instanceof Error ? err.message : 'Request failed')
     } finally {
       setBusy(false)
+      if (siteKey) {
+        setToken('')
+        setCaptchaRound((n) => n + 1)
+      }
     }
   }
 
@@ -167,10 +172,9 @@ export function AddressPanel({
         </div>
       )}
 
-      {/* TODO: re-enable Turnstile — and restore `!token` in the button's disabled below. */}
-      {/* <TurnstileWidget siteKey={siteKey} onToken={setToken} /> */}
+      {siteKey && <TurnstileWidget key={captchaRound} siteKey={siteKey} onToken={setToken} />}
 
-      <button type="submit" disabled={busy || !address} className={PRIMARY_CTA}>
+      <button type="submit" disabled={busy || !address || (!!siteKey && !token)} className={PRIMARY_CTA}>
         {busy ? <BusyLabel>Sending…</BusyLabel> : <ClaimLabel verb="Send" payoutSats={payoutSats} networkName={networkName} />}
       </button>
 

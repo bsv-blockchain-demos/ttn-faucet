@@ -4,26 +4,37 @@ import { useEffect, useRef } from 'react'
 
 declare global {
   interface Window {
-    turnstile?: { render: (el: HTMLElement, opts: Record<string, unknown>) => string }
+    turnstile?: {
+      render: (el: HTMLElement, opts: Record<string, unknown>) => string
+      remove: (widgetId: string) => void
+    }
   }
 }
 
+/**
+ * A Turnstile challenge that hands its token to `onToken` ('' when the token expires). Tokens are
+ * single-use: remount the widget (change its `key`) after each claim to get a fresh one.
+ */
 export function TurnstileWidget({ siteKey, onToken }: { siteKey: string; onToken: (t: string) => void }) {
   const ref = useRef<HTMLDivElement>(null)
-  const rendered = useRef(false)
 
   useEffect(() => {
+    let widgetId: string | undefined
     const tryRender = () => {
-      if (rendered.current || !ref.current || !window.turnstile) return
-      rendered.current = true
-      window.turnstile.render(ref.current, {
+      if (widgetId !== undefined || !ref.current || !window.turnstile) return
+      clearInterval(timer)
+      widgetId = window.turnstile.render(ref.current, {
         sitekey: siteKey,
         callback: (token: string) => onToken(token),
+        'expired-callback': () => onToken(''),
       })
     }
+    const timer = setInterval(tryRender, 300)
     tryRender()
-    const id = setInterval(tryRender, 300)
-    return () => clearInterval(id)
+    return () => {
+      clearInterval(timer)
+      if (widgetId !== undefined) window.turnstile?.remove(widgetId)
+    }
   }, [siteKey, onToken])
 
   return (
