@@ -23,13 +23,16 @@ export class MobileClaimError extends Error {
 
 const STORAGE_KEY = 'faucet.mobileClaim'
 
-/** Start a claim on `network`. Throws MobileClaimError (503 when mobile pairing is disabled). */
-export async function startMobileClaim(network: NetworkId): Promise<NewMobileClaim> {
+/**
+ * Start a claim on `network`, with a Turnstile token when the faucet requires one. Throws
+ * MobileClaimError (503 when mobile pairing is disabled, 403 when the token is refused).
+ */
+export async function startMobileClaim(network: NetworkId, captchaToken?: string): Promise<NewMobileClaim> {
   const res = await fetch(withBasePath('/api/claim/mobile'), {
     method: 'POST',
     cache: 'no-store',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ network }),
+    body: JSON.stringify({ network, captchaToken }),
   })
   const body = await res.json().catch(() => ({}))
   if (!res.ok) throw new MobileClaimError(typeof body.error === 'string' ? body.error : `HTTP ${res.status}`, res.status)

@@ -20,3 +20,7 @@ onlyBuiltDependencies:
   - '@prisma/engines'
   - esbuild
   - prisma
+
+# Keep the patched vite floor without a direct dependency on it.
+overrides:
+  vite: ^8.3.5

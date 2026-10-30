@@ -55,12 +55,24 @@ describe('parseConfig', () => {
     expect(() => parseConfig(missing)).toThrow(/TESTNET_WALLET_STORAGE_PATH/)
   })
 
-  it('takes the Turnstile site key under either name, and requires one', () => {
-    const noKey = { ...TEST_ENV }
-    delete noKey.TURNSTILE_SITE_KEY
-    expect(() => parseConfig(noKey)).toThrow(/TURNSTILE_SITE_KEY/)
-    expect(() => parseConfig({ ...noKey, TURNSTILE_SITE_KEY: '' })).toThrow(/TURNSTILE_SITE_KEY/)
-    expect(() => parseConfig({ ...noKey, NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'site' })).not.toThrow()
+  it('leaves Turnstile off, and both keys optional, unless TURNSTILE_REQUIRED is the literal true', () => {
+    const noKeys = { ...TEST_ENV }
+    delete noKeys.TURNSTILE_SECRET_KEY
+    delete noKeys.TURNSTILE_SITE_KEY
+    expect(parseConfig(noKeys).TURNSTILE_REQUIRED).toBe(false)
+    expect(parseConfig({ ...noKeys, TURNSTILE_REQUIRED: 'yes' }).TURNSTILE_REQUIRED).toBe(false)
+    expect(parseConfig({ ...TEST_ENV, TURNSTILE_REQUIRED: ' true ' }).TURNSTILE_REQUIRED).toBe(true)
+  })
+
+  it('with TURNSTILE_REQUIRED=true, needs a secret and a site key under either name, blank counting as unset', () => {
+    const required = { ...TEST_ENV, TURNSTILE_REQUIRED: 'true' }
+    expect(() => parseConfig({ ...required, TURNSTILE_SECRET_KEY: ' ' })).toThrow(/TURNSTILE_SECRET_KEY/)
+    expect(() => parseConfig({ ...required, TURNSTILE_SITE_KEY: '' })).toThrow(/TURNSTILE_SITE_KEY/)
+    expect(() => parseConfig({ ...required, TURNSTILE_SITE_KEY: '   ' })).toThrow(/TURNSTILE_SITE_KEY/)
+    expect(() =>
+      parseConfig({ ...required, TURNSTILE_SITE_KEY: '', NEXT_PUBLIC_TURNSTILE_SITE_KEY: 'site' }),
+    ).not.toThrow()
+    expect(parseConfig({ ...required, TURNSTILE_SECRET_KEY: ' sec ' }).TURNSTILE_SECRET_KEY).toBe('sec')
   })
 
   it('throws when no network is configured', () => {

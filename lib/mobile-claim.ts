@@ -66,8 +66,8 @@ interface Entry {
 const RETAIN_MS = 15 * 60 * 1000
 
 /**
- * Most claims waiting for a phone at once. Starting a claim is unguarded (the guard runs on
- * connect) and every waiting claim is polled each sweep, so this bounds the load on the relay.
+ * Most claims waiting for a phone at once. Starting a claim is only captcha-checked (the rate limit
+ * runs on connect) and every waiting claim is polled each sweep, so this bounds the load on the relay.
  */
 export const MAX_WAITING = 200
 

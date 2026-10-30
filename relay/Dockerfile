@@ -4,11 +4,12 @@
 FROM node:22.23.4-trixie-slim AS builder
 RUN corepack enable && corepack prepare pnpm@10.31.0 --activate
 WORKDIR /build
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --ignore-workspace
+# pnpm-workspace.yaml holds the overrides and build-script allowlist the lockfile was made with.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
 COPY tsconfig.json ./
 COPY src ./src
-RUN pnpm build && pnpm prune --prod --ignore-workspace
+RUN pnpm build && pnpm prune --prod
 
 FROM node:22.23.4-trixie-slim AS runner
 RUN apt-get update && apt-get install -y --no-install-recommends tini \
