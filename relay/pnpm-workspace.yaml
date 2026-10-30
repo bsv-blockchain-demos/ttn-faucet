@@ -1,0 +1,4 @@
+# The relay is its own pnpm workspace root, separate from the faucet app in the
+# parent directory, so a plain `pnpm install` here uses relay/pnpm-lock.yaml.
+packages:
+  - '.'
