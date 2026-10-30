@@ -16,11 +16,16 @@ const schema = z.object({
   // Relay identity key. MUST be stable across restarts — its public key is embedded in every QR
   // and is the ECDH counterparty the phone encrypts to. Dedicated key, not the faucet treasury.
   RELAY_PRIVATE_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/, 'must be 32-byte hex'),
-  // Public https:// URL of the faucet website. Embedded in the QR as the pairing origin; the phone
-  // fetches `${FAUCET_PUBLIC_URL}/api/session/:id` (proxied by the faucet to this service).
+  // Public https:// origin of the faucet website. Embedded (and signed) in the QR as the pairing
+  // origin; the phone fetches /api/session/:id at the ROOT of this origin (proxied by the faucet to
+  // this service). @bsv/wallet-relay and the phone both reject an origin that carries a path.
   FAUCET_PUBLIC_URL: z
     .string()
-    .refine(isBareOrigin, 'must be a bare origin like https://faucet.example.com')
+    .refine(
+      isBareOrigin,
+      'must be a bare origin like https://example.com, with no path: the pairing origin cannot carry one, ' +
+        'and the phone fetches /api/session/:id at the root of the host even when the faucet is served under a path',
+    )
     .transform((v) => v.replace(/\/$/, '')),
   // Public wss:// base URL of THIS service's socket (no path — the phone appends /ws).
   RELAY_WS_URL: z
