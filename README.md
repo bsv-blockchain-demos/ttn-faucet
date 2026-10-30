@@ -69,6 +69,7 @@ Set the same absolute `DATABASE_URL` in `.env` for the running app. The Prisma C
 | `BOOTSTRAP_SPLIT_COUNT` | How many parallel-spendable UTXOs the bootstrap splits the treasury into. |
 | `FAUCET_DEFAULT_NETWORK` | Optional. `testnet` \| `ttn` \| `tstn`: where API calls without a `network` go. Must be a configured network. |
 | `RELAY_INTERNAL_URL` | Optional. Base URL of the mobile-wallet relay service, e.g. `http://faucet-relay:8787`. Unset disables mobile pairing. |
+| `NEXT_PUBLIC_SITE_URL` | Optional, read at build time. Public address of the faucet, base path included. Used for Open Graph image URLs and the API example on the page. Default `https://bsvblockchain.com/faucet`. |
 
 ### Networks
 
@@ -197,7 +198,7 @@ browser.
 
 ```
 browser ─ POST /api/claim/mobile, GET /api/claim/mobile/:id ─▶ faucet ─▶ relay :8787  (RELAY_INTERNAL_URL)
-phone   ─ GET {FAUCET_PUBLIC_URL}/api/session/:id ───────────▶ faucet ─▶ relay        (relay discovery)
+phone   ─ GET {FAUCET_PUBLIC_URL}/api/session/:id ───────────▶ faucet ─▶ relay        (relay discovery, at the host root)
 phone   ─ wss://{RELAY_WS_URL}/ws ─────────────────────────────────────▶ relay        (public)
 relay   ─ POST {FAUCET_INTERNAL_URL}/api/claim/mobile/:id ─▶ faucet                   (phone connected)
 ```
@@ -229,7 +230,7 @@ error says no coins were sent.
 | Var | Purpose |
 |---|---|
 | `RELAY_PRIVATE_KEY` | 32-byte hex relay identity key. **Keep it stable**: its public key is in every QR and is the phone's ECDH counterparty. Use a dedicated key, not the treasury. |
-| `FAUCET_PUBLIC_URL` | Public `https://` origin of the faucet (QR pairing origin). Must be the exact canonical origin users load: the phone fetches `/api/session/:id` from it with redirects disallowed, so an edge redirect (www, trailing slash) breaks pairing. |
+| `FAUCET_PUBLIC_URL` | Public `https://` origin of the faucet (QR pairing origin), with **no path**, e.g. `https://example.com` even when the faucet is served at `https://example.com/faucet`. The phone fetches `/api/session/:id` at the **root** of this host, with redirects disallowed. A site that serves the faucet under a path must forward that root path to the faucet unchanged (the faucet answers root `/api/*` as well as `/faucet/api/*`), not redirect it. Any edge redirect on that URL (www, trailing slash, host move) breaks pairing. |
 | `RELAY_WS_URL` | Public `wss://` origin of the relay socket, with no path (the phone appends `/ws`). |
 | `FAUCET_INTERNAL_URL` | In-cluster faucet base URL (e.g. `http://faucet:3000`). The relay notifies `POST /api/claim/mobile/:id` there the moment a phone connects. Optional: without it the faucet's 1.5s check still finds the connect. |
 | `QR_SCHEMA` | Deep-link scheme, default `bsv-wallet`. |

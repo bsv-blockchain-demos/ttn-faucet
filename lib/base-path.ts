@@ -9,3 +9,11 @@ export const BASE_PATH = '/faucet'
 export function withBasePath(path: string): string {
   return `${BASE_PATH}${path}`
 }
+
+/** The faucet's public address, base path included. NEXT_PUBLIC_SITE_URL overrides it at build time. */
+export const DEFAULT_SITE_URL = 'https://bsvblockchain.com/faucet'
+
+/** Absolute public URL of `path` (e.g. '/api/claim'), with no doubled slash whatever the base ends in. */
+export function siteUrl(path = '', base = process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_SITE_URL): string {
+  return `${base.replace(/\/+$/, '')}${path}`
+}

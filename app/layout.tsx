@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import { siteUrl } from '@/lib/base-path'
 import { ThemeProvider, themeNoFlashScript } from './components/ThemeProvider'
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://faucet.bsvblockchain.tech'),
+  metadataBase: new URL(siteUrl()),
   title: 'BSV Faucet: free test coins',
   description:
     'A BSV Blockchain faucet for every test network. Pick your network and grab free, spendable test coins in one click with a BRC-100 wallet, or POST an address via the dev API.',

@@ -130,6 +130,12 @@ describe('parseConfig', () => {
     })
   })
 
+  it('rejects a faucet URL with a path, saying why', () => {
+    for (const url of ['https://example.com/faucet', 'https://example.com/faucet/']) {
+      expect(() => parseConfig({ ...ok, FAUCET_PUBLIC_URL: url })).toThrow(/no path.*root of the host/)
+    }
+  })
+
   it('rejects a ws URL with a path', () => {
     expect(() => parseConfig({ ...ok, RELAY_WS_URL: 'wss://relay.example.com/ws' })).toThrow()
   })

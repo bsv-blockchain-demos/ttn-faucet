@@ -3,13 +3,12 @@ import { useState } from 'react'
 import { CopyIcon } from './icons'
 import { useNetwork } from './NetworkProvider'
 import { NETWORK_IDS, type NetworkId } from '@/lib/networks'
-
-const ORIGIN = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://faucet.bsvblockchain.tech'
+import { siteUrl } from '@/lib/base-path'
 
 /** The example call, for whichever network is selected in the card. */
 const curl = (network: NetworkId) => `# claim test coins to an address on ${network}
 # (network: ${NETWORK_IDS.join(' | ')}; omit for the faucet's default)
-curl -X POST ${ORIGIN}/api/claim \\
+curl -X POST ${siteUrl('/api/claim')} \\
   -H 'content-type: application/json' \\
   -d '{"address":"<your-testnet-address>","network":"${network}"}'
 
