@@ -276,7 +276,7 @@ host to it with WebSocket upgrades and long read timeouts, and point the faucet'
 with ngrok (`ngrok http 3000` and `ngrok http 8787`):
 
 ```bash
-cd relay && pnpm install --ignore-workspace
+cd relay && pnpm install
 RELAY_PRIVATE_KEY=<hex> FAUCET_PUBLIC_URL=https://<faucet-tunnel> \
   RELAY_WS_URL=wss://<relay-tunnel> FAUCET_INTERNAL_URL=http://localhost:3000 \
   pnpm dev                                              # or put these in relay/.env
