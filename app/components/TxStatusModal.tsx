@@ -3,6 +3,7 @@ import { withBasePath } from '@/lib/base-path'
 import { useEffect, useRef, useState } from 'react'
 import { CheckIcon, CloseIcon, ExternalIcon } from './icons'
 import { NETWORKS, txUrl, type NetworkId } from '@/lib/networks'
+import { NetworkIcon } from './NetworkIcon'
 
 type StatusResp = { txid: string; status: string; blockHeight: number | null }
 
@@ -57,6 +58,17 @@ export function TxStatusModal({ txid, network, onClose }: { txid: string; networ
     }
   }, [txid, network])
 
+  // While open: the page behind doesn't scroll, and focus goes back to the opener on close.
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null
+    const { overflow } = document.body.style
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = overflow
+      opener?.focus?.()
+    }
+  }, [])
+
   // Esc to close + focus the close button on open + simple focus trap.
   useEffect(() => {
     closeRef.current?.focus()
@@ -89,8 +101,7 @@ export function TxStatusModal({ txid, network, onClose }: { txid: string; networ
     <div
       role="presentation"
       onClick={(e) => e.target === e.currentTarget && onClose()}
-      className="fixed inset-0 z-50 flex items-center justify-center p-6 backdrop-blur-[2px]"
-      style={{ background: 'var(--scrim)' }}
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-(--scrim) p-6 backdrop-blur-[2px]"
     >
       <div
         ref={dialogRef}
@@ -98,13 +109,13 @@ export function TxStatusModal({ txid, network, onClose }: { txid: string; networ
         aria-modal="true"
         aria-label="Transaction status"
         data-network={network}
-        className="net-theme w-[440px] max-w-[90%] overflow-hidden rounded-card border border-hairline bg-card shadow-card"
+        className="w-[440px] max-w-full overflow-hidden rounded-lg border border-border bg-popover text-popover-foreground shadow-overlay"
       >
-        <div className="flex items-center justify-between border-b border-hairline px-[22px] py-[18px]">
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <span className="flex items-center gap-2.5">
-            <span className="font-display text-base font-semibold text-foreground">Transaction status</span>
-            <span className="inline-flex items-center gap-1.5 rounded-pill border border-net-bd bg-net-bg px-2 py-0.5 text-[11.5px] font-semibold text-net">
-              <span className="h-1.5 w-1.5 rounded-full bg-net" aria-hidden />
+            <span className="headline-sm text-foreground">Transaction status</span>
+            <span className="label-sm inline-flex items-center gap-1.5 rounded-full border border-net-bd bg-net-bg px-2.5 py-1 text-net">
+              <NetworkIcon network={network} className="size-3.5" />
               {NETWORKS[network].name}
             </span>
           </span>
@@ -113,31 +124,31 @@ export function TxStatusModal({ txid, network, onClose }: { txid: string; networ
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="flex h-[30px] w-[30px] items-center justify-center rounded-input border border-hairline text-muted-foreground transition hover:bg-band"
+            className="inline-flex size-9 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-surface hover:text-foreground"
           >
-            <CloseIcon size={15} />
+            <CloseIcon size={18} />
           </button>
         </div>
 
-        <div className="px-[22px] py-5">
-          {/* txid + status pill */}
-          <div className="mb-[18px] flex items-center justify-between rounded-input bg-muted px-[14px] py-[11px]">
+        <div className="px-6 py-5">
+          {/* txid + status badge */}
+          <div className="mb-5 flex items-center justify-between rounded-md bg-surface px-3.5 py-2.5">
             <span className="font-mono text-xs text-foreground">{shortTxid(txid)}</span>
             {error || loading ? (
-              <span className="inline-flex items-center gap-1.5 rounded-pill bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                <span className="h-[7px] w-[7px] rounded-full bg-[color:var(--muted-fg)]" />
+              <span className="label-sm inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-ink-muted">
+                <span className="size-1.5 rounded-full bg-ink-muted" />
                 {statusLabel}
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-pill bg-pos-bg px-2.5 py-1 text-xs font-medium text-pos">
-                <span className="h-[7px] w-[7px] rounded-full bg-pos" />
+              <span className="label-sm inline-flex items-center gap-1.5 rounded-full bg-pos-bg px-2.5 py-1 text-pos">
+                <span className="size-1.5 rounded-full bg-pos" />
                 {statusLabel}
               </span>
             )}
           </div>
 
           {error ? (
-            <p className="py-4 text-center text-sm text-muted-foreground">
+            <p className="py-4 text-center text-sm text-ink-muted">
               {error === 'Unknown txid' ? 'Transaction not found yet — it may still be propagating.' : error}
             </p>
           ) : (
@@ -171,34 +182,37 @@ export function TxStatusModal({ txid, network, onClose }: { txid: string; networ
                           className="step-dot flex h-[22px] w-[22px] items-center justify-center rounded-full"
                           style={
                             state === 'current'
-                              ? { background: 'var(--primary)', boxShadow: '0 0 0 4px var(--accent)' }
-                              : { background: 'var(--pos)' }
+                              ? {
+                                  background: 'var(--primary)',
+                                  boxShadow: '0 0 0 4px color-mix(in oklch, var(--primary) 18%, transparent)',
+                                }
+                              : { background: 'var(--success)' }
                           }
                         >
                           <CheckIcon size={state === 'current' ? 11 : 12} className="text-primary-foreground" />
                         </span>
                       ) : state === 'next' ? (
                         <span
-                          className="spin h-[22px] w-[22px] rounded-full border-2 border-hairline"
-                          style={{ borderTopColor: 'var(--muted-fg)' }}
+                          className="spin h-[22px] w-[22px] rounded-full border-2 border-border"
+                          style={{ borderTopColor: 'var(--primary)' }}
                         />
                       ) : (
-                        <span className="h-[22px] w-[22px] rounded-full border border-hairline" />
+                        <span className="h-[22px] w-[22px] rounded-full border border-border" />
                       )}
                       {!isLast && (
                         <span
                           className="w-0.5 flex-1"
-                          style={{ minHeight: 18, background: reached ? 'var(--pos)' : 'var(--hairline)' }}
+                          style={{ minHeight: 18, background: reached ? 'var(--success)' : 'var(--border)' }}
                         />
                       )}
                     </div>
                     <div className={isLast ? '' : 'pb-4'}>
                       <div
-                        className={`text-sm font-semibold ${reached ? 'text-foreground' : 'text-muted-foreground'}`}
+                        className={`text-sm font-medium ${reached ? 'text-foreground' : 'text-ink-muted'}`}
                       >
                         {step.label}
                       </div>
-                      <div className="text-xs text-muted-foreground">{sub}</div>
+                      <div className="text-xs text-ink-muted">{sub}</div>
                     </div>
                   </div>
                 )
@@ -211,7 +225,7 @@ export function TxStatusModal({ txid, network, onClose }: { txid: string; networ
               href={explorer}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-[18px] inline-flex items-center gap-1.5 text-[13px] font-semibold text-link"
+              className="mt-5 inline-flex items-center gap-1.5 text-sm font-medium text-primary underline-offset-4 hover:underline"
             >
               View on {NETWORKS[network].name} explorer <ExternalIcon size={14} />
             </a>

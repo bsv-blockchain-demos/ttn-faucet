@@ -7,17 +7,11 @@ import { generateTestnetKey } from '@/lib/keygen'
 import { ArrowRightIcon, CheckIcon, CopyIcon, WarningIcon } from './icons'
 import { useNetwork } from './NetworkProvider'
 import { BusyLabel, ClaimLabel } from './ClaimLabel'
+import { BTN_CLAIM } from './buttons'
 import { NETWORKS } from '@/lib/networks'
 
 const fmt = (n: number) => n.toLocaleString()
 const tbsv = (n: number) => (n / 1e8).toLocaleString(undefined, { maximumFractionDigits: 8 })
-
-/**
- * The claim button is solid ink, the highest contrast on both the card and the network-coloured
- * field; its arrow block carries the network colour (see ClaimLabel).
- */
-const PRIMARY_CTA =
-  'group shine flex min-h-[64px] w-full items-stretch overflow-hidden rounded-panel bg-[color:var(--card-fg)] text-left text-[17px] font-semibold tracking-[-0.01em] text-[color:var(--card)] transition-colors disabled:cursor-not-allowed disabled:opacity-50'
 
 /** A labelled, single-line copyable field (truncates; full value copied on click). */
 function CopyRow({
@@ -33,22 +27,22 @@ function CopyRow({
 }) {
   return (
     <div>
-      <div className="mb-1 text-[11px] font-medium text-accent-foreground/70">{label}</div>
+      <div className="mb-1 text-xs font-medium text-ink-muted">{label}</div>
       <button
         type="button"
         onClick={onCopy}
         title={`Copy ${label}`}
-        className="flex w-full items-center gap-2 rounded-input border border-hairline bg-card px-3 py-2 text-left transition hover:border-[color:var(--btn2-bd)]"
+        className="flex h-10 w-full items-center gap-2 rounded-md border border-border bg-surface-raised px-3 text-left transition-colors hover:border-primary-edge"
       >
         <span className="min-w-0 flex-1 truncate font-mono text-xs text-foreground">{value}</span>
         <span className="ml-auto flex flex-none items-center gap-1">
           {copied ? (
             <>
               <CheckIcon size={12} className="text-pos" />
-              <span className="text-[11px] font-medium text-pos">Copied</span>
+              <span className="text-xs font-medium text-pos">Copied</span>
             </>
           ) : (
-            <CopyIcon size={13} className="text-link" />
+            <CopyIcon size={14} className="text-primary" />
           )}
         </span>
       </button>
@@ -128,14 +122,25 @@ export function AddressPanel({
     <form onSubmit={submit} className="flex flex-col gap-4">
       <div>
         <div className="mb-2 flex items-baseline justify-between">
-          <span className="text-[13.5px] font-medium text-foreground">Your {networkName} address</span>
-          <button type="button" onClick={generate} className="text-[13px] font-semibold text-link">
+          <label htmlFor="claim-address" className="text-sm font-medium text-foreground">
+            Your {networkName} address
+          </label>
+          <button
+            type="button"
+            onClick={generate}
+            className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+          >
             Generate a test key
           </button>
         </div>
         <input
-          className="field h-[50px] w-full rounded-input border-[1.5px] border-input-border bg-card px-[15px] font-mono text-sm text-foreground placeholder:text-muted-foreground"
+          className="field h-11 w-full rounded-md border border-border bg-background px-3 font-mono text-sm text-foreground placeholder:text-ink-muted"
+          id="claim-address"
           placeholder="m… or n…"
+          autoComplete="off"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           value={address}
           onChange={(e) => setAddress(e.target.value)}
           required
@@ -143,7 +148,7 @@ export function AddressPanel({
       </div>
 
       {generated && (
-        <div className="rounded-input bg-accent p-4">
+        <div className="rounded-md border border-border bg-surface p-4">
           <div className="flex flex-col gap-2.5">
             <CopyRow
               label="Address (auto-filled above)"
@@ -159,8 +164,8 @@ export function AddressPanel({
             />
           </div>
           <div className="mt-3 flex items-start gap-2">
-            <WarningIcon size={14} style={{ color: 'var(--warn-icon)', flex: 'none', marginTop: 1 }} />
-            <span className="text-[11.5px] leading-snug text-accent-foreground">
+            <WarningIcon size={14} className="mt-px flex-none text-primary" />
+            <span className="text-xs leading-snug text-ink-muted">
               Testing only. Save the WIF to spend these coins elsewhere; never use it for real funds.
             </span>
           </div>
@@ -170,34 +175,38 @@ export function AddressPanel({
       {/* TODO: re-enable Turnstile — and restore `!token` in the button's disabled below. */}
       {/* <TurnstileWidget siteKey={siteKey} onToken={setToken} /> */}
 
-      <button type="submit" disabled={busy || !address} className={PRIMARY_CTA}>
+      <button type="submit" data-glow="" disabled={busy || !address} className={BTN_CLAIM}>
         {busy ? <BusyLabel>Sending…</BusyLabel> : <ClaimLabel verb="Send" payoutSats={payoutSats} networkName={networkName} />}
       </button>
 
-      {error && <p className="text-center text-sm font-medium text-neg">{error}</p>}
+      {error && (
+        <p role="alert" className="text-center text-sm font-medium text-destructive">
+          {error}
+        </p>
+      )}
 
       {result && (
-        <div className="rounded-panel border border-pos bg-pos-bg p-4">
+        <div role="status" className="rounded-md border border-pos/40 bg-pos-bg p-4">
           <div className="mb-3 flex items-center gap-2.5">
-            <span className="flex h-[26px] w-[26px] items-center justify-center rounded-full bg-pos">
-              <CheckIcon size={15} className="text-primary-foreground" />
+            <span className="flex size-6 items-center justify-center rounded-full bg-pos">
+              <CheckIcon size={14} weight="bold" className="text-primary-foreground" />
             </span>
-            <span className="font-display text-[15px] font-semibold text-foreground">Sent on {networkName}</span>
+            <span className="headline-sm text-foreground">Sent on {networkName}</span>
             <button
               type="button"
               onClick={() => onTrack(result.txid)}
-              className="ml-auto inline-flex items-center gap-1 text-[12.5px] font-semibold text-link"
+              className="ml-auto inline-flex items-center gap-1 text-sm font-medium text-primary"
             >
               Track <ArrowRightIcon size={13} />
             </button>
           </div>
           <div className="mb-[5px] flex items-center justify-between gap-2">
-            <span className="text-[11px] font-medium text-muted-foreground">Extended format (EF)</span>
+            <span className="text-xs font-medium text-ink-muted">Extended format (EF)</span>
             <button
               type="button"
               onClick={() => copy(result.ef, 'ef')}
               title="Copy EF"
-              className="inline-flex flex-none items-center gap-1 text-[11px] font-medium text-link"
+              className="inline-flex flex-none items-center gap-1 text-xs font-medium text-primary"
             >
               {copied === 'ef' ? (
                 <>
@@ -212,14 +221,14 @@ export function AddressPanel({
               )}
             </button>
           </div>
-          <div className="break-all rounded-input border border-hairline bg-card p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
+          <div className="break-all rounded-md border border-border bg-surface-raised p-3 font-mono text-xs leading-relaxed text-ink-muted">
             {result.ef}
           </div>
         </div>
       )}
 
-      <p className="label">
-        {fmt(payoutSats)} sat · ~{tbsv(payoutSats)} tBSV · Returned as extended format
+      <p className="text-center text-xs text-ink-muted">
+        {fmt(payoutSats)} sat (~{tbsv(payoutSats)} tBSV), returned in extended format
       </p>
     </form>
   )
