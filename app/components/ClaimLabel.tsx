@@ -1,10 +1,13 @@
+'use client'
 import { ArrowRightIcon } from './icons'
+import { NetworkIcon } from './NetworkIcon'
+import { useNetwork } from './NetworkProvider'
 
 const fmt = (n: number) => n.toLocaleString()
 
 /**
- * CTA content for an ink button: the amount, a mono "on <network>" line, and a square block in the
- * network colour holding the arrow — so the button still says which network it pays on.
+ * CTA content for the primary button: the amount, an "on <network>" line with the network's icon,
+ * and an arrow — so the button still says which network it pays on.
  */
 export function ClaimLabel({
   payoutSats,
@@ -15,24 +18,24 @@ export function ClaimLabel({
   networkName: string
   verb?: string
 }) {
+  const { network } = useNetwork()
   return (
     <>
-      <span className="flex flex-1 flex-col justify-center py-3 pl-5 leading-tight">
-        <span className="tnum">
+      <span className="flex flex-1 flex-col justify-center py-2.5 leading-tight">
+        <span className="tnum text-[0.9375rem] font-medium">
           {verb} {fmt(payoutSats)} sat
         </span>
-        <span className="mt-1 font-mono text-[11px] font-medium uppercase tracking-[0.08em] opacity-75">
+        <span className="mt-1 inline-flex items-center gap-1.5 text-xs font-medium opacity-80">
+          <NetworkIcon network={network} className="size-3.5" />
           on {networkName}
         </span>
       </span>
-      <span className="flex w-16 flex-none items-center justify-center bg-net text-net-fg" aria-hidden>
-        <ArrowRightIcon size={22} className="transition-transform duration-150 group-hover:translate-x-0.5" />
-      </span>
+      <ArrowRightIcon size={18} className="flex-none transition-transform duration-150 group-hover:translate-x-0.5" />
     </>
   )
 }
 
 /** Busy state for the same button: label only, padded like ClaimLabel. */
 export function BusyLabel({ children }: { children: React.ReactNode }) {
-  return <span className="flex flex-1 items-center py-3 pl-5">{children}</span>
+  return <span className="flex flex-1 items-center justify-center py-3 text-[0.9375rem] font-medium">{children}</span>
 }

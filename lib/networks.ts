@@ -13,7 +13,7 @@ export interface NetworkInfo {
   id: NetworkId
   /** Display name, e.g. in the network picker and status messages. */
   name: string
-  /** One line telling the networks apart in the picker. */
+  /** One sentence telling the networks apart, shown in the picker's and the facepile's tooltips. */
   blurb: string
   /** @bsv/wallet-toolbox chain for the faucet's server wallet. */
   chain: 'test' | 'ttn' | 'tstn'
@@ -27,7 +27,7 @@ export const NETWORKS: Record<NetworkId, NetworkInfo> = {
   testnet: {
     id: 'testnet',
     name: 'Testnet',
-    blurb: 'The public BSV test network',
+    blurb: 'The long-standing public BSV test network, the usual home for testing apps and wallets.',
     chain: 'test',
     envPrefix: 'TESTNET',
     explorer: 'https://test.whatsonchain.com',
@@ -35,7 +35,7 @@ export const NETWORKS: Record<NetworkId, NetworkInfo> = {
   ttn: {
     id: 'ttn',
     name: 'Teratestnet',
-    blurb: 'Teranode test network',
+    blurb: "Teranode's test network, for checking your app against BSV's new high-throughput node software.",
     chain: 'ttn',
     envPrefix: 'TTN',
     explorer: 'https://woc-ttn.bsvblockchain.tech',
@@ -43,7 +43,7 @@ export const NETWORKS: Record<NetworkId, NetworkInfo> = {
   tstn: {
     id: 'tstn',
     name: 'Teranode STN',
-    blurb: 'Teranode scaling test network',
+    blurb: "Teranode's scaling test network, where operators stress-test how far transaction throughput goes.",
     chain: 'tstn',
     envPrefix: 'TSTN',
   },

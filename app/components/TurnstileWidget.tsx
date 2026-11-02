@@ -31,7 +31,7 @@ export function TurnstileWidget({ siteKey, onToken }: { siteKey: string; onToken
       <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer />
       <div
         ref={ref}
-        className="flex min-h-[78px] items-center justify-center rounded-input border border-dashed border-input-border p-3 text-xs text-muted-foreground"
+        className="flex min-h-[78px] items-center justify-center rounded-md border border-dashed border-border p-3 text-xs text-ink-muted"
       />
     </>
   )

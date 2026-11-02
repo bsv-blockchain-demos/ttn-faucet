@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { CopyIcon } from './icons'
+import { CheckIcon, CopyIcon } from './icons'
 import { useNetwork } from './NetworkProvider'
 import { NETWORK_IDS, type NetworkId } from '@/lib/networks'
 
@@ -17,6 +17,62 @@ curl -X POST ${claimUrl} \\
   "ef": "0200…",
   "network": "${network}"
 }`
+
+/**
+ * Syntax colour for the one sample, without a highlighter: one pass of one regular expression, as
+ * bsvblockchain.org does for its code panels (components/runar/code-tint.tsx). Shiki or Prism would
+ * ship a grammar to colour twelve fixed lines. It isn't a shell parser, and doesn't need to be: the
+ * sample is ours. Order matters: comments and strings come first, so nothing inside them is
+ * re-tinted.
+ */
+const TOKENS = new RegExp(
+  [
+    String.raw`(?<comment>#[^\n]*)`,
+    String.raw`(?<key>"[^"\n]*"(?=\s*:))`, // a JSON key: a string followed by a colon
+    String.raw`(?<string>'[^'\n]*'|"[^"\n]*")`,
+    String.raw`(?<url>https?:\/\/[^\s'"]+)`,
+    String.raw`(?<flag>(?<=\s)-{1,2}[A-Za-z][\w-]*)`,
+    String.raw`(?<number>\b\d+\b)`,
+    String.raw`(?<punct>[{}\[\]:,\\])`,
+    String.raw`(?<word>[A-Za-z_][\w-]*)`,
+  ].join('|'),
+  'g'
+)
+
+const COMMANDS = new Set(['curl'])
+const METHODS = new Set(['POST', 'GET'])
+
+function tint(groups: Record<string, string | undefined>): string | null {
+  if (groups.comment) return 'text-code-dim italic'
+  if (groups.key) return 'text-(--code-keyword)'
+  if (groups.string) return 'text-(--code-string)'
+  if (groups.url) return 'text-(--code-type) underline decoration-white/15 underline-offset-4'
+  if (groups.flag) return 'text-(--code-meta)'
+  if (groups.number) return 'text-(--code-number)'
+  if (groups.punct) return 'text-code-dim'
+  if (groups.word && COMMANDS.has(groups.word)) return 'font-medium text-(--code-keyword)'
+  if (groups.word && METHODS.has(groups.word)) return 'text-(--code-type)'
+  return null
+}
+
+/** One line of the sample, split into tinted spans and plain text. */
+function Highlighted({ line }: { line: string }) {
+  const parts: React.ReactNode[] = []
+  let last = 0
+  for (const m of line.matchAll(TOKENS)) {
+    const cls = tint(m.groups ?? {})
+    if (!cls) continue
+    if (m.index > last) parts.push(line.slice(last, m.index))
+    parts.push(
+      <span key={m.index} className={cls}>
+        {m[0]}
+      </span>
+    )
+    last = m.index + m[0].length
+  }
+  if (last < line.length) parts.push(line.slice(last))
+  return <>{parts}</>
+}
 
 const ENDPOINTS = [
   { method: 'POST', path: '/api/claim' },
@@ -38,41 +94,47 @@ export function ApiTerminal({ claimUrl }: { claimUrl: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap gap-[9px]">
+      <div className="flex flex-wrap gap-2">
         {ENDPOINTS.map((e) => (
           <span
             key={e.path}
-            className="inline-flex items-center gap-2 rounded-input border border-hairline px-[11px] py-1.5 font-mono text-xs font-medium text-foreground"
+            className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-raised px-3 py-1 font-mono text-xs text-foreground shadow-raised dark:shadow-none"
           >
-            <span className={e.method === 'POST' ? 'text-pos' : 'text-link'}>{e.method}</span>
+            <span className={`font-medium ${e.method === 'POST' ? 'text-pos' : 'text-primary'}`}>{e.method}</span>
             {e.path}
           </span>
         ))}
       </div>
 
-      <div className="overflow-hidden rounded-panel bg-code-bg" style={{ border: '1px solid var(--code-bd)' }}>
-        <div
-          className="flex items-center justify-between px-4 py-[11px]"
-          style={{ borderBottom: '1px solid var(--code-bd-soft)' }}
-        >
-          <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-code-dim">claim.sh</span>
+      {/* The site's quickstart terminal: deep navy panel, white/10 hairline, copy button top right. */}
+      <div className="relative overflow-hidden rounded-lg border border-white/10 bg-code-bg">
+        <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
+          {/* Window furniture, kept neutral: no amber on the page. */}
+          <span aria-hidden className="size-3 rounded-full bg-white/20" />
+          <span aria-hidden className="size-3 rounded-full bg-white/20" />
+          <span aria-hidden className="size-3 rounded-full bg-white/20" />
+          <span className="ms-2 font-mono text-xs text-code-dim">claim.sh</span>
           <button
             type="button"
             onClick={copy}
-            className="inline-flex items-center gap-1.5 font-mono text-xs font-medium text-code-link transition hover:opacity-80"
+            className="ms-auto inline-flex h-9 items-center gap-1.5 rounded-md border border-white/20 px-3 text-xs font-medium text-white/80 transition-colors hover:bg-white/10"
           >
-            <CopyIcon size={13} />
-            {copied ? 'Copied' : 'Copy'}
+            {copied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
+            <span aria-live="polite">{copied ? 'Copied' : 'Copy'}</span>
           </button>
         </div>
-        <pre className="scrollbar-faint overflow-x-auto p-4 font-mono text-[12.5px] leading-[1.7] text-code-fg">
-          {CURL}
+        <pre className="scrollbar-faint overflow-x-auto p-6 font-mono text-sm leading-[1.7] text-code-fg">
+          {CURL.split('\n').map((line, i) => (
+            <span key={i} className="block min-h-[1lh]">
+              <Highlighted line={line} />
+            </span>
+          ))}
         </pre>
       </div>
 
-      <p className="text-[12.5px] text-muted-foreground">
-        Drop an <code className="font-mono text-foreground">Authorization: Bearer &lt;key&gt;</code> header for
-        higher limits and no captcha.
+      <p className="text-sm text-ink-muted">
+        Drop an <code className="font-mono text-foreground">Authorization: Bearer &lt;key&gt;</code> header for higher
+        limits and no captcha.
       </p>
     </div>
   )

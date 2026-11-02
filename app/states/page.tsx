@@ -10,6 +10,7 @@ import {
   ExternalIcon,
   WarningIcon,
 } from '../components/icons'
+import { BTN_PRIMARY, BTN_SECONDARY } from '../components/buttons'
 
 // ---------------------------------------------------------------------------
 // Component States Gallery — a DESIGN AID, not part of the product.
@@ -55,10 +56,8 @@ const STEP_MAP: Record<Phase, StepState[]> = {
   error: ['done', 'done', 'error', 'todo'],
 }
 
-const PRIMARY_CTA =
-  'shine flex h-[52px] w-full items-center justify-center gap-2 rounded-pill bg-primary text-[15px] font-semibold text-primary-foreground shadow-primary disabled:cursor-not-allowed disabled:opacity-60'
-const SECONDARY_CTA =
-  'inline-flex h-11 w-full items-center justify-center rounded-pill border-[1.5px] border-[color:var(--btn2-bd)] bg-transparent px-[22px] text-sm font-semibold text-[color:var(--btn2-fg)] min-[620px]:w-auto'
+const PRIMARY_CTA = `${BTN_PRIMARY} h-14 w-full text-[0.9375rem]`
+const SECONDARY_CTA = `${BTN_SECONDARY} w-full min-[620px]:w-auto`
 
 function StepCircle({ state, n }: { state: StepState; n: number }) {
   const base =
@@ -66,8 +65,8 @@ function StepCircle({ state, n }: { state: StepState; n: number }) {
   if (state === 'done')
     return <span className={`${base} border-primary bg-primary text-primary-foreground`}><CheckIcon size={13} /></span>
   if (state === 'active') return <span className={`${base} border-primary bg-accent text-accent-foreground`}>{n}</span>
-  if (state === 'error') return <span className={`${base} border-neg bg-neg-bg text-neg`}>!</span>
-  return <span className={`${base} border-hairline bg-transparent text-muted-foreground`}>{n}</span>
+  if (state === 'error') return <span className={`${base} border-destructive/40 bg-neg-bg text-destructive`}>!</span>
+  return <span className={`${base} border-border bg-transparent text-ink-muted`}>{n}</span>
 }
 
 function Stepper({ phase }: { phase: Phase }) {
@@ -78,7 +77,7 @@ function Stepper({ phase }: { phase: Phase }) {
       {STEP_LABELS.map((label, i) => (
         <div key={label} className="relative z-[1] flex flex-1 flex-col items-center gap-2">
           <StepCircle state={states[i]} n={i + 1} />
-          <span className="text-[11.5px] font-medium text-muted-foreground">{label}</span>
+          <span className="text-xs font-medium text-ink-muted">{label}</span>
         </div>
       ))}
     </div>
@@ -87,7 +86,7 @@ function Stepper({ phase }: { phase: Phase }) {
 
 function Captcha() {
   return (
-    <div className="flex min-h-[78px] items-center justify-center rounded-input border border-dashed border-input-border p-3 text-xs text-muted-foreground">
+    <div className="flex min-h-[78px] items-center justify-center rounded-md border border-dashed border-border p-3 text-xs text-ink-muted">
       Cloudflare Turnstile
     </div>
   )
@@ -95,23 +94,23 @@ function Captcha() {
 
 function CardShell({ tab, children }: { tab: 'wallet' | 'address'; children: React.ReactNode }) {
   const tabCls = (active: boolean) =>
-    `flex h-[42px] flex-1 items-center justify-center rounded-pill px-2 text-center text-[13px] font-semibold leading-tight ${
-      active ? 'bg-primary text-primary-foreground shadow-card' : 'text-muted-foreground'
+    `flex h-11 flex-1 items-center justify-center rounded-md border px-2 text-center text-sm font-medium leading-tight ${
+      active ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-surface-raised text-foreground'
     }`
   return (
-    <div className="overflow-hidden rounded-card border border-hairline bg-card shadow-card">
-      <div className="flex items-center justify-between border-b border-hairline px-6 py-5">
+    <div className="overflow-hidden rounded-lg border border-border bg-surface-raised shadow-raised dark:shadow-none">
+      <div className="flex items-center justify-between border-b border-border px-6 py-5">
         <div className="leading-tight">
-          <div className="font-display text-[17px] font-semibold text-foreground">Test coins</div>
-          <div className="text-[12.5px] text-muted-foreground">{fmt(PAYOUT)} sats per request</div>
+          <div className="headline-sm text-foreground">Test coins</div>
+          <div className="text-xs text-ink-muted">{fmt(PAYOUT)} sats per request</div>
         </div>
-        <span className="inline-flex items-center gap-1.5 rounded-pill bg-pos-bg px-3 py-[5px] text-xs font-medium text-pos">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-pos-bg px-3 py-[5px] text-xs font-medium text-pos">
           <span className="h-[7px] w-[7px] rounded-full bg-pos" />
           Live
         </span>
       </div>
       <div className="px-6 pt-5">
-        <div className="flex gap-[7px] rounded-pill bg-muted p-[5px]">
+        <div className="flex gap-2">
           <span className={tabCls(tab === 'wallet')}>Auto: BRC-100 Wallet</span>
           <span className={tabCls(tab === 'address')}>Manual: Legacy Address</span>
         </div>
@@ -123,7 +122,7 @@ function CardShell({ tab, children }: { tab: 'wallet' | 'address'; children: Rea
 
 function WalletExplainer() {
   return (
-    <p className="text-sm leading-relaxed text-muted-foreground">
+    <p className="text-sm leading-relaxed text-ink-muted">
       We&apos;ll pay a BRC-29 output straight to your identity key, internalized as Atomic BEEF
       and <span className="font-semibold text-foreground">spendable instantly</span>.
     </p>
@@ -132,11 +131,11 @@ function WalletExplainer() {
 
 function DownloadHint() {
   return (
-    <p className="w-full text-[13px] leading-relaxed text-muted-foreground">
+    <p className="w-full text-sm leading-relaxed text-ink-muted">
       Need a wallet? Download{' '}
-      <a href="https://desktop.bsvb.tech/" target="_blank" rel="noreferrer" className="font-medium text-link">BSV Desktop</a>{' '}
+      <a href="https://desktop.bsvb.tech/" target="_blank" rel="noreferrer" className="font-medium text-primary">BSV Desktop</a>{' '}
       or{' '}
-      <a href="https://mobile.bsvb.tech/" target="_blank" rel="noreferrer" className="font-medium text-link">BSV Browser</a>{' '}
+      <a href="https://mobile.bsvb.tech/" target="_blank" rel="noreferrer" className="font-medium text-primary">BSV Browser</a>{' '}
       for mobile.
     </p>
   )
@@ -144,9 +143,9 @@ function DownloadHint() {
 
 function WarnBand({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-2.5 rounded-input p-3" style={{ background: 'var(--warn-bg)', border: '1px solid var(--warn-bd)' }}>
-      <WarningIcon size={16} style={{ color: 'var(--warn-icon)', flex: 'none', marginTop: 1 }} />
-      <span className="text-[13px] leading-snug text-foreground">{children}</span>
+    <div className="flex items-start gap-2.5 rounded-md border border-destructive/40 bg-neg-bg p-3">
+      <WarningIcon size={16} className="mt-px flex-none text-destructive" />
+      <span className="text-sm leading-snug text-foreground">{children}</span>
     </div>
   )
 }
@@ -157,7 +156,7 @@ function WalletBody({ phase }: { phase: Phase }) {
       <Stepper phase={phase} />
       {phase === 'detecting' && (
         <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-2.5 rounded-input border border-primary/20 bg-primary/10 p-3 text-[13px] leading-snug text-foreground">
+          <div className="flex items-center gap-2.5 rounded-md border border-info-bd bg-info-bg p-3 text-sm leading-snug text-foreground">
             <span className="relative flex h-2 w-2 flex-none">
               <span className="ping-ring absolute inline-flex h-full w-full rounded-full bg-primary" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
@@ -169,9 +168,9 @@ function WalletBody({ phase }: { phase: Phase }) {
       )}
       {phase === 'unavailable' && (
         <div className="flex flex-col items-start gap-4">
-          <div className="flex w-full items-start gap-2.5 rounded-input border border-neg bg-neg-bg p-3">
-            <WarningIcon size={16} className="mt-[1px] flex-none text-neg" />
-            <span className="text-[13px] font-medium leading-snug text-foreground">No BRC-100 wallet detected.</span>
+          <div className="flex w-full items-start gap-2.5 rounded-md border border-destructive/40 bg-neg-bg p-3">
+            <WarningIcon size={16} className="mt-[1px] flex-none text-destructive" />
+            <span className="text-sm font-medium leading-snug text-foreground">No BRC-100 wallet detected.</span>
           </div>
           <DownloadHint />
           <span className={SECONDARY_CTA}>Paste an address instead</span>
@@ -179,7 +178,7 @@ function WalletBody({ phase }: { phase: Phase }) {
       )}
       {(phase === 'mobile' || phase === 'mobile-phone') && (
         <div className="flex flex-col items-center gap-4">
-          <div className="flex w-full items-center gap-2.5 rounded-input border border-primary/20 bg-primary/10 p-3 text-[13px] leading-snug text-foreground">
+          <div className="flex w-full items-center gap-2.5 rounded-md border border-info-bd bg-info-bg p-3 text-sm leading-snug text-foreground">
             <span className="relative flex h-2 w-2 flex-none">
               <span className="ping-ring absolute inline-flex h-full w-full rounded-full bg-primary" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
@@ -193,40 +192,40 @@ function WalletBody({ phase }: { phase: Phase }) {
             </span>
           )}
           <div className="flex flex-col items-center gap-2">
-            <div className="flex h-[220px] w-[220px] items-center justify-center rounded-input border border-hairline bg-white p-2 text-xs text-neutral-500">
+            <div className="flex h-[220px] w-[220px] items-center justify-center rounded-md border border-border bg-white p-2 text-xs text-neutral-500">
               Claim QR
             </div>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-ink-muted">
               {phase === 'mobile-phone' ? 'Or scan from another phone with BSV Wallet' : 'Scan with BSV Wallet on your phone'}
             </span>
           </div>
           {phase === 'mobile' && <span className={SECONDARY_CTA}>On your phone? Open BSV Wallet</span>}
-          <p className="w-full text-center text-xs leading-relaxed text-muted-foreground">
+          <p className="w-full text-center text-xs leading-relaxed text-ink-muted">
             Set BSV Wallet to the selected network first, and stay in it for a couple of seconds after approving while the coins arrive.
           </p>
           <DownloadHint />
-          <span className="text-[13px] font-medium text-link">Paste an address instead</span>
+          <span className="text-sm font-medium text-primary">Paste an address instead</span>
         </div>
       )}
       {phase === 'mobile-claiming' && (
         <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-2.5 rounded-input border border-primary/20 bg-primary/10 p-3">
+          <div className="flex items-center gap-2.5 rounded-md border border-info-bd bg-info-bg p-3">
             <span className="dotpulse h-2 w-2 flex-none rounded-full bg-primary" />
-            <span className="text-[13px] leading-snug text-foreground">BSV Wallet connected. Sending {fmt(PAYOUT)} sats to it…</span>
+            <span className="text-sm leading-snug text-foreground">BSV Wallet connected. Sending {fmt(PAYOUT)} sats to it…</span>
           </div>
-          <p className="text-center text-xs text-muted-foreground">Keep BSV Wallet open until it shows the coins.</p>
+          <p className="text-center text-xs text-ink-muted">Keep BSV Wallet open until it shows the coins.</p>
         </div>
       )}
       {(phase === 'mobile-error' || phase === 'mobile-expired') && (
         <div className="flex flex-col items-start gap-4">
-          <div className="flex w-full items-start gap-2.5 rounded-input border border-neg bg-neg-bg p-3">
-            <WarningIcon size={16} className="mt-[1px] flex-none text-neg" />
-            <span className="text-[13px] font-medium leading-snug text-foreground">
+          <div className="flex w-full items-start gap-2.5 rounded-md border border-destructive/40 bg-neg-bg p-3">
+            <WarningIcon size={16} className="mt-[1px] flex-none text-destructive" />
+            <span className="text-sm font-medium leading-snug text-foreground">
               {phase === 'mobile-error' ? (
                 <>
                   The coins were sent, but BSV Wallet closed before accepting them. Try again and approve in BSV
                   Wallet: you&apos;ll receive this same payout, not a new one.{' '}
-                  <span className="font-medium text-link">Track transaction</span>
+                  <span className="font-medium text-primary">Track transaction</span>
                 </>
               ) : (
                 'The claim code expired before BSV Wallet connected.'
@@ -234,28 +233,28 @@ function WalletBody({ phase }: { phase: Phase }) {
             </span>
           </div>
           <span className={SECONDARY_CTA}>{phase === 'mobile-error' ? 'Try again' : 'Show a new code'}</span>
-          <span className="text-[13px] font-medium text-link">Paste an address instead</span>
+          <span className="text-sm font-medium text-primary">Paste an address instead</span>
         </div>
       )}
       {(phase === 'idle' || phase === 'idlewarn' || phase === 'claiming' || phase === 'error') && (
         <div className="flex flex-col gap-4">
           {phase === 'idle' && (
-            <div className="flex items-start gap-2.5 rounded-input border border-pos bg-pos-bg p-3">
+            <div className="flex items-start gap-2.5 rounded-md border border-pos/40 bg-pos-bg p-3">
               <CheckIcon size={16} className="mt-[1px] flex-none text-pos" />
-              <span className="text-[13px] leading-snug text-foreground">Wallet connected. Check it&apos;s set to the selected network.</span>
+              <span className="text-sm leading-snug text-foreground">Wallet connected. Check it&apos;s set to the selected network.</span>
             </div>
           )}
           {phase === 'idlewarn' && <WarnBand>Your wallet is on mainnet. Switch it to the selected network before claiming, or these coins won&apos;t appear.</WarnBand>}
           {phase === 'claiming' && (
-            <div className="flex items-center gap-2.5 rounded-input border border-primary/20 bg-primary/10 p-3">
+            <div className="flex items-center gap-2.5 rounded-md border border-info-bd bg-info-bg p-3">
               <span className="dotpulse h-2 w-2 flex-none rounded-full bg-primary" />
-              <span className="text-[13px] leading-snug text-foreground">Approve the request in your wallet…</span>
+              <span className="text-sm leading-snug text-foreground">Approve the request in your wallet…</span>
             </div>
           )}
           {phase === 'error' && (
-            <div className="flex w-full items-start gap-2.5 rounded-input border border-neg bg-neg-bg p-3">
-              <WarningIcon size={16} className="mt-[1px] flex-none text-neg" />
-              <span className="text-[13px] font-medium leading-snug text-foreground">internalizeAction rejected the payment</span>
+            <div className="flex w-full items-start gap-2.5 rounded-md border border-destructive/40 bg-neg-bg p-3">
+              <WarningIcon size={16} className="mt-[1px] flex-none text-destructive" />
+              <span className="text-sm font-medium leading-snug text-foreground">internalizeAction rejected the payment</span>
             </div>
           )}
           <WalletExplainer />
@@ -264,16 +263,16 @@ function WalletBody({ phase }: { phase: Phase }) {
             {phase === 'claiming' ? 'Claiming…' : `Claim ${fmt(PAYOUT)} sats`}
             {phase !== 'claiming' && <ArrowRightIcon size={18} />}
           </span>
-          <p className="text-center text-xs text-muted-foreground">No address to type, no key to paste, ~0.001 tBSV</p>
+          <p className="text-center text-xs text-ink-muted">No address to type, no key to paste, ~0.001 tBSV</p>
         </div>
       )}
       {phase === 'success' && (
-        <div className="rounded-[14px] border border-pos bg-pos-bg p-[18px] text-center">
+        <div className="rounded-md border border-pos/40 bg-pos-bg p-[18px] text-center">
           <div className="mx-auto mb-3 flex h-[46px] w-[46px] items-center justify-center rounded-full bg-pos">
             <CheckIcon size={24} className="text-primary-foreground" />
           </div>
-          <div className="mb-1 font-display text-lg font-semibold text-foreground">Funds in your wallet</div>
-          <div className="mb-[14px] text-[13.5px] leading-relaxed text-muted-foreground">
+          <div className="mb-1 headline-md text-foreground">Funds in your wallet</div>
+          <div className="mb-[14px] text-sm leading-relaxed text-ink-muted">
             {fmt(PAYOUT)} sats are now spendable. No confirmation needed.
           </div>
           <span className={SECONDARY_CTA}>Track transaction</span>
@@ -289,32 +288,32 @@ function AddressBody({ state }: { state: 'empty' | 'generated' | 'busy' | 'error
     <div className="flex flex-col gap-4">
       <div>
         <div className="mb-2 flex items-baseline justify-between">
-          <span className="text-[13.5px] font-medium text-foreground">Your testnet address</span>
-          <span className="text-[13px] font-semibold text-link">Generate a test key</span>
+          <span className="text-sm font-medium text-foreground">Your testnet address</span>
+          <span className="text-sm font-medium text-primary">Generate a test key</span>
         </div>
-        <div className="flex h-[50px] items-center rounded-input border-[1.5px] border-input-border bg-card px-[15px] font-mono text-sm text-foreground">
-          {filled ? MOCK_ADDR : <span className="text-muted-foreground">m… or n…</span>}
+        <div className="flex h-11 items-center rounded-md border border-border bg-surface-raised px-3 font-mono text-sm text-foreground">
+          {filled ? MOCK_ADDR : <span className="text-ink-muted">m… or n…</span>}
         </div>
       </div>
       {state === 'generated' && (
-        <div className="rounded-input bg-accent p-4">
+        <div className="rounded-md bg-accent p-4">
           <div className="flex flex-col gap-2.5">
             {[
               { label: 'Address (auto-filled above)', value: MOCK_ADDR },
               { label: 'Private key (WIF)', value: MOCK_WIF },
             ].map((f) => (
               <div key={f.label}>
-                <div className="mb-1 text-[11px] font-medium text-accent-foreground/70">{f.label}</div>
-                <div className="flex w-full items-center gap-2 rounded-lg border border-hairline bg-card px-3 py-2">
+                <div className="mb-1 text-xs font-medium text-accent-foreground/70">{f.label}</div>
+                <div className="flex w-full items-center gap-2 rounded-md border border-border bg-surface-raised px-3 py-2">
                   <span className="min-w-0 flex-1 truncate font-mono text-xs text-foreground">{f.value}</span>
-                  <CopyIcon size={13} className="ml-auto flex-none text-link" />
+                  <CopyIcon size={13} className="ml-auto flex-none text-primary" />
                 </div>
               </div>
             ))}
           </div>
           <div className="mt-3 flex items-start gap-2">
-            <WarningIcon size={14} style={{ color: 'var(--warn-icon)', flex: 'none', marginTop: 1 }} />
-            <span className="text-[11.5px] leading-snug text-accent-foreground">
+            <WarningIcon size={14} className="mt-px flex-none text-primary" />
+            <span className="text-xs leading-snug text-accent-foreground">
               Testing only. Save the WIF to spend these coins elsewhere; never use it for real funds.
             </span>
           </div>
@@ -324,41 +323,41 @@ function AddressBody({ state }: { state: 'empty' | 'generated' | 'busy' | 'error
       <span className={`${PRIMARY_CTA} ${state === 'busy' ? 'opacity-60' : ''}`}>
         {state === 'busy' ? 'Sending…' : `Claim ${fmt(PAYOUT)} sats`}
       </span>
-      {state === 'error' && <p className="text-center text-sm font-medium text-neg">Faucet drained, try again later</p>}
+      {state === 'error' && <p className="text-center text-sm font-medium text-destructive">Faucet drained, try again later</p>}
       {state === 'result' && (
-        <div className="rounded-[14px] border border-pos bg-pos-bg p-4">
+        <div className="rounded-md border border-pos/40 bg-pos-bg p-4">
           <div className="mb-3 flex items-center gap-2.5">
             <span className="flex h-[26px] w-[26px] items-center justify-center rounded-full bg-pos">
               <CheckIcon size={15} className="text-primary-foreground" />
             </span>
-            <span className="font-display text-[15px] font-semibold text-foreground">Funds sent</span>
-            <span className="ml-auto inline-flex items-center gap-1 text-[12.5px] font-semibold text-link">
+            <span className="font-display text-[0.9375rem] font-semibold text-foreground">Funds sent</span>
+            <span className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-primary">
               Track <ArrowRightIcon size={13} />
             </span>
           </div>
           <div className="mb-[5px] flex items-center justify-between gap-2">
-            <span className="text-[11px] font-medium text-muted-foreground">Extended format (EF)</span>
-            <span className="inline-flex flex-none items-center gap-1 text-[11px] font-medium text-link">
+            <span className="text-xs font-medium text-ink-muted">Extended format (EF)</span>
+            <span className="inline-flex flex-none items-center gap-1 text-xs font-medium text-primary">
               <CopyIcon size={12} />
               Copy
             </span>
           </div>
-          <div className="break-all rounded-lg border border-hairline bg-card p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
+          <div className="break-all rounded-md border border-border bg-surface-raised p-3 font-mono text-xs leading-relaxed text-ink-muted">
             {MOCK_EF}
           </div>
         </div>
       )}
-      <p className="text-center text-xs text-muted-foreground">Each claim sends {fmt(PAYOUT)} sats (~0.001 tBSV) in extended format.</p>
+      <p className="text-center text-xs text-ink-muted">Each claim sends {fmt(PAYOUT)} sats (~0.001 tBSV) in extended format.</p>
     </div>
   )
 }
 
 function StatTile({ label, value, sub }: { label: string; value: string; sub: React.ReactNode }) {
   return (
-    <div className="rounded-panel border border-hairline bg-card p-5">
-      <div className="mb-3 inline-block rounded-md bg-accent px-2 py-[3px] text-[11px] font-medium text-accent-foreground">{label}</div>
-      <div className="tnum font-display text-[27px] font-semibold text-foreground">{value}</div>
-      <div className="mt-1.5 text-[11.5px]">{sub}</div>
+    <div className="rounded-md border border-border bg-surface-raised p-5">
+      <div className="mb-3 inline-block rounded-md bg-accent px-2 py-[3px] text-xs font-medium text-accent-foreground">{label}</div>
+      <div className="tnum font-display text-[clamp(1.75rem,1.4rem+1.4vw,2.25rem)] leading-none font-semibold tracking-tight text-primary">{value}</div>
+      <div className="mt-1.5 text-xs">{sub}</div>
     </div>
   )
 }
@@ -371,18 +370,18 @@ function StaticModal({ onClose }: { onClose: () => void }) {
     { label: 'Mined', sub: 'Awaiting the next block', state: 'next' },
   ] as const
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 backdrop-blur-[2px]" style={{ background: 'var(--scrim)' }} onClick={onClose}>
-      <div className="w-[440px] max-w-[90%] overflow-hidden rounded-card border border-hairline bg-card shadow-card" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-hairline px-[22px] py-[18px]">
-          <span className="font-display text-base font-semibold text-foreground">Transaction status</span>
-          <button type="button" onClick={onClose} aria-label="Close" className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-hairline text-muted-foreground hover:bg-band">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-(--scrim) p-6 backdrop-blur-[2px]"  onClick={onClose}>
+      <div className="w-[440px] max-w-[90%] overflow-hidden rounded-lg border border-border bg-surface-raised shadow-raised dark:shadow-none" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-border px-[22px] py-[18px]">
+          <span className="headline-sm text-foreground">Transaction status</span>
+          <button type="button" onClick={onClose} aria-label="Close" className="flex h-[30px] w-[30px] items-center justify-center rounded-md border border-border text-ink-muted hover:bg-surface">
             <CloseIcon size={15} />
           </button>
         </div>
         <div className="px-[22px] py-5">
-          <div className="mb-[18px] flex items-center justify-between rounded-[10px] bg-muted px-[14px] py-[11px]">
+          <div className="mb-[18px] flex items-center justify-between rounded-md bg-muted px-[14px] py-[11px]">
             <span className="font-mono text-xs text-foreground">a1b2c3d4e5f6…7e8f90</span>
-            <span className="inline-flex items-center gap-1.5 rounded-pill bg-pos-bg px-2.5 py-1 text-xs font-medium text-pos">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-pos-bg px-2.5 py-1 text-xs font-medium text-pos">
               <span className="h-[7px] w-[7px] rounded-full bg-pos" />
               Accepted
             </span>
@@ -395,23 +394,23 @@ function StaticModal({ onClose }: { onClose: () => void }) {
                 <div key={s.label} className="flex gap-[13px]">
                   <div className="flex flex-col items-center">
                     {s.state === 'done' || s.state === 'current' ? (
-                      <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full" style={s.state === 'current' ? { background: 'var(--primary)', boxShadow: '0 0 0 4px var(--accent)' } : { background: 'var(--pos)' }}>
+                      <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full" style={s.state === 'current' ? { background: 'var(--primary)', boxShadow: '0 0 0 4px color-mix(in oklch, var(--primary) 18%, transparent)' } : { background: 'var(--success)' }}>
                         <CheckIcon size={s.state === 'current' ? 11 : 12} className="text-primary-foreground" />
                       </span>
                     ) : (
-                      <span className="spin h-[22px] w-[22px] rounded-full border-2 border-hairline" style={{ borderTopColor: 'var(--muted-fg)' }} />
+                      <span className="spin h-[22px] w-[22px] rounded-full border-2 border-border" style={{ borderTopColor: 'var(--primary)' }} />
                     )}
-                    {!isLast && <span className="w-0.5 flex-1" style={{ minHeight: 18, background: reached ? 'var(--pos)' : 'var(--hairline)' }} />}
+                    {!isLast && <span className="w-0.5 flex-1" style={{ minHeight: 18, background: reached ? 'var(--success)' : 'var(--border)' }} />}
                   </div>
                   <div className={isLast ? '' : 'pb-4'}>
-                    <div className={`text-sm font-semibold ${reached ? 'text-foreground' : 'text-muted-foreground'}`}>{s.label}</div>
-                    <div className="text-xs text-muted-foreground">{s.sub}</div>
+                    <div className={`text-sm font-semibold ${reached ? 'text-foreground' : 'text-ink-muted'}`}>{s.label}</div>
+                    <div className="text-xs text-ink-muted">{s.sub}</div>
                   </div>
                 </div>
               )
             })}
           </div>
-          <a href="#" className="mt-[18px] inline-flex items-center gap-1.5 text-[13px] font-semibold text-link">
+          <a href="#" className="mt-[18px] inline-flex items-center gap-1.5 text-sm font-medium text-primary">
             View on explorer <ExternalIcon size={14} />
           </a>
         </div>
@@ -425,7 +424,7 @@ function Tile({ title, note, children }: { title: string; note?: string; childre
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-baseline gap-2">
         <span className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs text-foreground">{title}</span>
-        {note && <span className="text-xs text-muted-foreground">{note}</span>}
+        {note && <span className="text-xs text-ink-muted">{note}</span>}
       </div>
       {children}
     </div>
@@ -435,7 +434,7 @@ function Tile({ title, note, children }: { title: string; note?: string; childre
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
     <section id={id} className="mt-16 scroll-mt-6">
-      <h2 className="border-b border-hairline pb-3 font-display text-xl font-semibold text-foreground">{title}</h2>
+      <h2 className="border-b border-border pb-3 headline-md text-foreground">{title}</h2>
       <div className="mt-6 grid grid-cols-1 gap-x-8 gap-y-10 lg:grid-cols-2">{children}</div>
     </section>
   )
@@ -447,19 +446,19 @@ export default function StatesGallery() {
     <div className="mx-auto w-full max-w-6xl px-4 py-10">
       <header className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <span className="inline-flex items-center gap-2 rounded-pill border border-hairline bg-band px-3 py-1 font-mono text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 label-sm uppercase text-ink-muted">
             <span className="h-1.5 w-1.5 rounded-full bg-pos" />
             DESIGN AID · mock data · no backend
           </span>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <Link href="/" className="rounded-pill border border-hairline bg-band px-3 py-1.5 text-sm text-foreground hover:bg-muted">
+            <Link href="/" className="rounded-full border border-border bg-surface px-3 py-1.5 text-sm text-foreground hover:bg-muted">
               ← Back to app
             </Link>
           </div>
         </div>
-        <h1 className="font-display text-3xl font-semibold text-foreground">Component States Gallery</h1>
-        <p className="max-w-2xl text-sm text-muted-foreground">
+        <h1 className="display-lg text-foreground">Component States Gallery</h1>
+        <p className="max-w-2xl text-sm text-ink-muted">
           Every visual state of every faucet panel, rendered statically with mock data. Flip the theme
           toggle (top-right) to review each state in light and dark. Faithful reproductions of the live
           markup; the Turnstile widget is a labelled placeholder.
@@ -493,16 +492,16 @@ export default function StatesGallery() {
         <Tile title="full grid" note="treasury = live; other 3 kept per client">
           <div className="grid grid-cols-1 gap-4 min-[620px]:grid-cols-2">
             <StatTile label="Sats dispensed" value="184,320,000" sub={<span className="font-medium text-pos">▲ live</span>} />
-            <StatTile label="Claims today" value="1,287" sub={<span className="text-muted-foreground">across all subjects</span>} />
-            <StatTile label="Treasury balance" value="42.5" sub={<span className="text-muted-foreground">BSV · refilled nightly</span>} />
-            <StatTile label="Per claim" value="100,000" sub={<span className="text-muted-foreground">sats, spendable instantly</span>} />
+            <StatTile label="Claims today" value="1,287" sub={<span className="text-ink-muted">across all subjects</span>} />
+            <StatTile label="Treasury balance" value="42.5" sub={<span className="text-ink-muted">BSV · refilled nightly</span>} />
+            <StatTile label="Per claim" value="100,000" sub={<span className="text-ink-muted">sats, spendable instantly</span>} />
           </div>
         </Tile>
         <Tile title="treasury · 3 live states" note="from /api/balance">
           <div className="grid grid-cols-1 gap-4">
-            <StatTile label="Treasury balance" value="…" sub={<span className="text-muted-foreground">loading</span>} />
-            <StatTile label="Treasury balance" value="42.5" sub={<span className="text-muted-foreground">value</span>} />
-            <StatTile label="Treasury balance" value="n/a" sub={<span className="text-muted-foreground">endpoint down</span>} />
+            <StatTile label="Treasury balance" value="…" sub={<span className="text-ink-muted">loading</span>} />
+            <StatTile label="Treasury balance" value="42.5" sub={<span className="text-ink-muted">value</span>} />
+            <StatTile label="Treasury balance" value="n/a" sub={<span className="text-ink-muted">endpoint down</span>} />
           </div>
         </Tile>
       </Section>
@@ -515,7 +514,7 @@ export default function StatesGallery() {
         </Tile>
       </Section>
 
-      <footer className="mt-20 border-t border-hairline pt-6 text-xs text-muted-foreground">
+      <footer className="mt-20 border-t border-border pt-6 text-xs text-ink-muted">
         Static design aid · delete <code className="font-mono text-foreground">app/states/</code> after the overhaul · not linked from production.
       </footer>
 
