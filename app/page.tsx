@@ -9,8 +9,7 @@ import { TermPill } from './components/TermPill'
 import { TERMS } from '@/lib/glossary'
 import { NETWORK_IDS } from '@/lib/networks'
 import { siteUrl } from '@/lib/base-path'
-import { resolvePublicConfig } from '@/lib/public-config'
-import { connection } from 'next/server'
+import { getPublicConfig } from '@/lib/public-config'
 
 /** The phrase a skimming reader should catch, lifted out of the muted body copy. */
 function Em({ children }: { children: React.ReactNode }) {
@@ -67,9 +66,9 @@ function SectionHeader({ eyebrow, title, lede }: { eyebrow: string; title: strin
 
 export default async function Home() {
   // Rendered per request, so one image serves each deployment's own URL and Turnstile key.
-  await connection()
-  const config = resolvePublicConfig(process.env)
-  const siteKey = config.turnstileSiteKey
+  const config = await getPublicConfig()
+  // '' tells the claim forms Turnstile is off: no widget, no token.
+  const siteKey = config.turnstileRequired ? config.turnstileSiteKey : ''
   const payoutSats = Number(process.env.FAUCET_PAYOUT_SATS ?? 100000)
 
   return (

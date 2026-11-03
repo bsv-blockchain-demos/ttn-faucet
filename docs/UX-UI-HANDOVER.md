@@ -21,7 +21,7 @@ There are **three ways to get coins**, but only two have UI:
 | **Dev API** (no UI) | Shown, not interactive | `curl`/`fetch` `POST /api/claim` from scripts/CI | JSON `{ txid, ef, ... }` |
 
 Default payout: **100,000 sats** per claim (`FAUCET_PAYOUT_SATS`). Abuse control: Cloudflare Turnstile
-captcha + per-subject rate limiting (rate limiting currently **disabled** via env). Optional API key
+captcha (off unless `TURNSTILE_REQUIRED=true`) + per-subject rate limiting (currently **disabled** via env). Optional API key
 bypasses captcha and raises limits.
 
 The full product spec lives at `docs/superpowers/specs/2026-06-23-teratestnet-faucet-design.md`.

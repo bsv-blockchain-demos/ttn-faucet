@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { RelayError, relayEnabled } from '@/lib/relay-api'
 import { mobileClaims } from '@/lib/mobile-claim-runtime'
 import { resolveNetwork } from '@/lib/config'
+import { checkCaptcha } from '@/lib/guard'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,7 +15,8 @@ function clientIp(req: Request): string {
  * (guard, payout, delivery) runs server-side as soon as the phone connects; poll
  * GET /api/claim/mobile/:sessionId for the outcome.
  *
- * TODO: when Turnstile is re-enabled, verify a captcha token here before creating the session.
+ * With TURNSTILE_REQUIRED on, the body's `captchaToken` is verified here, before the session
+ * exists: the claim runs later, server-side, when no browser token is at hand.
  */
 export async function POST(req: Request) {
   if (!relayEnabled()) {
@@ -23,8 +25,11 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
   const net = resolveNetwork(body?.network)
   if (!net.ok) return NextResponse.json({ error: net.error, code: net.code }, { status: net.status })
+  const ip = clientIp(req)
+  const captcha = await checkCaptcha(typeof body?.captchaToken === 'string' ? body.captchaToken : undefined, ip)
+  if (captcha && !captcha.ok) return NextResponse.json({ error: captcha.message, code: captcha.code }, { status: captcha.status })
   try {
-    return NextResponse.json(await mobileClaims().create(clientIp(req), net.network), { headers: { 'cache-control': 'no-store' } })
+    return NextResponse.json(await mobileClaims().create(ip, net.network), { headers: { 'cache-control': 'no-store' } })
   } catch (e) {
     const code = e instanceof RelayError ? e.code : undefined
     const msg = e instanceof Error ? e.message : 'unknown error'

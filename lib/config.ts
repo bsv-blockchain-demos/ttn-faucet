@@ -1,14 +1,27 @@
 import { z } from 'zod'
 import { DEFAULT_NETWORK, NETWORK_IDS, NETWORKS, isNetworkId, type NetworkId } from './networks'
 
+/** Blank or whitespace-only counts as unset. */
+const trimmed = z
+  .string()
+  .optional()
+  .transform((v) => v?.trim() || undefined)
+
 const schema = z
   .object({
     DATABASE_URL: z.string().min(1),
-    TURNSTILE_SECRET_KEY: z.string().min(1),
-    /** Turnstile site key: one of these two must be set. The page reads it per request (lib/public-config.ts). */
-    TURNSTILE_SITE_KEY: z.string().optional(),
+    /**
+     * Cloudflare Turnstile on the public claim paths. Off unless set to the literal `true`; then the
+     * secret and a site key must both be set. The page reads the site key per request (lib/public-config.ts).
+     */
+    TURNSTILE_REQUIRED: z
+      .string()
+      .optional()
+      .transform((v) => v?.trim() === 'true'),
+    TURNSTILE_SECRET_KEY: trimmed,
+    TURNSTILE_SITE_KEY: trimmed,
     /** Deprecated name for TURNSTILE_SITE_KEY, still accepted. */
-    NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().optional(),
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: trimmed,
     FAUCET_PAYOUT_SATS: z.coerce.number().int().positive(),
     FAUCET_MAX_SATS: z.coerce.number().int().positive(),
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive(),
@@ -23,8 +36,12 @@ const schema = z
     /** Where API calls without a `network` go. Unset: testnet if enabled, else the first enabled. */
     FAUCET_DEFAULT_NETWORK: z.preprocess((v) => (v === '' ? undefined : v), z.enum(NETWORK_IDS).optional()),
   })
-  .refine((c) => c.TURNSTILE_SITE_KEY || c.NEXT_PUBLIC_TURNSTILE_SITE_KEY, {
-    message: 'TURNSTILE_SITE_KEY (or the deprecated NEXT_PUBLIC_TURNSTILE_SITE_KEY) is required',
+  .refine((c) => !c.TURNSTILE_REQUIRED || c.TURNSTILE_SECRET_KEY, {
+    message: 'TURNSTILE_REQUIRED=true needs TURNSTILE_SECRET_KEY',
+    path: ['TURNSTILE_SECRET_KEY'],
+  })
+  .refine((c) => !c.TURNSTILE_REQUIRED || c.TURNSTILE_SITE_KEY || c.NEXT_PUBLIC_TURNSTILE_SITE_KEY, {
+    message: 'TURNSTILE_REQUIRED=true needs TURNSTILE_SITE_KEY (or the deprecated NEXT_PUBLIC_TURNSTILE_SITE_KEY)',
     path: ['TURNSTILE_SITE_KEY'],
   })
   .refine((c) => c.FAUCET_PAYOUT_SATS <= c.FAUCET_MAX_SATS, {

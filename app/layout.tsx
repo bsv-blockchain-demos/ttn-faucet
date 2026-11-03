@@ -1,10 +1,9 @@
 import type { Metadata, Viewport } from 'next'
-import { connection } from 'next/server'
 import { Agentation } from 'agentation'
 import { Geist, Geist_Mono } from 'next/font/google'
 import localFont from 'next/font/local'
 import './globals.css'
-import { resolvePublicConfig } from '@/lib/public-config'
+import { getPublicConfig } from '@/lib/public-config'
 import { ThemeProvider, themeNoFlashScript } from './components/ThemeProvider'
 import { PointerGlow } from './components/PointerGlow'
 
@@ -21,8 +20,7 @@ const chillax = localFont({
 
 /** Per request, so each deployment's og:image and other absolute URLs point at its own SITE_URL. */
 export async function generateMetadata(): Promise<Metadata> {
-  await connection()
-  return { metadataBase: new URL(resolvePublicConfig(process.env).siteUrl), ...metadata }
+  return { metadataBase: new URL((await getPublicConfig()).siteUrl), ...metadata }
 }
 
 const metadata: Metadata = {

@@ -12,8 +12,7 @@ import {
   type NewMobileClaim,
 } from '@/lib/mobile-claim-client'
 import { NETWORKS, type NetworkId } from '@/lib/networks'
-// TODO: re-enable Turnstile — temporarily disabled.
-// import { TurnstileWidget } from './TurnstileWidget'
+import { TurnstileWidget } from './TurnstileWidget'
 import { CheckIcon, WarningIcon } from './icons'
 import { AndroidLogo, AppleLogo, ArrowUpRight, LinuxLogo, WindowsLogo } from '@phosphor-icons/react/dist/ssr'
 import { useNetwork } from './NetworkProvider'
@@ -218,6 +217,7 @@ function useOnPhone(): boolean {
  */
 function MobileClaim({
   network,
+  siteKey,
   payoutSats,
   onUnavailable,
   onUsePaste,
@@ -225,6 +225,7 @@ function MobileClaim({
   onBusy,
 }: {
   network: NetworkId
+  siteKey: string
   payoutSats: number
   onUnavailable: () => void
   onUsePaste: () => void
@@ -239,14 +240,18 @@ function MobileClaim({
   const [view, setView] = useState<MobileView>({ state: resumed ? 'waiting' : 'starting' })
   const onPhone = useOnPhone()
   const mounted = useRef(true)
+  // With Turnstile on, a claim starts only once the widget hands over a token (checked by the
+  // server before it opens the pairing session). Each new claim remounts the widget for a fresh one.
+  const [awaitingCaptcha, setAwaitingCaptcha] = useState(!!siteKey && !resumed)
+  const [captchaRound, setCaptchaRound] = useState(0)
 
   useEffect(() => onBusy(view.state === 'claiming'), [view.state, onBusy])
 
   /** Create a claim and show its QR. Only sets state after the request, so it's effect-safe. */
   const begin = useCallback(
-    async (alive: () => boolean = () => mounted.current) => {
+    async (captchaToken?: string, alive: () => boolean = () => mounted.current) => {
       try {
-        const created = await startMobileClaim(network)
+        const created = await startMobileClaim(network, captchaToken)
         if (!alive()) return
         setClaim(created)
         setView({ state: 'waiting' })
@@ -263,20 +268,32 @@ function MobileClaim({
   const start = useCallback(() => {
     setClaim(null)
     setView({ state: 'starting' })
-    void begin()
-  }, [begin])
+    if (!siteKey) return void begin()
+    setAwaitingCaptcha(true)
+    setCaptchaRound((n) => n + 1)
+  }, [begin, siteKey])
 
-  // On mount, start a claim unless one was resumed (the view is already 'starting'). begin() only
-  // sets state once its request settles; the async wrapper makes that visible to the React compiler.
+  const onCaptchaToken = useCallback(
+    (token: string) => {
+      if (!token) return
+      setAwaitingCaptcha(false)
+      void begin(token)
+    },
+    [begin],
+  )
+
+  // On mount, start a claim unless one was resumed (the view is already 'starting') or Turnstile
+  // must pass first. begin() only sets state once its request settles; the async wrapper makes
+  // that visible to the React compiler.
   useEffect(() => {
     let cancelled = false
     mounted.current = true
-    if (!resumed) void (async () => begin(() => !cancelled))()
+    if (!resumed && !siteKey) void (async () => begin(undefined, () => !cancelled))()
     return () => {
       cancelled = true
       mounted.current = false
     }
-  }, [resumed, begin])
+  }, [resumed, siteKey, begin])
 
   // Ask the server how the claim is going, every few seconds and as soon as the tab is shown
   // again (mobile browsers pause timers while the user is in the wallet app).
@@ -347,7 +364,12 @@ function MobileClaim({
         <span className="h-px flex-1 bg-border" />
       </div>
 
-      {view.state === 'starting' && <InfoBand>Preparing a phone claim…</InfoBand>}
+      {view.state === 'starting' &&
+        (awaitingCaptcha ? (
+          <TurnstileWidget key={captchaRound} siteKey={siteKey} onToken={onCaptchaToken} />
+        ) : (
+          <InfoBand>Preparing a phone claim…</InfoBand>
+        ))}
 
       {view.state === 'waiting' && claim && (
         <div className="flex flex-col items-center gap-3">
@@ -491,6 +513,9 @@ export function WalletPanel({
     const w = wallet.current
     if (!w) return
     const claimNetwork = network
+    const captchaToken = token
+    // Single-use: the widget remounts for a new token when the panel is back to idle or error.
+    setToken('')
     setPhase('claiming')
     setError('')
     setResult(null)
@@ -499,7 +524,7 @@ export function WalletPanel({
       const res = await fetch(withBasePath('/api/claim/wallet'), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ identityKey, network: claimNetwork, captchaToken: token }),
+        body: JSON.stringify({ identityKey, network: claimNetwork, captchaToken }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Request failed')
@@ -533,6 +558,7 @@ export function WalletPanel({
       <MobileClaim
         key={network}
         network={network}
+        siteKey={siteKey}
         payoutSats={payoutSats}
         onUnavailable={onMobileUnavailable}
         onUsePaste={onUsePaste}
@@ -606,10 +632,15 @@ export function WalletPanel({
         </ErrorBand>
       )}
 
-      {/* TODO: re-enable Turnstile — and restore `!token` in the button's disabled below. */}
-      {/* {(phase === 'idle' || phase === 'error') && <TurnstileWidget siteKey={siteKey} onToken={setToken} />} */}
+      {siteKey && (phase === 'idle' || phase === 'error') && <TurnstileWidget siteKey={siteKey} onToken={setToken} />}
 
-      <button type="button" data-glow="" onClick={claim} disabled={busy || onMainnet} className={BTN_CLAIM}>
+      <button
+        type="button"
+        data-glow=""
+        onClick={claim}
+        disabled={busy || onMainnet || (!!siteKey && !token)}
+        className={BTN_CLAIM}
+      >
         {busy ? <BusyLabel>Claiming…</BusyLabel> : <ClaimLabel payoutSats={payoutSats} networkName={networkName} />}
       </button>
 
