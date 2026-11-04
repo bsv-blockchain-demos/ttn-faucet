@@ -3,13 +3,13 @@ import { prisma } from './prisma'
 import { getConfig } from './config'
 import { verifyTurnstile } from './turnstile'
 import { checkAndRecord } from './rate-limit'
+import type { ClientIp } from './client-ip'
 
 export function hashIp(ip: string): string {
   return createHash('sha256').update(ip).digest('hex')
 }
 
-export interface GuardContext {
-  ip: string
+export interface GuardContext extends ClientIp {
   captchaToken?: string
   /** The caller already verified a Turnstile token for this claim (mobile claims do, when the claim starts). */
   captchaVerified?: boolean
@@ -24,12 +24,13 @@ const CAPTCHA_FAILED = { ok: false, code: 'captcha', status: 403, message: 'Capt
 /**
  * The Turnstile check for a public claim: null when it passes or TURNSTILE_REQUIRED is off, else
  * the 403 to return. Only meaningful without an API key; API-key callers never need a token.
+ * `remoteIp` is `ClientIp.remoteIp`: set only when the IP came from CF-Connecting-IP.
  */
-export async function checkCaptcha(token: string | undefined, ip: string): Promise<GuardResult | null> {
+export async function checkCaptcha(token: string | undefined, remoteIp: string | undefined): Promise<GuardResult | null> {
   const cfg = getConfig()
   if (!cfg.TURNSTILE_REQUIRED) return null
   // The config refuses TURNSTILE_REQUIRED without a secret, so the fallback never verifies anything.
-  if (!token || !(await verifyTurnstile(cfg.TURNSTILE_SECRET_KEY ?? '', token, ip))) return CAPTCHA_FAILED
+  if (!token || !(await verifyTurnstile(cfg.TURNSTILE_SECRET_KEY ?? '', token, remoteIp))) return CAPTCHA_FAILED
   return null
 }
 
@@ -55,7 +56,7 @@ export async function guard(ctx: GuardContext): Promise<GuardResult> {
   }
 
   if (!ctx.captchaVerified) {
-    const failed = await checkCaptcha(ctx.captchaToken, ctx.ip)
+    const failed = await checkCaptcha(ctx.captchaToken, ctx.remoteIp)
     if (failed) return failed
   }
   const subject = hashIp(ctx.ip)

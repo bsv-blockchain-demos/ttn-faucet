@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { guard, hashIp } from '@/lib/guard'
+import { clientIp } from '@/lib/client-ip'
 import { resolveNetwork } from '@/lib/config'
 import { claimToWallet } from '@/lib/faucet'
 import { payToWallet } from '@/lib/wallet'
@@ -20,10 +21,6 @@ const BodySchema = z.object({
   captchaToken: z.string().optional(),
 })
 
-function clientIp(req: Request): string {
-  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
-}
-
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS })
 }
@@ -36,10 +33,10 @@ export async function POST(req: Request) {
   const net = resolveNetwork(parsed.data.network)
   if (!net.ok) return NextResponse.json({ error: net.error, code: net.code }, { status: net.status, headers: CORS })
   const { network } = net
-  const ip = clientIp(req)
+  const client = clientIp(req.headers)
   const apiKey = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || undefined
 
-  const g = await guard({ ip, captchaToken: parsed.data.captchaToken, apiKey })
+  const g = await guard({ ...client, captchaToken: parsed.data.captchaToken, apiKey })
   if (!g.ok) {
     const headers: Record<string, string> = { ...CORS }
     if (g.code === 'rate_limit' && g.retryAfterMs) headers['Retry-After'] = String(Math.ceil(g.retryAfterMs / 1000))
@@ -52,7 +49,7 @@ export async function POST(req: Request) {
         network,
         identityKey: parsed.data.identityKey,
         amountSats: parsed.data.amount,
-        ipHash: g.apiKeyId ? `apikey:${g.apiKeyId}` : hashIp(ip),
+        ipHash: g.apiKeyId ? `apikey:${g.apiKeyId}` : hashIp(client.ip),
         apiKeyId: g.apiKeyId,
       },
       { payWallet: (identityKey, sats) => payToWallet(network, identityKey, sats) },

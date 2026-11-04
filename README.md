@@ -67,7 +67,7 @@ Set the same absolute `DATABASE_URL` in `.env` for the running app. The Prisma C
 | `TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key, read at runtime and passed to the widget. Required (or its deprecated name below) when `TURNSTILE_REQUIRED=true`. |
 | `FAUCET_PAYOUT_SATS` / `FAUCET_MAX_SATS` | Default payout and per-request cap (satoshis). |
 | `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS` | Max claims per window per subject. |
-| `RATE_LIMIT_DISABLED` | Set to the literal `false` to enable rate limiting. Unset or any other value disables it. |
+| `RATE_LIMIT_DISABLED` | Set to the literal `false` to enable rate limiting. Unset or any other value disables it. Public claims are limited per client IP: `CF-Connecting-IP`, else the first `X-Forwarded-For` entry, else one shared `unknown` bucket ([Client IP](#client-ip)). Enable it only when the faucet is served through Cloudflare. |
 | `BOOTSTRAP_SPLIT_COUNT` | How many parallel-spendable UTXOs the bootstrap splits the treasury into. |
 | `FAUCET_DEFAULT_NETWORK` | Optional. `testnet` \| `ttn` \| `tstn`: where API calls without a `network` go. Must be a configured network. |
 | `RELAY_INTERNAL_URL` | Optional. Base URL of the mobile-wallet relay service, e.g. `http://faucet-relay:8787`. Unset disables mobile pairing. |
@@ -99,6 +99,24 @@ Cloudflare's test secret keys accept dummy tokens (`1x00000000000000000000000000
 passes, `2x0000000000000000000000000000000AA` always fails); a real secret rejects them. So switch
 Turnstile on with a matching real pair, and add every host the page is served from to the site
 key's hostnames in the Cloudflare dashboard.
+
+### Client IP
+
+The per-IP rate limit and Turnstile's `remoteip` both need the visitor's address
+(`lib/client-ip.ts`). The faucet takes, in order:
+
+1. `CF-Connecting-IP`. Cloudflare sets it to the visitor and replaces any copy the client sends.
+2. The first `X-Forwarded-For` entry. This is the visitor only when nothing between the visitor
+   and the faucet rewrites the header. Behind a proxy that doesn't pass it on, it is the proxy's
+   address for every visitor, and all claims share one rate-limit bucket.
+3. `unknown`, one bucket for everyone.
+
+A value that is not a bare IPv4 or IPv6 address (blank, with a port, anything else) is skipped. A
+client can also set `X-Forwarded-For` itself when nothing in front overwrites it, so outside
+Cloudflare the limit is easy to dodge as well as easy to trip. That is why rate limiting
+(`RATE_LIMIT_DISABLED=false`) is only correct behind Cloudflare. Turnstile gets `remoteip` only
+when the address came from `CF-Connecting-IP`; otherwise siteverify is called without one, since
+a wrong `remoteip` is worse than none.
 
 ### Networks
 

@@ -60,12 +60,21 @@ describe('guard', () => {
     expect(verifyTurnstile).not.toHaveBeenCalled()
   })
 
-  it('Turnstile required, valid token → ok, verified with the secret and client IP', async () => {
+  it('Turnstile required, valid token → ok, verified with the secret and the CF-Connecting-IP address', async () => {
     cfg.TURNSTILE_REQUIRED = true
     vi.mocked(verifyTurnstile).mockResolvedValue(true)
-    const r = await guard({ ip: '1.2.3.4', captchaToken: 'tok' })
+    const r = await guard({ ip: '1.2.3.4', remoteIp: '1.2.3.4', captchaToken: 'tok' })
     expect(r.ok).toBe(true)
     expect(verifyTurnstile).toHaveBeenCalledWith('sec', 'tok', '1.2.3.4')
+  })
+
+  it('Turnstile required, IP not from CF-Connecting-IP → siteverify gets no remoteip', async () => {
+    cfg.TURNSTILE_REQUIRED = true
+    vi.mocked(verifyTurnstile).mockResolvedValue(true)
+    const r = await guard({ ip: '10.0.0.5', captchaToken: 'tok' })
+    expect(r.ok).toBe(true)
+    expect(verifyTurnstile).toHaveBeenCalledWith('sec', 'tok', undefined)
+    expect(checkAndRecord).toHaveBeenCalledWith(expect.objectContaining({ subject: hashIp('10.0.0.5') }))
   })
 
   it('Turnstile required, missing token → 403 without calling siteverify', async () => {

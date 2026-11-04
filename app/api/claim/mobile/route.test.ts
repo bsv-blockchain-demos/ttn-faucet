@@ -35,12 +35,23 @@ describe('POST /api/claim/mobile', () => {
     expect(claims.create).toHaveBeenCalledWith('9.9.9.9', 'testnet')
   })
 
-  it('checks the Turnstile token against the client IP before opening a session', async () => {
+  it('checks the Turnstile token against the CF-Connecting-IP address before opening a session', async () => {
+    claims.create.mockResolvedValue({ sessionId: 's1', qrDataUrl: 'data:qr', pairingUri: 'bsv-wallet://pair' })
+    const body = JSON.stringify({ network: 'ttn', captchaToken: 'tok' })
+    const headers = { 'cf-connecting-ip': '203.0.113.7', 'x-forwarded-for': '10.0.0.5' }
+    const res = await start(new Request('http://x', { method: 'POST', body, headers }))
+    expect(res.status).toBe(200)
+    expect(checkCaptcha).toHaveBeenCalledWith('tok', '203.0.113.7')
+    expect(claims.create).toHaveBeenCalledWith('203.0.113.7', 'ttn')
+  })
+
+  it('sends siteverify no IP when the address only came from X-Forwarded-For', async () => {
     claims.create.mockResolvedValue({ sessionId: 's1', qrDataUrl: 'data:qr', pairingUri: 'bsv-wallet://pair' })
     const body = JSON.stringify({ network: 'ttn', captchaToken: 'tok' })
     const res = await start(new Request('http://x', { method: 'POST', body, headers: { 'x-forwarded-for': '9.9.9.9' } }))
     expect(res.status).toBe(200)
-    expect(checkCaptcha).toHaveBeenCalledWith('tok', '9.9.9.9')
+    expect(checkCaptcha).toHaveBeenCalledWith('tok', undefined)
+    expect(claims.create).toHaveBeenCalledWith('9.9.9.9', 'ttn')
   })
 
   it('403s and opens no session when the Turnstile check fails', async () => {
