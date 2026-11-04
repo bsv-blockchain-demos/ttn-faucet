@@ -67,7 +67,7 @@ Set the same absolute `DATABASE_URL` in `.env` for the running app. The Prisma C
 | `TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key, read at runtime and passed to the widget. Required (or its deprecated name below) when `TURNSTILE_REQUIRED=true`. |
 | `FAUCET_PAYOUT_SATS` / `FAUCET_MAX_SATS` | Default payout and per-request cap (satoshis). |
 | `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS` | Max claims per window per subject. |
-| `RATE_LIMIT_DISABLED` | Set to the literal `false` to enable rate limiting. Unset or any other value disables it. Public claims are limited per client IP: `CF-Connecting-IP`, else the first `X-Forwarded-For` entry, else one shared `unknown` bucket ([Client IP](#client-ip)). Enable it only when the faucet is served through Cloudflare. |
+| `RATE_LIMIT_DISABLED` | Set to the literal `false` to enable rate limiting. Unset or any other value disables it. Public claims are limited per client IP: `CF-Connecting-IP`, else the first `X-Forwarded-For` entry, else one shared `unknown` bucket ([Client IP](#client-ip)). Enable it only when the faucet is served through Cloudflare and its origin accepts traffic from Cloudflare alone. |
 | `BOOTSTRAP_SPLIT_COUNT` | How many parallel-spendable UTXOs the bootstrap splits the treasury into. |
 | `FAUCET_DEFAULT_NETWORK` | Optional. `testnet` \| `ttn` \| `tstn`: where API calls without a `network` go. Must be a configured network. |
 | `RELAY_INTERNAL_URL` | Optional. Base URL of the mobile-wallet relay service, e.g. `http://faucet-relay:8787`. Unset disables mobile pairing. |
@@ -106,6 +106,8 @@ The per-IP rate limit and Turnstile's `remoteip` both need the visitor's address
 (`lib/client-ip.ts`). The faucet takes, in order:
 
 1. `CF-Connecting-IP`. Cloudflare sets it to the visitor and replaces any copy the client sends.
+   That only holds for requests that come through Cloudflare: a client that reaches the origin
+   directly can send any `CF-Connecting-IP` it likes, and gets a fresh rate-limit bucket each time.
 2. The first `X-Forwarded-For` entry. This is the visitor only when nothing between the visitor
    and the faucet rewrites the header. Behind a proxy that doesn't pass it on, it is the proxy's
    address for every visitor, and all claims share one rate-limit bucket.
@@ -114,9 +116,13 @@ The per-IP rate limit and Turnstile's `remoteip` both need the visitor's address
 A value that is not a bare IPv4 or IPv6 address (blank, with a port, anything else) is skipped. A
 client can also set `X-Forwarded-For` itself when nothing in front overwrites it, so outside
 Cloudflare the limit is easy to dodge as well as easy to trip. That is why rate limiting
-(`RATE_LIMIT_DISABLED=false`) is only correct behind Cloudflare. Turnstile gets `remoteip` only
-when the address came from `CF-Connecting-IP`; otherwise siteverify is called without one, since
-a wrong `remoteip` is worse than none.
+(`RATE_LIMIT_DISABLED=false`) is only correct behind Cloudflare, with the origin locked to
+Cloudflare: allow only [Cloudflare's IP ranges](https://www.cloudflare.com/ips/) at the firewall
+or ingress (or reach the origin only through a Cloudflare Tunnel), and keep `CF-Connecting-IP`
+intact on the way in.
+
+Turnstile gets `remoteip` only when the address came from `CF-Connecting-IP`; otherwise siteverify
+is called without one, since a wrong `remoteip` is worse than none.
 
 ### Networks
 

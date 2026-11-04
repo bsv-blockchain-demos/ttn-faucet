@@ -61,10 +61,20 @@ describe('POST /api/claim/wallet', () => {
     expect(json).toMatchObject({ txid: 'tx1', atomicBEEF: '00beef', network: 'testnet' })
   })
 
-  it('keys the guard on CF-Connecting-IP and passes it on for siteverify', async () => {
-    vi.mocked(guard).mockResolvedValue({ ok: false, code: 'captcha', status: 403, message: 'no' })
+  it('keys the guard and the claim record on CF-Connecting-IP, and passes it on for siteverify', async () => {
+    vi.mocked(guard).mockResolvedValue({ ok: true, subject: 's' })
+    vi.mocked(claimToWallet).mockResolvedValue({
+      txid: 'tx1',
+      atomicBEEF: '00beef',
+      derivationPrefix: 'p',
+      derivationSuffix: 's',
+      senderIdentityKey: IDENTITY_KEY,
+      outputIndex: 0,
+      amountSats: 100,
+    })
     await POST(req({ identityKey: IDENTITY_KEY }, { 'cf-connecting-ip': '203.0.113.7' }))
     expect(vi.mocked(guard).mock.calls[0][0]).toMatchObject({ ip: '203.0.113.7', remoteIp: '203.0.113.7' })
+    expect(vi.mocked(claimToWallet).mock.calls[0][0]).toMatchObject({ ipHash: 'hash:203.0.113.7' })
   })
 
   it('falls back to X-Forwarded-For for the guard, with no remoteIp', async () => {
