@@ -22,6 +22,13 @@ describe('verifyTurnstile', () => {
     expect(Object.fromEntries(init.body as URLSearchParams)).toEqual({ secret: 'sec', response: 'tok', remoteip: '1.2.3.4' })
   })
 
+  it('leaves remoteip out when no IP is given', async () => {
+    const fetchMock = siteverify(Response.json({ success: true }))
+    expect(await verifyTurnstile('sec', 'tok', undefined)).toBe(true)
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect(Object.fromEntries(init.body as URLSearchParams)).toEqual({ secret: 'sec', response: 'tok' })
+  })
+
   it('rejects success: false', async () => {
     siteverify(Response.json({ success: false, 'error-codes': ['invalid-input-response'] }))
     expect(await verifyTurnstile('sec', 'bad')).toBe(false)

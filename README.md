@@ -67,7 +67,7 @@ Set the same absolute `DATABASE_URL` in `.env` for the running app. The Prisma C
 | `TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key, read at runtime and passed to the widget. Required (or its deprecated name below) when `TURNSTILE_REQUIRED=true`. |
 | `FAUCET_PAYOUT_SATS` / `FAUCET_MAX_SATS` | Default payout and per-request cap (satoshis). |
 | `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS` | Max claims per window per subject. |
-| `RATE_LIMIT_DISABLED` | Set to the literal `false` to enable rate limiting. Unset or any other value disables it. |
+| `RATE_LIMIT_DISABLED` | Set to the literal `false` to enable rate limiting. Unset or any other value disables it. Public claims are limited per client IP: `CF-Connecting-IP`, else the first `X-Forwarded-For` entry, else one shared `unknown` bucket ([Client IP](#client-ip)). IPv6 is limited per /64. Enable it only when `CF-Connecting-IP` carries the visitor (a Cloudflare-proxied hostname, or a Worker fetching an origin in the same zone; not a Worker in another zone) and the origin accepts traffic from your own zone alone (a Cloudflare Tunnel or Authenticated Origin Pulls; a Cloudflare IP allowlist is not enough). |
 | `BOOTSTRAP_SPLIT_COUNT` | How many parallel-spendable UTXOs the bootstrap splits the treasury into. |
 | `FAUCET_DEFAULT_NETWORK` | Optional. `testnet` \| `ttn` \| `tstn`: where API calls without a `network` go. Must be a configured network. |
 | `RELAY_INTERNAL_URL` | Optional. Base URL of the mobile-wallet relay service, e.g. `http://faucet-relay:8787`. Unset disables mobile pairing. |
@@ -99,6 +99,51 @@ Cloudflare's test secret keys accept dummy tokens (`1x00000000000000000000000000
 passes, `2x0000000000000000000000000000000AA` always fails); a real secret rejects them. So switch
 Turnstile on with a matching real pair, and add every host the page is served from to the site
 key's hostnames in the Cloudflare dashboard.
+
+### Client IP
+
+The per-IP rate limit and Turnstile's `remoteip` both need the visitor's address
+(`lib/client-ip.ts`). The faucet takes, in order:
+
+1. `CF-Connecting-IP`, unless it is `2a06:98c0:3600::103` (in any spelling), Cloudflare's fixed
+   address for a Worker's cross-zone subrequests, which is the Worker and not the visitor.
+2. The first `X-Forwarded-For` entry.
+3. `unknown`, one bucket for everyone.
+
+A value that is not a bare IPv4 or IPv6 address (blank, with a port, anything else) is skipped. The
+limit is keyed on an IPv4 address as is, on the IPv4 inside an IPv4-mapped IPv6 address, and on the
+/64 prefix of any other IPv6 address, since one client usually holds a whole /64 and could
+otherwise rotate addresses for a fresh bucket per claim. Claim records store a hash of the same
+key.
+
+Which header carries the visitor depends on how requests reach the faucet
+([Cloudflare's header reference](https://developers.cloudflare.com/fundamentals/reference/http-headers/#cf-connecting-ip-in-worker-subrequests)):
+
+| Setup | What the faucet gets | Rate limiting |
+|---|---|---|
+| A hostname proxied by Cloudflare, no Worker in front | `CF-Connecting-IP` is the visitor; Cloudflare replaces any copy the client sends | correct |
+| Behind a Worker that fetches an origin in the **same** zone | `CF-Connecting-IP` is the visitor, taken from the `X-Real-IP` on the Worker's subrequest, which is the visitor unless the Worker changes it | correct |
+| Behind a Worker that fetches an origin in **another** zone | `CF-Connecting-IP` is `2a06:98c0:3600::103` and is ignored. The visitor only arrives if the Worker sets `X-Forwarded-For` to it and every proxy between Cloudflare and the faucet preserves that header | not correct: leave it off |
+
+Enable rate limiting (`RATE_LIMIT_DISABLED=false`) only in the first two setups, and only when the
+origin accepts traffic from your own zone alone:
+
+- Reach the origin only through a Cloudflare Tunnel, or require zone-level or per-hostname
+  [Authenticated Origin Pulls](https://developers.cloudflare.com/ssl/origin-configuration/authenticated-origin-pull/)
+  with your own certificate. Allowing [Cloudflare's IP ranges](https://www.cloudflare.com/ips/) is
+  not enough: any Cloudflare customer's Worker can fetch the origin from those ranges and set
+  `CF-Connecting-IP` itself.
+- Block Worker subrequests from zones other than your own (a WAF rule on
+  `cf.worker.upstream_zone`). They arrive with the Worker address, so the faucet falls back to
+  `X-Forwarded-For`, which that Worker controls.
+- Keep `CF-Connecting-IP` intact on the way in.
+
+A client that reaches the origin directly can send any `CF-Connecting-IP` or `X-Forwarded-For` it
+likes and get a fresh bucket each time; behind a proxy that rewrites `X-Forwarded-For`, every
+visitor shares the proxy's bucket.
+
+Turnstile gets `remoteip`, the full address, only when it came from `CF-Connecting-IP`; otherwise
+siteverify is called without one, since a wrong `remoteip` is worse than none.
 
 ### Networks
 

@@ -3,12 +3,9 @@ import { RelayError, relayEnabled } from '@/lib/relay-api'
 import { mobileClaims } from '@/lib/mobile-claim-runtime'
 import { resolveNetwork } from '@/lib/config'
 import { checkCaptcha } from '@/lib/guard'
+import { clientIp } from '@/lib/client-ip'
 
 export const dynamic = 'force-dynamic'
-
-function clientIp(req: Request): string {
-  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
-}
 
 /**
  * Start a mobile-wallet claim on the body's `network` (default network if omitted): returns a pairing QR / deep link for BSV Wallet. The claim itself
@@ -25,8 +22,8 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
   const net = resolveNetwork(body?.network)
   if (!net.ok) return NextResponse.json({ error: net.error, code: net.code }, { status: net.status })
-  const ip = clientIp(req)
-  const captcha = await checkCaptcha(typeof body?.captchaToken === 'string' ? body.captchaToken : undefined, ip)
+  const { ip, remoteIp } = clientIp(req.headers)
+  const captcha = await checkCaptcha(typeof body?.captchaToken === 'string' ? body.captchaToken : undefined, remoteIp)
   if (captcha && !captcha.ok) return NextResponse.json({ error: captcha.message, code: captcha.code }, { status: captcha.status })
   try {
     return NextResponse.json(await mobileClaims().create(ip, net.network), { headers: { 'cache-control': 'no-store' } })

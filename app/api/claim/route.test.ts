@@ -29,21 +29,21 @@ describe('POST /api/claim', () => {
   })
 
   it('does not 400 on an empty captchaToken (captcha disabled)', async () => {
-    ;(guard as any).mockResolvedValue({ ok: true, subject: 's' })
-    ;(claimToAddress as any).mockResolvedValue({ txid: 'tx1', ef: '00ef', amountSats: 100 })
+    vi.mocked(guard).mockResolvedValue({ ok: true, subject: 's' })
+    vi.mocked(claimToAddress).mockResolvedValue({ txid: 'tx1', ef: '00ef', amountSats: 100 })
     const res = await POST(req({ address: ADDR, captchaToken: '' }))
     expect(res.status).toBe(200)
   })
 
   it('403 when the guard rejects the captcha', async () => {
-    ;(guard as any).mockResolvedValue({ ok: false, code: 'captcha', status: 403, message: 'no' })
+    vi.mocked(guard).mockResolvedValue({ ok: false, code: 'captcha', status: 403, message: 'no' })
     const res = await POST(req({ address: ADDR, captchaToken: 't' }))
     expect(res.status).toBe(403)
   })
 
   it('200 with txid + ef on success', async () => {
-    ;(guard as any).mockResolvedValue({ ok: true, subject: 's' })
-    ;(claimToAddress as any).mockResolvedValue({ txid: 'tx1', ef: '00ef', amountSats: 100 })
+    vi.mocked(guard).mockResolvedValue({ ok: true, subject: 's' })
+    vi.mocked(claimToAddress).mockResolvedValue({ txid: 'tx1', ef: '00ef', amountSats: 100 })
     const res = await POST(req({ address: ADDR, captchaToken: 't' }))
     expect(res.status).toBe(200)
     const json = await res.json()
@@ -51,12 +51,12 @@ describe('POST /api/claim', () => {
   })
 
   it('pays on the requested network and reports it', async () => {
-    ;(guard as any).mockResolvedValue({ ok: true, subject: 's' })
-    ;(claimToAddress as any).mockResolvedValue({ txid: 'tx1', ef: '00ef', amountSats: 100 })
+    vi.mocked(guard).mockResolvedValue({ ok: true, subject: 's' })
+    vi.mocked(claimToAddress).mockResolvedValue({ txid: 'tx1', ef: '00ef', amountSats: 100 })
     const res = await POST(req({ address: ADDR, network: 'ttn' }))
     expect(res.status).toBe(200)
     expect((await res.json()).network).toBe('ttn')
-    expect((claimToAddress as any).mock.calls[0][0]).toMatchObject({ network: 'ttn' })
+    expect(vi.mocked(claimToAddress).mock.calls[0][0]).toMatchObject({ network: 'ttn' })
   })
 
   it('400 for an unknown network, before paying', async () => {
@@ -71,5 +71,29 @@ describe('POST /api/claim', () => {
     expect(res.status).toBe(400)
     expect((await res.json()).code).toBe('network_unavailable')
     expect(guard).not.toHaveBeenCalled()
+  })
+
+  it('keys the guard and the claim record on CF-Connecting-IP, and passes it on for siteverify', async () => {
+    vi.mocked(guard).mockResolvedValue({ ok: true, subject: 's' })
+    vi.mocked(claimToAddress).mockResolvedValue({ txid: 'tx1', ef: '00ef', amountSats: 100 } as never)
+    await POST(req({ address: ADDR }, { 'cf-connecting-ip': '203.0.113.7' }))
+    expect(vi.mocked(guard).mock.calls[0][0]).toMatchObject({ ip: '203.0.113.7', remoteIp: '203.0.113.7' })
+    expect(vi.mocked(claimToAddress).mock.calls[0][0]).toMatchObject({ ipHash: 'hash:203.0.113.7' })
+  })
+
+  it('keys an IPv6 visitor on its /64 for the guard and the claim record, with the full address for siteverify', async () => {
+    vi.mocked(guard).mockResolvedValue({ ok: true, subject: 's' })
+    vi.mocked(claimToAddress).mockResolvedValue({ txid: 'tx1', ef: '00ef', amountSats: 100 } as never)
+    await POST(req({ address: ADDR }, { 'cf-connecting-ip': '2001:db8:1:2:aaaa::1' }))
+    expect(vi.mocked(guard).mock.calls[0][0]).toMatchObject({ ip: '2001:db8:1:2::/64', remoteIp: '2001:db8:1:2:aaaa::1' })
+    expect(vi.mocked(claimToAddress).mock.calls[0][0]).toMatchObject({ ipHash: 'hash:2001:db8:1:2::/64' })
+  })
+
+  it('falls back to X-Forwarded-For for the guard, with no remoteIp', async () => {
+    vi.mocked(guard).mockResolvedValue({ ok: false, code: 'captcha', status: 403, message: 'no' })
+    await POST(req({ address: ADDR }))
+    const ctx = vi.mocked(guard).mock.calls[0][0]
+    expect(ctx.ip).toBe('9.9.9.9')
+    expect(ctx.remoteIp).toBeUndefined()
   })
 })
