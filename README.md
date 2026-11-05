@@ -67,7 +67,7 @@ Set the same absolute `DATABASE_URL` in `.env` for the running app. The Prisma C
 | `TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key, read at runtime and passed to the widget. Required (or its deprecated name below) when `TURNSTILE_REQUIRED=true`. |
 | `FAUCET_PAYOUT_SATS` / `FAUCET_MAX_SATS` | Default payout and per-request cap (satoshis). |
 | `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS` | Max claims per window per subject. |
-| `RATE_LIMIT_DISABLED` | Set to the literal `false` to enable rate limiting. Unset or any other value disables it. Public claims are limited per client IP: `CF-Connecting-IP`, else the first `X-Forwarded-For` entry, else one shared `unknown` bucket ([Client IP](#client-ip)). IPv6 is limited per /64. Enable it only when `CF-Connecting-IP` carries the visitor (a Cloudflare-proxied hostname, or a Worker fetching an origin in the same zone; not a Worker in another zone) and the origin accepts traffic from Cloudflare alone. |
+| `RATE_LIMIT_DISABLED` | Set to the literal `false` to enable rate limiting. Unset or any other value disables it. Public claims are limited per client IP: `CF-Connecting-IP`, else the first `X-Forwarded-For` entry, else one shared `unknown` bucket ([Client IP](#client-ip)). IPv6 is limited per /64. Enable it only when `CF-Connecting-IP` carries the visitor (a Cloudflare-proxied hostname, or a Worker fetching an origin in the same zone; not a Worker in another zone) and the origin accepts traffic from your own zone alone (a Cloudflare Tunnel or Authenticated Origin Pulls; a Cloudflare IP allowlist is not enough). |
 | `BOOTSTRAP_SPLIT_COUNT` | How many parallel-spendable UTXOs the bootstrap splits the treasury into. |
 | `FAUCET_DEFAULT_NETWORK` | Optional. `testnet` \| `ttn` \| `tstn`: where API calls without a `network` go. Must be a configured network. |
 | `RELAY_INTERNAL_URL` | Optional. Base URL of the mobile-wallet relay service, e.g. `http://faucet-relay:8787`. Unset disables mobile pairing. |
@@ -125,12 +125,22 @@ Which header carries the visitor depends on how requests reach the faucet
 | Behind a Worker that fetches an origin in the **same** zone | `CF-Connecting-IP` is the visitor, taken from the `X-Real-IP` on the Worker's subrequest, which is the visitor unless the Worker changes it | correct |
 | Behind a Worker that fetches an origin in **another** zone | `CF-Connecting-IP` is `2a06:98c0:3600::103` and is ignored. The visitor only arrives if the Worker sets `X-Forwarded-For` to it and every proxy between Cloudflare and the faucet preserves that header | not correct: leave it off |
 
-Enable rate limiting (`RATE_LIMIT_DISABLED=false`) only in the first two setups, and only with the
-origin locked to Cloudflare: allow only [Cloudflare's IP ranges](https://www.cloudflare.com/ips/) at
-the firewall or ingress, or reach the origin only through a Cloudflare Tunnel, and keep
-`CF-Connecting-IP` intact on the way in. A client that reaches the origin directly can send any
-`CF-Connecting-IP` or `X-Forwarded-For` it likes and get a fresh bucket each time; behind a proxy
-that rewrites `X-Forwarded-For`, every visitor shares the proxy's bucket.
+Enable rate limiting (`RATE_LIMIT_DISABLED=false`) only in the first two setups, and only when the
+origin accepts traffic from your own zone alone:
+
+- Reach the origin only through a Cloudflare Tunnel, or require zone-level or per-hostname
+  [Authenticated Origin Pulls](https://developers.cloudflare.com/ssl/origin-configuration/authenticated-origin-pull/)
+  with your own certificate. Allowing [Cloudflare's IP ranges](https://www.cloudflare.com/ips/) is
+  not enough: any Cloudflare customer's Worker can fetch the origin from those ranges and set
+  `CF-Connecting-IP` itself.
+- Block Worker subrequests from zones other than your own (a WAF rule on
+  `cf.worker.upstream_zone`). They arrive with the Worker address, so the faucet falls back to
+  `X-Forwarded-For`, which that Worker controls.
+- Keep `CF-Connecting-IP` intact on the way in.
+
+A client that reaches the origin directly can send any `CF-Connecting-IP` or `X-Forwarded-For` it
+likes and get a fresh bucket each time; behind a proxy that rewrites `X-Forwarded-For`, every
+visitor shares the proxy's bucket.
 
 Turnstile gets `remoteip`, the full address, only when it came from `CF-Connecting-IP`; otherwise
 siteverify is called without one, since a wrong `remoteip` is worse than none.
