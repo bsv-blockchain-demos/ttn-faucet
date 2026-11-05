@@ -81,6 +81,14 @@ describe('POST /api/claim', () => {
     expect(vi.mocked(claimToAddress).mock.calls[0][0]).toMatchObject({ ipHash: 'hash:203.0.113.7' })
   })
 
+  it('keys an IPv6 visitor on its /64 for the guard and the claim record, with the full address for siteverify', async () => {
+    vi.mocked(guard).mockResolvedValue({ ok: true, subject: 's' })
+    vi.mocked(claimToAddress).mockResolvedValue({ txid: 'tx1', ef: '00ef', amountSats: 100 } as never)
+    await POST(req({ address: ADDR }, { 'cf-connecting-ip': '2001:db8:1:2:aaaa::1' }))
+    expect(vi.mocked(guard).mock.calls[0][0]).toMatchObject({ ip: '2001:db8:1:2::/64', remoteIp: '2001:db8:1:2:aaaa::1' })
+    expect(vi.mocked(claimToAddress).mock.calls[0][0]).toMatchObject({ ipHash: 'hash:2001:db8:1:2::/64' })
+  })
+
   it('falls back to X-Forwarded-For for the guard, with no remoteIp', async () => {
     vi.mocked(guard).mockResolvedValue({ ok: false, code: 'captcha', status: 403, message: 'no' })
     await POST(req({ address: ADDR }))
