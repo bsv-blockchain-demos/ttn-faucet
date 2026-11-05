@@ -4,11 +4,12 @@ import { isIP } from 'node:net'
 export interface ClientIp {
   /**
    * The per-IP rate-limit key: the visitor's IPv4 address, the /64 prefix of their IPv6 address
-   * (e.g. `2001:db8:1:2::/64`), or 'unknown'.
+   * (e.g. `2001:db8:1:2::/64`), 'cf-worker' (one shared bucket for every cross-zone Worker
+   * subrequest), or 'unknown' (one shared bucket when no header names the visitor).
    */
   ip: string
   /**
-   * The address to send Turnstile siteverify as `remoteip`: the full address as received. Set
+   * The address to send Turnstile siteverify as `remoteip`: the full address (any port dropped). Set
    * only when it came from CF-Connecting-IP; otherwise undefined, because a wrong `remoteip` is
    * worse than none.
    */
@@ -21,9 +22,15 @@ export interface ClientIp {
  */
 const WORKER_SUBREQUEST_IP = '2a06:98c0:3600::103'
 
+/** `1.2.3.4:5678` → `1.2.3.4`, `[2001:db8::1]:443` and `[2001:db8::1]` → `2001:db8::1`. */
+const stripPort = (v: string) => v.match(/^\[([^\]]+)\](?::\d+)?$/)?.[1] ?? v.match(/^([\d.]+):\d+$/)?.[1] ?? v
+
+/** A bare IPv4/IPv6 address, after trimming and dropping a port some proxies attach. */
 const valid = (value: string | null | undefined): string | undefined => {
   const v = value?.trim()
-  return v && isIP(v) ? v : undefined
+  if (!v) return undefined
+  const address = stripPort(v)
+  return isIP(address) ? address : undefined
 }
 
 /** The eight 16-bit groups of a valid IPv6 address, whatever its spelling. */
@@ -64,17 +71,34 @@ function limitKey(address: string): string {
   return `${g.slice(0, 4).map((x) => x.toString(16)).join(':')}::/64`
 }
 
+const warned = new Set<string>()
+
+/** Log the first time a request falls into a shared bucket, so a misconfigured deployment shows. */
+function sharedBucket(ip: 'cf-worker' | 'unknown'): ClientIp {
+  if (!warned.has(ip)) {
+    warned.add(ip)
+    console.warn(
+      ip === 'cf-worker'
+        ? "client-ip: CF-Connecting-IP is Cloudflare's cross-zone Worker address; these requests share the 'cf-worker' rate-limit bucket. Logged once per process."
+        : "client-ip: no visitor address in CF-Connecting-IP or X-Forwarded-For; these requests share the 'unknown' rate-limit bucket. Logged once per process.",
+    )
+  }
+  return { ip }
+}
+
 /**
  * The client's IP. Cloudflare sets CF-Connecting-IP to the visitor on a proxied host, and on a
  * same-zone Worker subrequest (from the X-Real-IP the Worker sets). On a cross-zone Worker
- * subrequest it is Cloudflare's fixed Worker address, which is skipped here. X-Forwarded-For is the
- * fallback: its first entry, which is the visitor only when everything in front of the faucet
- * preserves it. A value that is not a bare IPv4/IPv6 address (blank, a port attached, garbage)
- * falls through to the next source, and to 'unknown' at the end.
+ * subrequest it is Cloudflare's fixed Worker address: those requests go into one 'cf-worker'
+ * bucket rather than trusting the X-Forwarded-For the calling Worker chose. X-Forwarded-For (its
+ * first entry) is used only when CF-Connecting-IP is absent or invalid, and is the visitor only
+ * when everything in front of the faucet preserves it. A port is dropped; any other value that is
+ * not a bare IPv4/IPv6 address (blank, garbage) falls through to the next source, and to 'unknown'
+ * at the end.
  */
 export function clientIp(headers: Headers): ClientIp {
   const cf = valid(headers.get('cf-connecting-ip'))
-  if (cf && !isWorkerSubrequest(cf)) return { ip: limitKey(cf), remoteIp: cf }
+  if (cf) return isWorkerSubrequest(cf) ? sharedBucket('cf-worker') : { ip: limitKey(cf), remoteIp: cf }
   const forwarded = valid(headers.get('x-forwarded-for')?.split(',')[0])
-  return { ip: forwarded ? limitKey(forwarded) : 'unknown' }
+  return forwarded ? { ip: limitKey(forwarded) } : sharedBucket('unknown')
 }

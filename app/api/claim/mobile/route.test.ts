@@ -55,14 +55,14 @@ describe('POST /api/claim/mobile', () => {
     expect(claims.create).toHaveBeenCalledWith('2001:db8:1:2::/64', 'ttn')
   })
 
-  it("ignores Cloudflare's cross-zone Worker address and uses X-Forwarded-For, with no IP for siteverify", async () => {
+  it("keys Cloudflare's cross-zone Worker address on the shared 'cf-worker' bucket, with no IP for siteverify", async () => {
     claims.create.mockResolvedValue({ sessionId: 's1', qrDataUrl: 'data:qr', pairingUri: 'bsv-wallet://pair' })
     const body = JSON.stringify({ network: 'ttn', captchaToken: 'tok' })
     const headers = { 'cf-connecting-ip': '2a06:98c0:3600::103', 'x-forwarded-for': '198.51.100.4' }
     const res = await start(new Request('http://x', { method: 'POST', body, headers }))
     expect(res.status).toBe(200)
     expect(checkCaptcha).toHaveBeenCalledWith('tok', undefined)
-    expect(claims.create).toHaveBeenCalledWith('198.51.100.4', 'ttn')
+    expect(claims.create).toHaveBeenCalledWith('cf-worker', 'ttn')
   })
 
   it('sends siteverify no IP when the address only came from X-Forwarded-For', async () => {
