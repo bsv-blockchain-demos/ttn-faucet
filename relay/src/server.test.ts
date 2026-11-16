@@ -3,11 +3,10 @@ import type { AddressInfo } from 'node:net'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PrivateKey, ProtoWallet } from '@bsv/sdk'
 import { WalletRelayService } from '@bsv/wallet-relay'
-import { createRequestHandler, pairingTuple, type RelayLike } from './server.js'
+import { createRequestHandler, type RelayLike } from './server.js'
 import { parseConfig } from './config.js'
 
 const ORIGIN = 'https://faucet.example.com'
-const TUPLE = { backendIdentityKey: '02' + 'ab'.repeat(32), protocolID: '[0,"mobile wallet session"]' }
 
 let base = ''
 let server: http.Server
@@ -20,7 +19,7 @@ beforeEach(async () => {
     sendRequest: vi.fn(),
     deleteSession: vi.fn(),
   }
-  const handle = createRequestHandler(relay as unknown as RelayLike, ORIGIN, TUPLE)
+  const handle = createRequestHandler(relay as unknown as RelayLike, ORIGIN)
   server = http.createServer((req, res) => void handle(req, res))
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
@@ -47,17 +46,18 @@ describe('GET /api/session', () => {
 })
 
 describe('GET /api/session/:id', () => {
-  it('returns session info plus the pairing tuple', async () => {
-    relay.getSession.mockReturnValue({ sessionId: 's1', status: 'connected', relay: 'wss://r' })
-    const res = await fetch(`${base}/api/session/s1`)
-    expect(await res.json()).toEqual({
+  it('returns the library session info unchanged, pairing tuple included', async () => {
+    const info = {
       sessionId: 's1',
       status: 'connected',
       relay: 'wss://r',
       topic: 's1',
-      backendIdentityKey: TUPLE.backendIdentityKey,
-      protocolID: TUPLE.protocolID,
-    })
+      backendIdentityKey: '02' + 'ab'.repeat(32),
+      protocolID: '[0,"mobile wallet session"]',
+    }
+    relay.getSession.mockReturnValue(info)
+    const res = await fetch(`${base}/api/session/s1`)
+    expect(await res.json()).toEqual(info)
   })
 
   it('404s an unknown session', async () => {
@@ -87,7 +87,7 @@ describe('GET /api/session/:id against a real WalletRelayService', () => {
       allowedOrigins: [realBase],
       schema: 'bsv-wallet',
     })
-    const handle = createRequestHandler(service, realBase, await pairingTuple(wallet))
+    const handle = createRequestHandler(service, realBase)
     realServer.on('request', (req, res) => void handle(req, res))
     stop = () => {
       service.stop()

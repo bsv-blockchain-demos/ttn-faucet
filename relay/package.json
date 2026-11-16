@@ -17,7 +17,7 @@
   "license": "SEE LICENSE IN ../LICENSE.txt",
   "dependencies": {
     "@bsv/sdk": "^2.8.11",
-    "@bsv/wallet-relay": "^0.5.1",
+    "@bsv/wallet-relay": "^0.8.0",
     "qrcode": "^1.5.4",
     "ws": "^8.22.0",
     "zod": "^4.6.7"

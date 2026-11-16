@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { MerklePath, P2PKH, PrivateKey, ProtoWallet, Transaction } from '@bsv/sdk'
 import { WalletRelayService, type PairingParams } from '@bsv/wallet-relay'
 import { WalletPairingSession } from '@bsv/wallet-relay/client'
-import { createRequestHandler, pairingTuple } from './server.js'
+import { createRequestHandler } from './server.js'
 
 // End-to-end over real sockets: our HTTP API + WalletRelayService, with a simulated phone
 // (the library's own mobile-side WalletPairingSession) on the other end of the WebSocket.
@@ -30,7 +30,7 @@ async function startRelay(onSessionConnected?: (sessionId: string) => void) {
     schema: 'bsv-wallet',
     onSessionConnected,
   })
-  const handle = createRequestHandler(relay, origin, await pairingTuple(wallet))
+  const handle = createRequestHandler(relay, origin)
   server.on('request', (req, res) => void handle(req, res))
   cleanup.push(() => {
     relay.stop()
