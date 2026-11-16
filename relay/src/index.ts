@@ -2,17 +2,21 @@ import http from 'node:http'
 import { PrivateKey, ProtoWallet } from '@bsv/sdk'
 import { WalletRelayService } from '@bsv/wallet-relay'
 import { parseConfig } from './config.js'
-import { createRequestHandler } from './server.js'
+import { createRequestHandler, pairingTuple } from './server.js'
 import { notifyConnected } from './notify.js'
 
 const cfg = parseConfig(process.env)
 
 const server = http.createServer()
 
+// One wallet for the relay and for the pairing tuple that GET /api/session/:id echoes back.
+const wallet = new ProtoWallet(PrivateKey.fromHex(cfg.RELAY_PRIVATE_KEY))
+const tuple = await pairingTuple(wallet)
+
 // Attaches the WebSocket relay at /ws on this server (phone + desktop sockets).
 const relay = new WalletRelayService({
   server,
-  wallet: new ProtoWallet(PrivateKey.fromHex(cfg.RELAY_PRIVATE_KEY)),
+  wallet,
   origin: cfg.FAUCET_PUBLIC_URL,
   relayUrl: cfg.RELAY_WS_URL,
   allowedOrigins: [cfg.FAUCET_PUBLIC_URL],
@@ -34,7 +38,7 @@ const relay = new WalletRelayService({
     ),
 })
 
-const handle = createRequestHandler(relay, cfg.FAUCET_PUBLIC_URL)
+const handle = createRequestHandler(relay, cfg.FAUCET_PUBLIC_URL, tuple)
 server.on('request', (req, res) => void handle(req, res))
 
 server.listen(cfg.PORT, '0.0.0.0', () => {

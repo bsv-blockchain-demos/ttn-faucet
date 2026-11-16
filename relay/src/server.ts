@@ -1,4 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { stringifyBRC100 } from '@bsv/sdk'
+import { PROTOCOL_ID } from '@bsv/wallet-relay'
 
 /** The subset of WalletRelayService the HTTP API uses — lets tests swap in a stub. */
 export interface RelayLike {
@@ -12,6 +14,25 @@ export interface RelayLike {
   getSession(id: string): { sessionId: string; status: string; relay: string } | null
   sendRequest(sessionId: string, method: string, params: unknown, desktopToken?: string): Promise<unknown>
   deleteSession(sessionId: string, desktopToken: string): void
+}
+
+/**
+ * The relay's half of the pairing tuple, exactly as @bsv/wallet-relay writes it into every QR:
+ * `backendIdentityKey` is the relay wallet's identity key, `protocolID` is PROTOCOL_ID serialised
+ * with stringifyBRC100 (the library's own createSession does both). BSV Wallet re-reads these from
+ * GET /api/session/:id and requires string equality with the scanned QR.
+ */
+export interface PairingTuple {
+  backendIdentityKey: string
+  protocolID: string
+}
+
+/** Derive the pairing tuple from the wallet handed to WalletRelayService. Call once at startup. */
+export async function pairingTuple(wallet: {
+  getPublicKey(args: { identityKey: true }): Promise<{ publicKey: string }>
+}): Promise<PairingTuple> {
+  const { publicKey } = await wallet.getPublicKey({ identityKey: true })
+  return { backendIdentityKey: publicKey, protocolID: stringifyBRC100(PROTOCOL_ID) }
 }
 
 const MAX_BODY_BYTES = 256 * 1024
@@ -66,7 +87,7 @@ function errorCode(err: unknown): number | undefined {
  * the QR origin pinned to `origin` (the faucet's public URL) instead of the caller's Origin header.
  * Only the faucet's Next.js proxy talks to this API; the phone reaches it via that proxy.
  */
-export function createRequestHandler(relay: RelayLike, origin: string) {
+export function createRequestHandler(relay: RelayLike, origin: string, tuple: PairingTuple) {
   return async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const url = new URL(req.url ?? '/', 'http://relay.internal')
     const method = req.method ?? 'GET'
@@ -90,7 +111,15 @@ export function createRequestHandler(relay: RelayLike, origin: string) {
 
       if (sessionMatch && method === 'GET') {
         const info = relay.getSession(decodeURIComponent(sessionMatch[1]))
-        return info ? send(res, 200, info) : send(res, 404, { error: 'Session not found' })
+        if (!info) return send(res, 404, { error: 'Session not found' })
+        // The library returns only {sessionId, status, relay}; BSV Wallet also checks this response
+        // against the QR's topic/backendIdentityKey/protocolID before it trusts the relay URL.
+        return send(res, 200, {
+          ...info,
+          topic: info.sessionId,
+          backendIdentityKey: tuple.backendIdentityKey,
+          protocolID: tuple.protocolID,
+        })
       }
 
       if (sessionMatch && method === 'DELETE') {
