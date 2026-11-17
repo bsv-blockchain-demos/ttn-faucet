@@ -45,6 +45,15 @@ describe('relayFetch', () => {
     expect(await res.json()).toEqual({ result: 1 })
   })
 
+  it('passes the session body through byte for byte (BSV Wallet checks the pairing tuple in it)', async () => {
+    const body =
+      '{"sessionId":"t1","status":"pending","relay":"wss://relay.example","topic":"t1",' +
+      `"backendIdentityKey":"02${'ab'.repeat(32)}","protocolID":"[0,\\"mobile wallet session\\"]"}`
+    fetchMock.mockResolvedValue(new Response(body, { status: 200, headers: { 'content-type': 'application/json' } }))
+    const res = await relayFetch(new Request('http://x/api/session/t1'), '/api/session/t1')
+    expect(await res.text()).toBe(body)
+  })
+
   it('passes upstream status codes through, including 204', async () => {
     fetchMock.mockResolvedValueOnce(new Response('{"error":"Session not found"}', { status: 404 }))
     expect((await relayFetch(new Request('http://x'), '/api/session/zz')).status).toBe(404)

@@ -20,9 +20,10 @@ async function startRelay(onSessionConnected?: (sessionId: string) => void) {
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
   const { port } = server.address() as AddressInfo
   const origin = `http://127.0.0.1:${port}`
+  const wallet = new ProtoWallet(PrivateKey.fromRandom())
   const relay = new WalletRelayService({
     server,
-    wallet: new ProtoWallet(PrivateKey.fromRandom()),
+    wallet,
     origin,
     relayUrl: `ws://127.0.0.1:${port}`,
     allowedOrigins: [origin],

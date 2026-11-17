@@ -1,6 +1,8 @@
 import http from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { PrivateKey, ProtoWallet } from '@bsv/sdk'
+import { WalletRelayService } from '@bsv/wallet-relay'
 import { createRequestHandler, type RelayLike } from './server.js'
 import { parseConfig } from './config.js'
 
@@ -44,15 +46,73 @@ describe('GET /api/session', () => {
 })
 
 describe('GET /api/session/:id', () => {
-  it('returns session info', async () => {
-    relay.getSession.mockReturnValue({ sessionId: 's1', status: 'connected', relay: 'wss://r' })
+  it('returns the library session info unchanged, pairing tuple included', async () => {
+    const info = {
+      sessionId: 's1',
+      status: 'connected',
+      relay: 'wss://r',
+      topic: 's1',
+      backendIdentityKey: '02' + 'ab'.repeat(32),
+      protocolID: '[0,"mobile wallet session"]',
+    }
+    relay.getSession.mockReturnValue(info)
     const res = await fetch(`${base}/api/session/s1`)
-    expect(await res.json()).toEqual({ sessionId: 's1', status: 'connected', relay: 'wss://r' })
+    expect(await res.json()).toEqual(info)
   })
 
   it('404s an unknown session', async () => {
     relay.getSession.mockReturnValue(null)
     expect((await fetch(`${base}/api/session/nope`)).status).toBe(404)
+  })
+})
+
+// BSV Wallet (since bsv-blockchain/bsv-wallet#88) fetches GET {origin}/api/session/{topic} after
+// the scan and rejects the pairing unless topic, backendIdentityKey and protocolID in the response
+// are string-equal to the QR's. Run against the real WalletRelayService so the QR side is the
+// library's own pairingUri, not a hand-written one.
+describe('GET /api/session/:id against a real WalletRelayService', () => {
+  let realBase = ''
+  let stop: () => void = () => {}
+
+  beforeEach(async () => {
+    const realServer = http.createServer()
+    await new Promise<void>((r) => realServer.listen(0, '127.0.0.1', r))
+    realBase = `http://127.0.0.1:${(realServer.address() as AddressInfo).port}`
+    const wallet = new ProtoWallet(PrivateKey.fromRandom())
+    const service = new WalletRelayService({
+      server: realServer,
+      wallet,
+      origin: realBase,
+      relayUrl: realBase.replace('http:', 'ws:'),
+      allowedOrigins: [realBase],
+      schema: 'bsv-wallet',
+    })
+    const handle = createRequestHandler(service, realBase)
+    realServer.on('request', (req, res) => void handle(req, res))
+    stop = () => {
+      service.stop()
+      realServer.close()
+    }
+  })
+  afterEach(() => stop())
+
+  it('echoes topic, backendIdentityKey and protocolID exactly as the QR carries them', async () => {
+    const created = await (await fetch(`${realBase}/api/session`)).json()
+    const qr = new URL(created.pairingUri).searchParams
+    const qrTopic = qr.get('topic')
+    expect(qrTopic).toBe(created.sessionId)
+
+    const res = await fetch(`${realBase}/api/session/${encodeURIComponent(qrTopic!)}`)
+    expect(res.status).toBe(200)
+    const body = await res.json()
+
+    // Strings, compared with ===, the way the app compares them.
+    expect(typeof body.protocolID).toBe('string')
+    expect(body.topic).toBe(qrTopic)
+    expect(body.backendIdentityKey).toBe(qr.get('backendIdentityKey'))
+    expect(body.protocolID).toBe(qr.get('protocolID'))
+    // Existing fields stay.
+    expect(body).toMatchObject({ sessionId: created.sessionId, status: 'pending', relay: realBase.replace('http:', 'ws:') })
   })
 })
 

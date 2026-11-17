@@ -9,7 +9,16 @@ export interface RelayLike {
     pairingUri: string
     desktopToken: string
   }>
-  getSession(id: string): { sessionId: string; status: string; relay: string } | null
+  // @bsv/wallet-relay >= 0.8.0 also returns the QR pairing tuple (topic, backendIdentityKey,
+  // protocolID). BSV Wallet requires all three to equal the scanned QR.
+  getSession(id: string): {
+    sessionId: string
+    status: string
+    relay: string
+    topic: string
+    protocolID: string
+    backendIdentityKey?: string
+  } | null
   sendRequest(sessionId: string, method: string, params: unknown, desktopToken?: string): Promise<unknown>
   deleteSession(sessionId: string, desktopToken: string): void
 }
@@ -90,7 +99,10 @@ export function createRequestHandler(relay: RelayLike, origin: string) {
 
       if (sessionMatch && method === 'GET') {
         const info = relay.getSession(decodeURIComponent(sessionMatch[1]))
-        return info ? send(res, 200, info) : send(res, 404, { error: 'Session not found' })
+        if (!info) return send(res, 404, { error: 'Session not found' })
+        // Return the library's object unchanged: BSV Wallet checks its topic, backendIdentityKey and
+        // protocolID against the QR before it trusts the relay URL.
+        return send(res, 200, info)
       }
 
       if (sessionMatch && method === 'DELETE') {
